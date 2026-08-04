@@ -2,9 +2,6 @@
 
 > **Languages:** [English](../README.md) · **Português** (atual)
 
-> **Languages:** [English](../README.md) · [**Português**](../../README.md)
-
-
 Cada subpasta é um programa executável independente.
 
 | Exemplo         | O que demonstra                                   | Precisa de API?         |
@@ -32,4 +29,4 @@ go run ./examples/tools
 ```
 
 Para usar outro provedor (Anthropic, Ollama, Groq…), troque a linha de criação
-do LLM. Veja [`../docs/llms.md`](../docs/llms.md).
+do LLM. Veja [`../../docs/pt-BR/llms.md`](../../docs/pt-BR/llms.md).

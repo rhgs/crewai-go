@@ -2,9 +2,6 @@
 
 > **Languages:** **English** (current) · [Português](pt-BR/tools.md)
 
-> **Languages:** [**English**](pt-BR/tools.md) · [Português](pt-BR/tools.md)
-
-
 A **Tool** gives "hands" to an agent: it lets the agent perform actions —
 calculate, query an API, read a file — during reasoning.
 

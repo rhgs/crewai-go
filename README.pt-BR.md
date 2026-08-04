@@ -2,12 +2,6 @@
 
 > **Languages:** [English](README.md) · **Português** (atual)
 
-> **Languages:** [English](README.md) · [**Português**](../README.md)
-
-
-> **Languages:** English (default) · [Português](../README.md)
-
-
 **Orquestração de agentes de IA autônomos e colaborativos, em Go.**
 
 `crewai-go` é um port idiomático em Go do framework [CrewAI](https://github.com/crewAIInc/crewAI). Ele permite montar equipes (_crews_) de agentes com papéis distintos que colaboram — de forma sequencial ou hierárquica — para concluir tarefas complexas usando modelos de linguagem (LLMs).

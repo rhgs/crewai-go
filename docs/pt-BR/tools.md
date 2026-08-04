@@ -2,9 +2,6 @@
 
 > **Languages:** [English](../tools.md) · **Português** (atual)
 
-> **Languages:** [English](../tools.md) · [**Português**](../../tools.md)
-
-
 Uma **Tool** dá "mãos" ao agente: permite que ele realize ações — calcular,
 consultar uma API, ler um arquivo — durante o raciocínio.
 
@@ -66,7 +63,7 @@ O modelo é instruído a responder neste formato:
 
 ```
 Thought: preciso calcular o total
-Action: calculadora
+Action: calculator
 Action Input: 1500 * 1.12
 ```
 

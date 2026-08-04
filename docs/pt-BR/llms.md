@@ -2,9 +2,6 @@
 
 > **Languages:** [English](../llms.md) · **Português** (atual)
 
-> **Languages:** [English](../llms.md) · [**Português**](../../llms.md)
-
-
 Todo agente precisa de um **LLM**. O framework não amarra você a um provedor:
 basta implementar uma interface pequena.
 

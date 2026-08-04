@@ -2,9 +2,6 @@
 
 > **Languages:** **English** (current) · [Português](pt-BR/README.md)
 
-> **Languages:** [**English**](pt-BR/README.md) · [Português](pt-BR/README.md)
-
-
 Each subfolder is a standalone executable program.
 
 | Example         | What it demonstrates                              | Needs an API key?       |

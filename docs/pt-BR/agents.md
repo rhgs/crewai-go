@@ -2,9 +2,6 @@
 
 > **Languages:** [English](../agents.md) · **Português** (atual)
 
-> **Languages:** [English](../agents.md) · [**Português**](../../agents.md)
-
-
 Um **Agent** é um trabalhador autônomo. Ele combina uma _persona_ (papel,
 objetivo, história), um **LLM** para raciocinar e, opcionalmente, **ferramentas**
 para agir.

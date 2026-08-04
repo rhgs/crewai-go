@@ -2,9 +2,6 @@
 
 > **Languages:** **English** (current) · [Português](PLAN.pt-BR.md)
 
-> **Languages:** [**English**](PLAN.pt-BR.md) · [Português](PLAN.pt-BR.md)
-
-
 A living document for the planning, architecture decisions, status, and roadmap
 of porting [CrewAI](https://github.com/crewAIInc/crewAI) (Python) to Go.
 
@@ -88,7 +85,7 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct exec
 
 | Metric | Value |
 |---------|-------|
-| Go LOC (total) | 3.818 |
+| Go LOC (total) | 3.826 |
 | `.go` files | 41 |
 | External dependencies | 0 (stdlib) |
 | Coverage — core (`crewai`) | 90.0% |

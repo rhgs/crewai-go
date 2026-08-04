@@ -2,9 +2,6 @@
 
 > **Languages:** [English](../getting-started.md) · **Português** (atual)
 
-> **Languages:** [English](../getting-started.md) · [**Português**](../../getting-started.md)
-
-
 Este guia leva você do zero à primeira _crew_ funcionando.
 
 ## Pré-requisitos

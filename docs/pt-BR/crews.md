@@ -2,9 +2,6 @@
 
 > **Languages:** [English](../crews.md) · **Português** (atual)
 
-> **Languages:** [English](../crews.md) · [**Português**](../../crews.md)
-
-
 Uma **Crew** reúne agentes e tarefas e os orquestra segundo um **Process**.
 
 ## Criando e executando

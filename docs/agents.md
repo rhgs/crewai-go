@@ -2,9 +2,6 @@
 
 > **Languages:** **English** (current) · [Português](pt-BR/agents.md)
 
-> **Languages:** [**English**](pt-BR/agents.md) · [Português](pt-BR/agents.md)
-
-
 An **Agent** is an autonomous worker. It combines a _persona_ (role, goal,
 backstory), an **LLM** for reasoning, and optionally **tools** to act.
 

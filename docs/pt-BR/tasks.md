@@ -2,9 +2,6 @@
 
 > **Languages:** [English](../tasks.md) · **Português** (atual)
 
-> **Languages:** [English](../tasks.md) · [**Português**](../../tasks.md)
-
-
 Uma **Task** é uma unidade de trabalho: o que fazer, qual saída esperar e quem
 é o responsável.
 

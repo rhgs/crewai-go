@@ -2,9 +2,6 @@
 
 > **Languages:** [English](../memory.md) · **Português** (atual)
 
-> **Languages:** [English](../memory.md) · [**Português**](../../memory.md)
-
-
 A **memória** guarda as saídas das tarefas ao longo da execução de uma crew,
 permitindo que tarefas posteriores tenham acesso ao que já foi produzido —
 mesmo sem um `WithContext` explícito.

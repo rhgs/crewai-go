@@ -2,9 +2,6 @@
 
 > **Languages:** [English](PLAN.md) · **Português** (atual)
 
-> **Languages:** [English](PLAN.md) · [**Português**](../PLAN.md)
-
-
 Documento vivo do planejamento, decisões de arquitetura, status e roadmap do
 port do [CrewAI](https://github.com/crewAIInc/crewAI) (Python) para Go.
 
@@ -88,7 +85,7 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor R
 
 | Métrica | Valor |
 |---------|-------|
-| LOC Go (total) | 3.818 |
+| LOC Go (total) | 3.826 |
 | Arquivos `.go` | 41 |
 | Dependências externas | 0 (stdlib) |
 | Cobertura — núcleo (`crewai`) | 90.0% |
