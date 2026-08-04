@@ -1,0 +1,27 @@
+# Binários e artefatos de build
+/bin/
+*.exe
+*.test
+*.out
+
+# Cobertura
+coverage.out
+coverage.html
+
+# Ambiente
+.env
+.env.*
+
+# Tokens / credenciais OAuth (xAI Device Flow, etc.)
+*.crewai-xai-token.json
+crewai-xai-token.json
+*token.json
+
+# Configurações locais de ferramentas de IA
+.claude/
+.goose/
+
+# Editores
+.idea/
+.vscode/
+*.swp
