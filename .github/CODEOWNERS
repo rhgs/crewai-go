@@ -1,0 +1,28 @@
+# These owners will be automatically requested for review
+# when any pull request touches the respective areas.
+
+# Default — everything not explicitly listed below
+* @rhgs
+
+# Core package
+/agent.go        @rhgs
+/task.go         @rhgs
+/crew.go         @rhgs
+/executor.go     @rhgs
+/memory.go       @rhgs
+/tool.go         @rhgs
+/process.go      @rhgs
+/prompts.go      @rhgs
+/llm.go          @rhgs
+/logger.go       @rhgs
+/errors.go       @rhgs
+
+# LLM providers
+/llm/            @rhgs
+
+# Built-in tools
+/tools/          @rhgs
+
+# CI & docs
+/.github/        @rhgs
+/docs/           @rhgs
