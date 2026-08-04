@@ -85,7 +85,11 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor R
 
 ### Limitações conhecidas da fase 1
 
-- **Sem git** — o diretório ainda não foi `git init`; é o primeiro passo antes de publicar.
+- ~~**Sem git**~~ — **resolvido (2026-08-04):** repositório inicializado e publicado
+  em https://github.com/rhgs/crewai-go.git (branch `main`), `.gitignore` cobrindo
+  `.claude/`, tokens OAuth do xAI e `.env`; licença MIT mantida (remote trazia GPL
+  v3 do template do GitHub, resolvido em favor da MIT declarada no README). Falta
+  apenas configurar CI.
 - **Hierárquico simplificado** — o gerente escolhe um agente por tarefa via LLM, mas
   não há delegação interagente em tempo de execução (um agente chamar outro
   durante o raciocínio). O campo `Agent.AllowDelegation` é "informativo nesta
@@ -105,6 +109,9 @@ sugerida (maior impacto / menor esforço primeiro):
 
 - [ ] **`git init` + repositório público** — versionar, definir CI (lint, test,
   build de exemplos), tag `v0.1.0`.
+  - [x] **`git init` + push** — feito em `https://github.com/rhgs/crewai-go.git`.
+  - [ ] Definir CI (GitHub Actions: lint, `go vet`, `go test`, build de exemplos).
+  - [ ] Tag `v0.1.0`.
 - [ ] **Confirmar module path** (`github.com/rodolphosa/crewai-go` → destino
   final) e atualizar import paths nos exemplos/docs.
 - [ ] **Documentar o `go vet` e `-race` no CI** (testes já usam concorrência).
