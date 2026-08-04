@@ -125,7 +125,9 @@ sugerida (maior impacto / menor esforço primeiro):
     `github.com/rhgs/crewai-go` em `go.mod` + 27 arquivos (imports, docs,
     exemplos). Publicação consistente com o remote.
   - [x] **G306 (gosec) corrigido** — `Task.setOutput` agora grava com `0600`.
-  - [ ] Definir CI (GitHub Actions: lint, `go vet`, `go test`, build de exemplos).
+  - [x] Definir CI (GitHub Actions: lint, `go vet`, `go test`, build de exemplos)
+    — **feito (2026-08-04):** `.github/workflows/ci.yml` (gofmt, vet, build, `go test -race`).
+    Badges de teste adicionados ao README EN/PT.
   - [x] Tag `v0.1.0` — **publicada (2026-08-04)** com CHANGELOG bilíngue.
   - [ ] **Upgrade toolchain para Go 1.24.9+** — govulncheck reporta 21 CVEs na
     stdlib do Go 1.24.4 (crypto/x509 etc.), corrigidos em 1.24.9. Sem mudança de

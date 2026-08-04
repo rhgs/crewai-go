@@ -133,7 +133,9 @@ priority (highest impact / lowest effort first):
     restored (`README.pt-BR.md`, `PLAN.pt-BR.md`, `docs/pt-BR/`, `examples/pt-BR/`)
     with language-switch links. Code comments remain English-only. Documented in
     `PLAN.md §2.1` and the `_rules/documentation-language.md` memory page.
-  - [ ] Set up CI (GitHub Actions: lint, `go vet`, `go test`, examples build).
+  - [x] Set up CI (GitHub Actions: lint, `go vet`, `go test`, examples build)
+    — **done (2026-08-04):** `.github/workflows/ci.yml` (gofmt, vet, build, `go test -race`).
+    Test badges added to README EN/PT.
   - [x] Tag `v0.1.0` — **published (2026-08-04)** with a bilingual CHANGELOG.
   - [ ] **Upgrade toolchain to Go 1.24.9+** — govulncheck reports 21 CVEs in
     the Go 1.24.4 stdlib (crypto/x509 etc.), fixed in 1.24.9. No code change,
