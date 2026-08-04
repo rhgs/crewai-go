@@ -1,24 +1,24 @@
-# Exemplos
+# Examples
 
-Cada subpasta é um programa executável independente.
+Each subfolder is a standalone executable program.
 
-| Exemplo         | O que demonstra                                   | Precisa de API?         |
+| Example         | What it demonstrates                              | Needs an API key?       |
 |-----------------|---------------------------------------------------|-------------------------|
-| `custom_llm`    | Um LLM customizado 100% offline                   | ❌ Não                  |
-| `ollama`        | Ollama local ou cloud (API nativa)                | ❌ Local / ✅ Cloud     |
-| `basic`         | Um agente, uma tarefa                             | ✅ OpenAI               |
-| `sequential`    | Pipeline de agentes + contexto + memória          | ✅ OpenAI               |
-| `hierarchical`  | Gerente delegando tarefas dinamicamente           | ✅ OpenAI               |
-| `tools`         | Agente usando ferramentas via ReAct               | ✅ OpenAI               |
-| `xai_oauth`     | Grok por chave de API ou OAuth de assinatura      | ✅ xAI                  |
+| `custom_llm`    | A 100% offline custom LLM                         | ❌ No                   |
+| `ollama`        | Local or cloud Ollama (native API)                | ❌ Local / ✅ Cloud     |
+| `basic`         | One agent, one task                                | ✅ OpenAI               |
+| `sequential`    | Agent pipeline + context + memory                 | ✅ OpenAI               |
+| `hierarchical`  | A manager delegating tasks dynamically             | ✅ OpenAI               |
+| `tools`         | An agent using tools via ReAct                     | ✅ OpenAI               |
+| `xai_oauth`     | Grok via API key or subscription OAuth             | ✅ xAI                  |
 
-## Rodando
+## Running
 
 ```bash
-# Sem chave de API:
+# Without an API key:
 go run ./examples/custom_llm
 
-# Com OpenAI:
+# With OpenAI:
 export OPENAI_API_KEY=sk-...
 go run ./examples/basic
 go run ./examples/sequential
@@ -26,5 +26,5 @@ go run ./examples/hierarchical
 go run ./examples/tools
 ```
 
-Para usar outro provedor (Anthropic, Ollama, Groq…), troque a linha de criação
-do LLM. Veja [`../docs/llms.md`](../docs/llms.md).
+To use another provider (Anthropic, Ollama, Groq…), swap the LLM creation line.
+See [`../docs/llms.md`](../docs/llms.md).

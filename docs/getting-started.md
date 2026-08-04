@@ -1,21 +1,21 @@
 # Getting Started
 
-Este guia leva você do zero à primeira _crew_ funcionando.
+This guide takes you from zero to a working _crew_.
 
-## Pré-requisitos
+## Prerequisites
 
-- **Go 1.24+** — verifique com `go version`.
-- Uma chave de API de algum provedor de LLM (ex.: `OPENAI_API_KEY`) — ou use um LLM offline/customizado.
+- **Go 1.24+** — check with `go version`.
+- An API key for an LLM provider (e.g. `OPENAI_API_KEY`) — or use an offline/custom LLM.
 
-## 1. Crie um projeto
+## 1. Create a project
 
 ```bash
-mkdir minha-crew && cd minha-crew
-go mod init exemplo.com/minha-crew
+mkdir my-crew && cd my-crew
+go mod init example.com/my-crew
 go get github.com/rhgs/crewai-go@latest
 ```
 
-## 2. Escreva o programa
+## 2. Write the program
 
 `main.go`:
 
@@ -34,20 +34,20 @@ import (
 func main() {
 	llm := openai.New("gpt-4o-mini")
 
-	pesquisador := crewai.NewAgent(
-		"Pesquisador",
-		"Encontrar informações relevantes e confiáveis",
-		"Você é um analista experiente e cético.",
+	researcher := crewai.NewAgent(
+		"Researcher",
+		"Find relevant, reliable information",
+		"You are an experienced, skeptical analyst.",
 		llm,
 	)
 
-	tarefa := crewai.NewTask(
-		"Explique em 3 pontos por que Go é boa para back-end.",
-		"Uma lista com 3 itens curtos.",
-		pesquisador,
+	task := crewai.NewTask(
+		"Explain in 3 points why Go is good for back-end.",
+		"A list of 3 short items.",
+		researcher,
 	)
 
-	crew := crewai.NewCrew([]*crewai.Agent{pesquisador}, []*crewai.Task{tarefa})
+	crew := crewai.NewCrew([]*crewai.Agent{researcher}, []*crewai.Task{task})
 	crew.Verbose = true
 
 	out, err := crew.Kickoff(context.Background(), nil)
@@ -58,26 +58,26 @@ func main() {
 }
 ```
 
-## 3. Execute
+## 3. Run it
 
 ```bash
 export OPENAI_API_KEY=sk-...
 go run .
 ```
 
-## 4. Sem chave de API? Rode offline
+## 4. No API key? Run offline
 
-Você pode implementar a interface `crewai.LLM` você mesmo (veja
-[llms.md](llms.md)) ou usar o LLM `mock` do pacote de testes. O exemplo
-`examples/custom_llm` roda totalmente offline:
+You can implement the `crewai.LLM` interface yourself (see
+[llms.md](llms.md)) or use the `mock` LLM from the test package. The
+`examples/custom_llm` example runs fully offline:
 
 ```bash
 go run github.com/rhgs/crewai-go/examples/custom_llm
 ```
 
-## Próximos passos
+## Next steps
 
-- [Agents](agents.md) — configurar papéis, objetivos e ferramentas.
-- [Tasks](tasks.md) — encadear tarefas com contexto e interpolar variáveis.
-- [Crews](crews.md) — processos sequencial e hierárquico.
-- [Tools](tools.md) — dar "mãos" aos seus agentes.
+- [Agents](agents.md) — configure roles, goals, and tools.
+- [Tasks](tasks.md) — chain tasks with context and interpolate variables.
+- [Crews](crews.md) — sequential and hierarchical processes.
+- [Tools](tools.md) — give "hands" to your agents.

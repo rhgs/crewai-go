@@ -6,29 +6,28 @@ import (
 	"sync"
 )
 
-// Task descreve uma unidade de trabalho a ser executada por um agente.
+// Task describes a unit of work to be performed by an agent.
 type Task struct {
-	// Name é um identificador curto e opcional, útil em logs e memória.
+	// Name is a short, optional identifier, useful in logs and memory.
 	Name string
-	// Description é a instrução detalhada do que deve ser feito. Suporta
-	// interpolação de variáveis no formato {chave} via inputs do Kickoff.
+	// Description is the detailed instruction of what to do. It supports
+	// variable interpolation in the {key} format via the Kickoff inputs.
 	Description string
-	// ExpectedOutput descreve o formato/qualidade esperados da resposta.
+	// ExpectedOutput describes the expected format/quality of the answer.
 	ExpectedOutput string
 
-	// Agent é o responsável pela tarefa. Se nil no processo sequencial, a
-	// crew usa o próximo agente disponível.
+	// Agent is the task's assignee. If nil in the sequential process, the
+	// crew uses the next available agent.
 	Agent *Agent
 
-	// Tools, quando presente, substitui as ferramentas do agente para esta
-	// tarefa específica.
+	// Tools, when present, replaces the agent's tools for this specific task.
 	Tools []Tool
 
-	// Context lista tarefas cujas saídas devem ser fornecidas como contexto
-	// a esta tarefa.
+	// Context lists tasks whose outputs should be provided as context to
+	// this task.
 	Context []*Task
 
-	// OutputFile, se definido, faz a saída da tarefa ser gravada nesse arquivo.
+	// OutputFile, when set, causes the task output to be written to that file.
 	OutputFile string
 
 	mu     sync.RWMutex
@@ -36,7 +35,8 @@ type Task struct {
 	done   bool
 }
 
-// NewTask cria uma tarefa com descrição, saída esperada e agente responsável.
+// NewTask creates a task with a description, an expected output, and the
+// responsible agent.
 func NewTask(description, expectedOutput string, agent *Agent) *Task {
 	return &Task{
 		Description:    description,
@@ -45,20 +45,21 @@ func NewTask(description, expectedOutput string, agent *Agent) *Task {
 	}
 }
 
-// WithContext define as tarefas de contexto (dependências) desta tarefa.
+// WithContext sets the context tasks (dependencies) of this task.
 func (t *Task) WithContext(tasks ...*Task) *Task {
 	t.Context = append(t.Context, tasks...)
 	return t
 }
 
-// Output devolve a saída já produzida pela tarefa (vazia se ainda não executada).
+// Output returns the output already produced by the task (empty if not yet
+// executed).
 func (t *Task) Output() string {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.output
 }
 
-// setOutput registra a saída da tarefa e, se configurado, grava em arquivo.
+// setOutput records the task output and, if configured, writes it to a file.
 func (t *Task) setOutput(out string) error {
 	t.mu.Lock()
 	t.output = out
@@ -72,7 +73,7 @@ func (t *Task) setOutput(out string) error {
 	return nil
 }
 
-// contextText monta o texto de contexto a partir das tarefas dependentes.
+// contextText builds the context text from the task's dependencies.
 func (t *Task) contextText() string {
 	var b strings.Builder
 	for _, dep := range t.Context {
@@ -90,8 +91,8 @@ func (t *Task) contextText() string {
 	return strings.TrimSpace(b.String())
 }
 
-// interpolate substitui ocorrências de {chave} na descrição e na saída
-// esperada usando o mapa de inputs.
+// interpolate replaces occurrences of {key} in the description and expected
+// output using the inputs map.
 func (t *Task) interpolate(inputs map[string]string) {
 	if len(inputs) == 0 {
 		return

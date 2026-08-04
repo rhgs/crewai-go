@@ -1,12 +1,12 @@
-// Package xai implementa crewai.LLM para a API da xAI (modelos Grok).
+// Package xai implements crewai.LLM for the xAI API (Grok models).
 //
-// A API da xAI é compatível com a API de Chat Completions da OpenAI, então
-// este pacote reutiliza o cliente de llm/openai apontando para o endpoint da
-// xAI. Há dois modos de autenticação:
+// The xAI API is compatible with the OpenAI Chat Completions API, so this
+// package reuses the llm/openai client pointed at the xAI endpoint. There are
+// two authentication modes:
 //
-//   - Chave de API (XAI_API_KEY): uso convencional, cobrado por token — New.
-//   - OAuth de assinatura (SuperGrok / X Premium): sem chave de API, usando o
-//     token da sua assinatura via o Device Flow — NewWithOAuth + oauth.go.
+//   - API key (XAI_API_KEY): conventional use, billed per token — New.
+//   - Subscription OAuth (SuperGrok / X Premium): no API key, using the token
+//     from your subscription via the Device Flow — NewWithOAuth + oauth.go.
 package xai
 
 import (
@@ -17,15 +17,15 @@ import (
 	"github.com/rhgs/crewai-go/llm/openai"
 )
 
-// DefaultBaseURL é o endpoint compatível com OpenAI da xAI.
+// DefaultBaseURL is the OpenAI-compatible xAI endpoint.
 const DefaultBaseURL = "https://api.x.ai/v1"
 
-// Client é um LLM da xAI (Grok). Encapsula um cliente OpenAI-compatível.
+// Client is an xAI (Grok) LLM. It wraps an OpenAI-compatible client.
 type Client struct {
 	inner *openai.Client
 }
 
-// Option configura o Client.
+// Option configures the Client.
 type Option func(*config)
 
 type config struct {
@@ -35,24 +35,24 @@ type config struct {
 	extra       []openai.Option
 }
 
-// WithAPIKey define a chave de API explicitamente.
+// WithAPIKey sets the API key explicitly.
 func WithAPIKey(key string) Option { return func(c *config) { c.apiKey = key } }
 
-// WithBaseURL sobrescreve o endpoint (útil para proxies/gateways).
+// WithBaseURL overrides the endpoint (useful for proxies/gateways).
 func WithBaseURL(url string) Option { return func(c *config) { c.baseURL = url } }
 
-// WithTemperature ajusta a temperatura de amostragem.
+// WithTemperature adjusts the sampling temperature.
 func WithTemperature(t float64) Option {
 	return func(c *config) { c.extra = append(c.extra, openai.WithTemperature(t)) }
 }
 
-// WithTokenSource usa um token Bearer dinâmico (OAuth de assinatura).
+// WithTokenSource uses a dynamic Bearer token (subscription OAuth).
 func WithTokenSource(ts openai.TokenSource) Option {
 	return func(c *config) { c.tokenSource = ts }
 }
 
-// New cria um cliente Grok autenticado por chave de API. Se nenhuma chave for
-// passada, usa a variável de ambiente XAI_API_KEY.
+// New creates a Grok client authenticated by API key. If no key is passed, the
+// XAI_API_KEY environment variable is used.
 //
 //	llm := xai.New("grok-4")
 func New(model string, opts ...Option) *Client {
@@ -66,9 +66,9 @@ func New(model string, opts ...Option) *Client {
 	return build(model, cfg)
 }
 
-// NewWithOAuth cria um cliente Grok autenticado por OAuth de assinatura
-// (SuperGrok / X Premium), sem chave de API cobrada por token. O ts costuma
-// vir de um Device Flow (veja NewDeviceFlow / TokenSourceFromFile neste pacote).
+// NewWithOAuth creates a Grok client authenticated by subscription OAuth
+// (SuperGrok / X Premium), with no per-token API key. ts usually comes from a
+// Device Flow (see NewDeviceFlow / LoadTokenSource in this package).
 //
 //	ts, _ := xai.LoadTokenSource("~/.crewai/xai_token.json")
 //	llm := xai.NewWithOAuth("grok-4", ts)
@@ -91,10 +91,10 @@ func build(model string, cfg *config) *Client {
 	return &Client{inner: openai.New(model, oopts...)}
 }
 
-// Call implementa crewai.LLM.
+// Call implements crewai.LLM.
 func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, error) {
 	return c.inner.Call(ctx, messages)
 }
 
-// Model implementa crewai.LLM.
+// Model implements crewai.LLM.
 func (c *Client) Model() string { return c.inner.Model() }

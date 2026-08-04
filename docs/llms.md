@@ -1,9 +1,9 @@
 # LLMs
 
-Todo agente precisa de um **LLM**. O framework não amarra você a um provedor:
-basta implementar uma interface pequena.
+Every agent needs an **LLM**. The framework doesn't tie you to a provider: just
+implement a small interface.
 
-## A interface
+## The interface
 
 ```go
 type LLM interface {
@@ -12,7 +12,7 @@ type LLM interface {
 }
 ```
 
-`Message` tem apenas `Role` e `Content`:
+`Message` has only `Role` and `Content`:
 
 ```go
 type Message struct {
@@ -21,15 +21,15 @@ type Message struct {
 }
 ```
 
-## OpenAI (e endpoints compatíveis)
+## OpenAI (and compatible endpoints)
 
 ```go
 import "github.com/rhgs/crewai-go/llm/openai"
 
-llm := openai.New("gpt-4o-mini") // usa OPENAI_API_KEY do ambiente
+llm := openai.New("gpt-4o-mini") // uses OPENAI_API_KEY from the environment
 ```
 
-Opções:
+Options:
 
 ```go
 llm := openai.New("gpt-4o",
@@ -40,7 +40,7 @@ llm := openai.New("gpt-4o",
 )
 ```
 
-Como usa a API padrão de _chat completions_, funciona com muitos provedores:
+Since it uses the standard _chat completions_ API, it works with many providers:
 
 ```go
 // Ollama (local)
@@ -59,65 +59,66 @@ openai.New("llama-3.1-70b-versatile",
 ```go
 import "github.com/rhgs/crewai-go/llm/anthropic"
 
-llm := anthropic.New("claude-sonnet-5") // usa ANTHROPIC_API_KEY
+llm := anthropic.New("claude-sonnet-5") // uses ANTHROPIC_API_KEY
 ```
 
-Opções: `WithAPIKey`, `WithMaxTokens`, `WithTemperature`, `WithBaseURL`,
-`WithHTTPClient`. O client trata o _system prompt_ no campo separado que a API
-da Anthropic exige.
+Options: `WithAPIKey`, `WithMaxTokens`, `WithTemperature`, `WithBaseURL`,
+`WithHTTPClient`. The client handles the _system prompt_ in the separate field
+required by the Anthropic API.
 
-## Ollama (local e cloud)
+## Ollama (local and cloud)
 
-O pacote `llm/ollama` usa a API nativa `/api/chat` e cobre as duas modalidades.
+The `llm/ollama` package uses the native `/api/chat` API and covers both modes.
 
-**Local** — sem autenticação, em `http://localhost:11434`:
+**Local** — no authentication, at `http://localhost:11434`:
 
 ```go
 import "github.com/rhgs/crewai-go/llm/ollama"
 
 llm := ollama.New("llama3.2")
-// outra máquina na rede:
+// another machine on the network:
 llm := ollama.New("llama3.2", ollama.WithBaseURL("http://192.168.0.10:11434"))
 ```
 
-**Cloud** — modelos hospedados em `https://ollama.com`, autenticados por token:
+**Cloud** — models hosted at `https://ollama.com`, authenticated by token:
 
 ```go
-llm := ollama.NewCloud("gpt-oss:120b") // usa OLLAMA_API_KEY
-// ou explicitamente:
+llm := ollama.NewCloud("gpt-oss:120b") // uses OLLAMA_API_KEY
+// or explicitly:
 llm := ollama.NewCloud("gpt-oss:120b", ollama.WithAPIKey("..."))
 ```
 
-Opções comuns: `WithBaseURL`, `WithAPIKey`, `WithTemperature`, `WithHTTPClient`.
+Common options: `WithBaseURL`, `WithAPIKey`, `WithTemperature`, `WithHTTPClient`.
 
-> Também é possível usar o Ollama pelo cliente `openai` (endpoint compatível em
-> `/v1`), mas o pacote `ollama` é mais direto e não exige chave no modo local.
+> You can also use Ollama through the `openai` client (compatible endpoint at
+> `/v1`), but the `ollama` package is more direct and requires no key in local
+> mode.
 
-## xAI (Grok) — chave de API ou OAuth de assinatura
+## xAI (Grok) — API key or subscription OAuth
 
-A API da xAI é compatível com OpenAI (`https://api.x.ai/v1`). O pacote `llm/xai`
-oferece dois modos de autenticação.
+The xAI API is OpenAI-compatible (`https://api.x.ai/v1`). The `llm/xai` package
+offers two authentication modes.
 
-**Chave de API** (cobrada por token):
+**API key** (billed per token):
 
 ```go
 import "github.com/rhgs/crewai-go/llm/xai"
 
-llm := xai.New("grok-4") // usa XAI_API_KEY
+llm := xai.New("grok-4") // uses XAI_API_KEY
 ```
 
-**OAuth de assinatura** (SuperGrok / X Premium) — sem chave cobrada por token.
-Desde maio de 2026 a xAI oferece login OAuth para agentes: você autentica sua
-assinatura via _Device Flow_ (RFC 8628 + PKCE) e usa o token da assinatura.
+**Subscription OAuth** (SuperGrok / X Premium) — no per-token key. Since May
+2026 xAI offers OAuth login for agents: you authenticate your subscription via
+the _Device Flow_ (RFC 8628 + PKCE) and use the subscription token.
 
 ```go
-// 1) Configure o Device Flow (client_id fornecido pela xAI).
+// 1) Set up the Device Flow (client_id provided by xAI).
 df := xai.NewDeviceFlow(os.Getenv("XAI_CLIENT_ID"))
 
-// 2) Reutilize um token salvo (renova sozinho) ou faça o primeiro login.
+// 2) Reuse a saved token (auto-renews) or do the first login.
 ts, err := xai.LoadTokenSource("~/.crewai-xai-token.json", df)
 if err != nil {
-	tok, err := df.Authorize(context.Background()) // imprime URL + código
+	tok, err := df.Authorize(context.Background()) // prints URL + code
 	if err != nil { log.Fatal(err) }
 	xai.SaveToken("~/.crewai-xai-token.json", tok)
 	ts = df.TokenSource(tok, func(t xai.Token) error {
@@ -125,55 +126,55 @@ if err != nil {
 	})
 }
 
-// 3) Use o LLM autenticado por OAuth.
+// 3) Use the OAuth-authenticated LLM.
 llm := xai.NewWithOAuth("grok-4", ts)
 ```
 
-O `TokenSource` renova o access token automaticamente com o refresh token e
-regrava o arquivo. Veja o exemplo completo em `examples/xai_oauth`.
+The `TokenSource` auto-renews the access token using the refresh token and
+rewrites the file. See the complete example in `examples/xai_oauth`.
 
-> ⚠️ A xAI ainda **não publica oficialmente** o `client_id` e os caminhos exatos
-> dos endpoints de OAuth para clientes de terceiros. Este pacote implementa o
-> padrão RFC 8628; informe o `client_id` e, se necessário, sobrescreva os
-> endpoints com `WithDeviceCodeURL`/`WithTokenURL` (ou `WithAuthServer`) segundo
-> a documentação oficial. O servidor de identidade base é `https://accounts.x.ai`.
+> ⚠️ xAI does **not yet officially publish** the `client_id` and the exact OAuth
+> endpoint paths for third-party clients. This package implements the RFC 8628
+> standard; provide the `client_id` and, if needed, override the endpoints with
+> `WithDeviceCodeURL`/`WithTokenURL` (or `WithAuthServer`) per the official
+> documentation. The base identity server is `https://accounts.x.ai`.
 
-## LLM customizado
+## Custom LLM
 
-Qualquer tipo que satisfaça a interface serve. Exemplo mínimo e offline:
+Any type satisfying the interface works. Minimal offline example:
 
 ```go
-type MeuLLM struct{}
+type MyLLM struct{}
 
-func (MeuLLM) Model() string { return "meu-modelo" }
+func (MyLLM) Model() string { return "my-model" }
 
-func (MeuLLM) Call(ctx context.Context, messages []crewai.Message) (string, error) {
-	// integre com o seu backend, um modelo local, uma fila, etc.
-	return "resposta", nil
+func (MyLLM) Call(ctx context.Context, messages []crewai.Message) (string, error) {
+	// integrate with your backend, a local model, a queue, etc.
+	return "answer", nil
 }
 ```
 
-Isso é ideal para:
+This is ideal for:
 
-- Integrar provedores ainda não incluídos.
-- Adicionar _caching_, _retries_ ou _rate limiting_ em volta de outro LLM.
-- Testar (veja o pacote `llm/mock`).
+- Integrating providers not yet included.
+- Adding _caching_, _retries_, or _rate limiting_ around another LLM.
+- Testing (see the `llm/mock` package).
 
-## LLM mock (para testes)
+## Mock LLM (for tests)
 
 ```go
 import "github.com/rhgs/crewai-go/llm/mock"
 
-// Respostas em sequência:
-llm := mock.New("primeira resposta", "segunda resposta")
+// Sequential responses:
+llm := mock.New("first answer", "second answer")
 
-// Ou controle total com um handler:
+// Or full control with a handler:
 llm := &mock.LLM{Handler: func(ctx context.Context, msgs []crewai.Message) (string, error) {
-	return "resposta determinística", nil
+	return "deterministic answer", nil
 }}
 ```
 
-## Concorrência
+## Concurrency
 
-Um mesmo `LLM` pode ser compartilhado por vários agentes. As implementações
-incluídas são seguras para uso concorrente.
+A single `LLM` can be shared by multiple agents. The included implementations
+are safe for concurrent use.

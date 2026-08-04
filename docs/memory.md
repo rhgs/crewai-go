@@ -1,73 +1,73 @@
 # Memory
 
-A **memória** guarda as saídas das tarefas ao longo da execução de uma crew,
-permitindo que tarefas posteriores tenham acesso ao que já foi produzido —
-mesmo sem um `WithContext` explícito.
+**Memory** stores task outputs during a crew's execution, allowing later tasks
+to access what has already been produced — even without an explicit
+`WithContext`.
 
-## Ativando
+## Enabling it
 
 ```go
-crew := crewai.NewCrew(agentes, tarefas)
+crew := crewai.NewCrew(agents, tasks)
 crew.Memory = true
 crew.Kickoff(ctx, nil)
 ```
 
-Com `Memory = true`, cada tarefa sem contexto explícito recebe, no prompt, um
-resumo da memória acumulada até ali.
+With `Memory = true`, each task with no explicit context receives, in its
+prompt, a summary of the memory accumulated up to that point.
 
-## Lendo a memória
+## Reading the memory
 
 ```go
-mem := crew.MemorySnapshot() // *crewai.Memory (nil se Memory == false)
+mem := crew.MemorySnapshot() // *crewai.Memory (nil if Memory == false)
 for _, r := range mem.Records() {
-	fmt.Printf("[%s] tarefa=%q → %s\n", r.Agent, r.Task, r.Content)
+	fmt.Printf("[%s] task=%q → %s\n", r.Agent, r.Task, r.Content)
 }
 ```
 
-Cada registro é um `MemoryRecord`:
+Each record is a `MemoryRecord`:
 
 ```go
 type MemoryRecord struct {
-	Agent   string // papel do agente que produziu
-	Task    string // nome da tarefa
-	Content string // a saída memorizada
+	Agent   string // the role of the agent that produced it
+	Task    string // the related task's name
+	Content string // the memorized content
 }
 ```
 
-## Buscando
+## Searching
 
-Busca textual simples (substring, _case-insensitive_):
+Simple text search (substring, case-insensitive):
 
 ```go
-for _, r := range mem.Search("vendas") {
+for _, r := range mem.Search("sales") {
 	fmt.Println(r.Content)
 }
 ```
 
-Uma busca vazia devolve todos os registros.
+An empty query returns all records.
 
-## Usando a memória avulsa
+## Using memory standalone
 
-`Memory` também pode ser usada isoladamente:
+`Memory` can also be used in isolation:
 
 ```go
 m := crewai.NewMemory()
-m.Save(crewai.MemoryRecord{Agent: "Analista", Content: "faturamento cresceu 12%"})
+m.Save(crewai.MemoryRecord{Agent: "Analyst", Content: "revenue grew 12%"})
 fmt.Println(m.String())
 ```
 
-## Contexto x Memória
+## Context vs Memory
 
-- **Contexto** (`WithContext`) é **explícito e direcionado**: você diz
-  exatamente quais saídas alimentam uma tarefa.
-- **Memória** é **implícita e cumulativa**: fica disponível a todas as tarefas
-  seguintes que não definiram contexto próprio.
+- **Context** (`WithContext`) is **explicit and directed**: you say exactly
+  which outputs feed into a task.
+- **Memory** is **implicit and cumulative**: it is available to all following
+  tasks that have not defined their own context.
 
-Use contexto para dependências precisas; use memória para dar à equipe uma
-"consciência" geral do que já foi feito.
+Use context for precise dependencies; use memory to give the team a general
+"awareness" of what has been done.
 
-## Implementações customizadas
+## Custom implementations
 
-A `Memory` embutida é em RAM e segura para concorrência. Para busca semântica
-(embeddings) ou persistência, você pode envolver/ substituir essa lógica na sua
-aplicação — a estrutura de `MemoryRecord` é intencionalmente simples.
+The built-in `Memory` is in-RAM and concurrency-safe. For semantic search
+(embeddings) or persistence, you can wrap/replace this logic in your
+application — the `MemoryRecord` structure is intentionally simple.

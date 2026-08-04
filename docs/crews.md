@@ -1,85 +1,85 @@
 # Crews
 
-Uma **Crew** reúne agentes e tarefas e os orquestra segundo um **Process**.
+A **Crew** groups agents and tasks and orchestrates them according to a
+**Process**.
 
-## Criando e executando
+## Creating and running
 
 ```go
 crew := crewai.NewCrew(
-	[]*crewai.Agent{pesquisador, redator},
-	[]*crewai.Task{pesquisa, artigo},
+	[]*crewai.Agent{researcher, writer},
+	[]*crewai.Task{research, article},
 )
 crew.Verbose = true
 
 out, err := crew.Kickoff(context.Background(), nil)
 ```
 
-## Campos
+## Fields
 
-| Campo          | Tipo           | Descrição |
-|----------------|----------------|-----------|
-| `Agents`       | `[]*Agent`     | Membros da equipe. |
-| `Tasks`        | `[]*Task`      | Tarefas a executar. |
-| `Process`      | `Process`      | `Sequential` (padrão) ou `Hierarchical`. |
-| `Verbose`      | `bool`         | Ativa logs detalhados. |
-| `Memory`       | `bool`         | Ativa a memória compartilhada. |
-| `ManagerLLM`   | `LLM`          | LLM do gerente (processo hierárquico). |
-| `ManagerAgent` | `*Agent`       | Gerente explícito (tem prioridade sobre `ManagerLLM`). |
+| Field          | Type           | Description |
+|----------------|----------------|-------------|
+| `Agents`       | `[]*Agent`     | Team members. |
+| `Tasks`        | `[]*Task`      | Tasks to execute. |
+| `Process`      | `Process`      | `Sequential` (default) or `Hierarchical`. |
+| `Verbose`      | `bool`         | Enables detailed logs. |
+| `Memory`       | `bool`         | Enables shared memory. |
+| `ManagerLLM`   | `LLM`          | The manager's LLM (hierarchical process). |
+| `ManagerAgent` | `*Agent`       | Explicit manager (takes precedence over `ManagerLLM`). |
 
-## O resultado: `CrewOutput`
+## The result: `CrewOutput`
 
 ```go
 type CrewOutput struct {
-	Final       string        // saída da última tarefa
-	TasksOutput []TaskOutput  // saída de cada tarefa
-	Duration    time.Duration // tempo total
+	Final       string        // output of the last task
+	TasksOutput []TaskOutput  // output of each task
+	Duration    time.Duration // total time
 }
 ```
 
-## Processo sequencial
+## Sequential process
 
-As tarefas rodam na ordem definida. Se uma tarefa não tem `Agent`, a crew usa
-o agente na mesma posição da lista de agentes.
+Tasks run in the defined order. If a task has no `Agent`, the crew uses the
+agent at the same position in the agents list.
 
 ```go
 crew.Process = crewai.Sequential
 ```
 
-## Processo hierárquico
+## Hierarchical process
 
-Um **gerente** decide qual agente executa cada tarefa sem `Agent` fixo. Defina
-o gerente de uma destas formas:
+A **manager** decides which agent runs each task that has no fixed `Agent`.
+Define the manager in one of these ways:
 
 ```go
-// A) A crew cria um gerente automático a partir de um LLM:
+// A) The crew creates an automatic manager from an LLM:
 crew.Process = crewai.Hierarchical
 crew.ManagerLLM = llm
 
-// B) Você fornece um agente gerente customizado:
+// B) You provide a custom manager agent:
 crew.ManagerAgent = crewai.NewAgent(
-	"Diretor de Projeto", "Coordenar a equipe", "...", llm,
+	"Project Director", "Coordinate the team", "...", llm,
 )
 ```
 
-Para cada tarefa sem agente, o gerente recebe a lista de membros (papel +
-objetivo) e a descrição da tarefa, e responde com o papel do membro escolhido.
-Se a tarefa já tem `Agent`, ele é respeitado.
+For each task without an agent, the manager receives the list of members
+(role + goal) and the task description, and responds with the chosen member's
+role. If the task already has an `Agent`, it is respected.
 
-> Se houver apenas um agente, ele é escolhido automaticamente. Se a delegação
-> falhar (erro do LLM), a crew usa o primeiro agente como _fallback_.
+> If there is only one agent, it is chosen automatically. If delegation fails
+> (LLM error), the crew falls back to the first agent.
 
-## Interpolação de inputs
+## Input interpolation
 
-O segundo argumento de `Kickoff` alimenta a interpolação `{chave}` de todas as
-tarefas:
+The second argument to `Kickoff` feeds the `{key}` interpolation of all tasks:
 
 ```go
-crew.Kickoff(ctx, map[string]string{"cliente": "Acme"})
+crew.Kickoff(ctx, map[string]string{"client": "Acme"})
 ```
 
-## Cancelamento e timeouts
+## Cancellation and timeouts
 
-`Kickoff` respeita o `context.Context`:
+`Kickoff` respects the `context.Context`:
 
 ```go
 ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)

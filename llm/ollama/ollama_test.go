@@ -15,11 +15,11 @@ func TestLocalCall(t *testing.T) {
 		if r.URL.Path != "/api/chat" {
 			t.Errorf("path = %q", r.URL.Path)
 		}
-		// Local não deve enviar Authorization.
+		// Local must not send Authorization.
 		if r.Header.Get("Authorization") != "" {
-			t.Errorf("local não deveria enviar Authorization: %q", r.Header.Get("Authorization"))
+			t.Errorf("local should not send Authorization: %q", r.Header.Get("Authorization"))
 		}
-		_, _ = w.Write([]byte(`{"message":{"role":"assistant","content":"olá local"},"done":true}`))
+		_, _ = w.Write([]byte(`{"message":{"role":"assistant","content":"hello local"},"done":true}`))
 	}))
 	defer srv.Close()
 
@@ -27,11 +27,11 @@ func TestLocalCall(t *testing.T) {
 	if llm.Model() != "llama3.2" {
 		t.Errorf("Model() = %q", llm.Model())
 	}
-	out, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("oi")})
+	out, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("hi")})
 	if err != nil {
-		t.Fatalf("erro: %v", err)
+		t.Fatalf("error: %v", err)
 	}
-	if out != "olá local" {
+	if out != "hello local" {
 		t.Errorf("out = %q", out)
 	}
 }
@@ -41,7 +41,7 @@ func TestCloudCall(t *testing.T) {
 		if r.Header.Get("Authorization") != "Bearer cloud-key" {
 			t.Errorf("Authorization = %q", r.Header.Get("Authorization"))
 		}
-		_, _ = w.Write([]byte(`{"message":{"role":"assistant","content":"olá cloud"},"done":true}`))
+		_, _ = w.Write([]byte(`{"message":{"role":"assistant","content":"hello cloud"},"done":true}`))
 	}))
 	defer srv.Close()
 
@@ -49,20 +49,21 @@ func TestCloudCall(t *testing.T) {
 		ollama.WithBaseURL(srv.URL),
 		ollama.WithAPIKey("cloud-key"),
 	)
-	out, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("oi")})
+	out, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("hi")})
 	if err != nil {
-		t.Fatalf("erro: %v", err)
+		t.Fatalf("error: %v", err)
 	}
-	if out != "olá cloud" {
+	if out != "hello cloud" {
 		t.Errorf("out = %q", out)
 	}
 }
 
 func TestCloudRequiresKey(t *testing.T) {
-	// Sem WithBaseURL, aponta para o cloud real; sem key deve falhar antes da rede.
+	// Without WithBaseURL, it points to the real cloud; with no key it must
+	// fail before hitting the network.
 	llm := ollama.NewCloud("x", ollama.WithAPIKey(""))
 	if _, err := llm.Call(context.Background(), nil); err == nil {
-		t.Error("esperava erro por token ausente no cloud")
+		t.Error("expected an error for a missing cloud token")
 	}
 }
 
@@ -73,7 +74,7 @@ func TestAPIError(t *testing.T) {
 	defer srv.Close()
 
 	llm := ollama.New("x", ollama.WithBaseURL(srv.URL))
-	if _, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("oi")}); err == nil {
-		t.Error("esperava erro da API")
+	if _, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("hi")}); err == nil {
+		t.Error("expected an API error")
 	}
 }

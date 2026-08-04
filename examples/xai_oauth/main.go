@@ -1,20 +1,20 @@
-// Exemplo xAI (Grok): autenticação por chave de API OU por OAuth de assinatura
-// (SuperGrok / X Premium), sem chave cobrada por token.
+// xAI (Grok) example: authentication via API key OR subscription OAuth
+// (SuperGrok / X Premium), with no per-token key.
 //
-// Modo chave de API:
+// API key mode:
 //
 //	export XAI_API_KEY=xai-...
 //	go run ./examples/xai_oauth
 //
-// Modo OAuth de assinatura (login único via Device Flow; o token é salvo em
-// disco e renovado automaticamente):
+// Subscription OAuth mode (one-time login via Device Flow; the token is saved
+// to disk and renewed automatically):
 //
-//	export XAI_CLIENT_ID=<client_id_oficial_da_xai>
+//	export XAI_CLIENT_ID=<official_xai_client_id>
 //	XAI_OAUTH=1 go run ./examples/xai_oauth
 //
-// Observação: a xAI ainda não publica oficialmente o client_id/endpoints de
-// OAuth para terceiros. Informe-os via XAI_CLIENT_ID e, se necessário, ajuste
-// os endpoints no código (WithDeviceCodeURL/WithTokenURL) conforme a doc oficial.
+// Note: xAI does not yet officially publish the client_id/OAuth endpoints for
+// third parties. Provide them via XAI_CLIENT_ID and, if necessary, adjust the
+// endpoints in the code (WithDeviceCodeURL/WithTokenURL) per the official docs.
 package main
 
 import (
@@ -31,19 +31,19 @@ import (
 func main() {
 	llm := buildLLM()
 
-	agente := crewai.NewAgent(
-		"Analista Grok",
-		"Responder com raciocínio afiado e conciso",
-		"Você é o Grok, direto e perspicaz.",
+	agent := crewai.NewAgent(
+		"Grok Analyst",
+		"Answer with sharp, concise reasoning",
+		"You are Grok, direct and insightful.",
 		llm,
 	)
-	tarefa := crewai.NewTask(
-		"Em uma frase, por que Go é popular para microsserviços?",
-		"Uma frase.",
-		agente,
+	task := crewai.NewTask(
+		"In one sentence, why is Go popular for microservices?",
+		"One sentence.",
+		agent,
 	)
 
-	crew := crewai.NewCrew([]*crewai.Agent{agente}, []*crewai.Task{tarefa})
+	crew := crewai.NewCrew([]*crewai.Agent{agent}, []*crewai.Task{task})
 	out, err := crew.Kickoff(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)
@@ -53,32 +53,32 @@ func main() {
 
 func buildLLM() crewai.LLM {
 	if os.Getenv("XAI_OAUTH") == "" {
-		// Modo simples: chave de API (XAI_API_KEY).
+		// Simple mode: API key (XAI_API_KEY).
 		return xai.New("grok-4")
 	}
 
-	// Modo OAuth de assinatura.
+	// Subscription OAuth mode.
 	clientID := os.Getenv("XAI_CLIENT_ID")
 	if clientID == "" {
-		log.Fatal("defina XAI_CLIENT_ID para o modo OAuth")
+		log.Fatal("set XAI_CLIENT_ID for OAuth mode")
 	}
 	df := xai.NewDeviceFlow(clientID)
 
 	home, _ := os.UserHomeDir()
 	tokenPath := filepath.Join(home, ".crewai-xai-token.json")
 
-	// Tenta reutilizar um token já salvo (renova sozinho quando expira).
+	// Try to reuse a saved token (auto-renews when expired).
 	if ts, err := xai.LoadTokenSource(tokenPath, df); err == nil {
 		return xai.NewWithOAuth("grok-4", ts)
 	}
 
-	// Primeiro login: executa o Device Flow.
+	// First login: run the Device Flow.
 	tok, err := df.Authorize(context.Background())
 	if err != nil {
-		log.Fatalf("login OAuth falhou: %v", err)
+		log.Fatalf("OAuth login failed: %v", err)
 	}
 	if err := xai.SaveToken(tokenPath, tok); err != nil {
-		log.Printf("aviso: não foi possível salvar o token: %v", err)
+		log.Printf("warning: could not save the token: %v", err)
 	}
 	ts := df.TokenSource(tok, func(t xai.Token) error { return xai.SaveToken(tokenPath, t) })
 	return xai.NewWithOAuth("grok-4", ts)

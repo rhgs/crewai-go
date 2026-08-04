@@ -1,5 +1,5 @@
-// Package mock fornece uma implementação de crewai.LLM para testes, sem
-// nenhuma chamada de rede.
+// Package mock provides a crewai.LLM implementation for tests, with no
+// network calls.
 package mock
 
 import (
@@ -9,16 +9,16 @@ import (
 	"github.com/rhgs/crewai-go"
 )
 
-// LLM é um modelo falso e determinístico. Ele devolve respostas pré-definidas
-// (Responses) em sequência ou, se um Handler for fornecido, delega a ele.
+// LLM is a deterministic fake model. It returns predefined responses (Responses)
+// in sequence, or, if a Handler is provided, delegates to it.
 type LLM struct {
-	// Responses são devolvidas em ordem a cada chamada. Quando a lista se
-	// esgota, a última resposta é repetida.
+	// Responses are returned in order on each call. When the list runs out,
+	// the last response is repeated.
 	Responses []string
-	// Handler, se definido, tem prioridade sobre Responses e recebe as
-	// mensagens da chamada atual.
+	// Handler, when set, takes precedence over Responses and receives the
+	// messages from the current call.
 	Handler func(ctx context.Context, messages []crewai.Message) (string, error)
-	// ModelName é o identificador devolvido por Model().
+	// ModelName is the identifier returned by Model().
 	ModelName string
 
 	mu    sync.Mutex
@@ -26,12 +26,12 @@ type LLM struct {
 	log   [][]crewai.Message
 }
 
-// New cria um mock que devolve as respostas informadas em sequência.
+// New creates a mock that returns the given responses in sequence.
 func New(responses ...string) *LLM {
 	return &LLM{Responses: responses, ModelName: "mock"}
 }
 
-// Call implementa crewai.LLM.
+// Call implements crewai.LLM.
 func (m *LLM) Call(ctx context.Context, messages []crewai.Message) (string, error) {
 	m.mu.Lock()
 	m.calls++
@@ -51,7 +51,7 @@ func (m *LLM) Call(ctx context.Context, messages []crewai.Message) (string, erro
 	return m.Responses[len(m.Responses)-1], nil
 }
 
-// Model implementa crewai.LLM.
+// Model implements crewai.LLM.
 func (m *LLM) Model() string {
 	if m.ModelName == "" {
 		return "mock"
@@ -59,14 +59,14 @@ func (m *LLM) Model() string {
 	return m.ModelName
 }
 
-// Calls devolve quantas vezes o modelo foi chamado.
+// Calls returns how many times the model was called.
 func (m *LLM) Calls() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.calls
 }
 
-// LastMessages devolve as mensagens da última chamada (nil se nunca chamado).
+// LastMessages returns the messages from the last call (nil if never called).
 func (m *LLM) LastMessages() []crewai.Message {
 	m.mu.Lock()
 	defer m.mu.Unlock()

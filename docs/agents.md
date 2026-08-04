@@ -1,76 +1,75 @@
 # Agents
 
-Um **Agent** é um trabalhador autônomo. Ele combina uma _persona_ (papel,
-objetivo, história), um **LLM** para raciocinar e, opcionalmente, **ferramentas**
-para agir.
+An **Agent** is an autonomous worker. It combines a _persona_ (role, goal,
+backstory), an **LLM** for reasoning, and optionally **tools** to act.
 
-## Criando um agente
+## Creating an agent
 
 ```go
-agente := crewai.NewAgent(
-	"Pesquisador Sênior",              // Role
-	"Descobrir insights acionáveis",   // Goal
-	"Você trabalha há 20 anos com...", // Backstory
+agent := crewai.NewAgent(
+	"Senior Researcher",              // Role
+	"Uncover actionable insights",  // Goal
+	"You have 20 years of experience...", // Backstory
 	llm,                                // LLM
 )
 ```
 
-Ou preenchendo a struct diretamente para mais controle:
+Or fill the struct directly for more control:
 
 ```go
-agente := &crewai.Agent{
-	Role:          "Pesquisador Sênior",
-	Goal:          "Descobrir insights acionáveis",
-	Backstory:     "Você trabalha há 20 anos com análise de dados.",
+agent := &crewai.Agent{
+	Role:          "Senior Researcher",
+	Goal:          "Uncover actionable insights",
+	Backstory:     "You have 20 years of experience in data analysis.",
 	LLM:           llm,
-	MaxIterations: 10,   // limite de ciclos de raciocínio por tarefa
+	MaxIterations: 10,   // limit of reasoning cycles per task
 	Tools:         []crewai.Tool{ /* ... */ },
 }
 ```
 
-## Campos
+## Fields
 
-| Campo             | Tipo          | Descrição |
-|-------------------|---------------|-----------|
-| `Role`            | `string`      | Papel/função do agente. **Obrigatório.** |
-| `Goal`            | `string`      | Objetivo pessoal que guia as decisões. |
-| `Backstory`       | `string`      | Contexto e personalidade. |
-| `LLM`             | `crewai.LLM`  | Modelo de linguagem. **Obrigatório.** |
-| `Tools`           | `[]crewai.Tool` | Ferramentas disponíveis em qualquer tarefa. |
-| `MaxIterations`   | `int`         | Máx. de ciclos de raciocínio/ferramenta (padrão 15). |
-| `AllowDelegation` | `bool`        | Marca o agente como apto a gerenciar/delegar. |
+| Field             | Type           | Description |
+|-------------------|----------------|-------------|
+| `Role`            | `string`       | The agent's role. **Required.** |
+| `Goal`            | `string`       | Personal goal that guides decisions. |
+| `Backstory`       | `string`       | Context and personality. |
+| `LLM`             | `crewai.LLM`   | The language model. **Required.** |
+| `Tools`           | `[]crewai.Tool`| Tools available for any task. |
+| `MaxIterations`   | `int`          | Max reasoning/tool cycles per task (default 15). |
+| `AllowDelegation` | `bool`         | Marks the agent as eligible to manage/delegate. |
 
-## Adicionando ferramentas
+## Adding tools
 
 ```go
-agente.WithTools(tools.Calculator(), minhaFerramenta)
+agent.WithTools(tools.Calculator(), myTool)
 ```
 
-`WithTools` é encadeável e devolve o próprio agente:
+`WithTools` is chainable and returns the agent itself:
 
 ```go
-agente := crewai.NewAgent("Analista", "...", "...", llm).
+agent := crewai.NewAgent("Analyst", "...", "...", llm).
 	WithTools(tools.Calculator())
 ```
 
-## Executando um agente isoladamente
+## Running a standalone agent
 
-Fora de uma crew (útil em testes ou fluxos simples):
+Outside a crew (useful in tests or simple flows):
 
 ```go
-saida, err := agente.Execute(context.Background(), tarefa)
+output, err := agent.Execute(context.Background(), task)
 ```
 
-## Como o agente pensa
+## How the agent thinks
 
-- **Sem ferramentas:** o agente faz uma única chamada ao LLM e devolve a resposta.
-- **Com ferramentas:** o agente entra em um laço ReAct — pensa, escolhe uma
-  ferramenta, observa o resultado e repete até chegar a uma `Final Answer` ou
-  atingir `MaxIterations`. Veja [tools.md](tools.md).
+- **Without tools:** the agent makes a single LLM call and returns the answer.
+- **With tools:** the agent enters a ReAct loop — thinks, picks a tool, observes
+  the result, and repeats until it reaches a `Final Answer` or hits
+  `MaxIterations`. See [tools.md](tools.md).
 
-## Boas práticas
+## Best practices
 
-- Dê um **papel específico** ("Redator Técnico de APIs" em vez de "Escritor").
-- O **objetivo** deve ser mensurável e orientado ao resultado.
-- Use a **história** para calibrar tom e nível de detalhe.
-- Ajuste `MaxIterations` para tarefas que usam muitas ferramentas.
+- Give a **specific role** ("API Technical Writer" rather than "Writer").
+- The **goal** should be measurable and outcome-oriented.
+- Use the **backstory** to calibrate tone and level of detail.
+- Tune `MaxIterations` for tasks that use many tools.

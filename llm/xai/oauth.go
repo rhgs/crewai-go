@@ -18,34 +18,35 @@ import (
 	"github.com/rhgs/crewai-go/llm/openai"
 )
 
-// DefaultAuthServer é o servidor de identidade da xAI usado no OAuth de
-// assinatura (SuperGrok / X Premium).
+// DefaultAuthServer is the xAI identity server used for subscription OAuth
+// (SuperGrok / X Premium).
 const DefaultAuthServer = "https://accounts.x.ai"
 
-// NOTA IMPORTANTE: a xAI ainda não publica oficialmente os caminhos exatos do
-// endpoint de OAuth nem o client_id público para clientes de terceiros. Este
-// pacote implementa o Device Authorization Grant padrão (RFC 8628) com PKCE
-// (RFC 7636). Forneça o ClientID e, se necessário, sobrescreva os caminhos dos
-// endpoints com os valores oficiais da xAI via as opções abaixo.
+// IMPORTANT NOTE: xAI does not yet officially publish the exact OAuth endpoint
+// paths or the public client_id for third-party clients. This package
+// implements the standard Device Authorization Grant (RFC 8628) with PKCE
+// (RFC 7636). Provide the ClientID and, if necessary, override the endpoint
+// paths with the official xAI values via the options below.
 
-// DeviceFlow conduz o OAuth 2.0 Device Authorization Grant (RFC 8628) com PKCE.
+// DeviceFlow conducts the OAuth 2.0 Device Authorization Grant (RFC 8628) with
+// PKCE.
 type DeviceFlow struct {
-	// ClientID é o identificador do aplicativo OAuth (fornecido pela xAI).
+	// ClientID is the OAuth application identifier (provided by xAI).
 	ClientID string
-	// DeviceCodeURL é o endpoint de código de dispositivo.
+	// DeviceCodeURL is the device code endpoint.
 	DeviceCodeURL string
-	// TokenURL é o endpoint de troca/renovação de token.
+	// TokenURL is the token exchange/renewal endpoint.
 	TokenURL string
-	// Scopes solicitados (ex.: "openid", "offline_access").
+	// Scopes requested (e.g. "openid", "offline_access").
 	Scopes []string
-	// HTTPClient usado nas requisições.
+	// HTTPClient used for the requests.
 	HTTPClient *http.Client
-	// Prompt é chamado para instruir o usuário a autorizar o dispositivo.
-	// Se nil, as instruções são impressas em os.Stderr.
+	// Prompt is called to instruct the user to authorize the device.
+	// If nil, the instructions are printed to os.Stderr.
 	Prompt func(VerificationInfo)
 }
 
-// VerificationInfo são os dados que o usuário precisa para autorizar.
+// VerificationInfo is the data the user needs to authorize.
 type VerificationInfo struct {
 	VerificationURI         string
 	VerificationURIComplete string
@@ -53,11 +54,11 @@ type VerificationInfo struct {
 	ExpiresIn               int
 }
 
-// DeviceFlowOption configura um DeviceFlow.
+// DeviceFlowOption configures a DeviceFlow.
 type DeviceFlowOption func(*DeviceFlow)
 
-// WithAuthServer define o servidor de autenticação base, derivando os caminhos
-// convencionais de device code e token, salvo se já sobrescritos.
+// WithAuthServer sets the base authentication server, deriving the
+// conventional device code and token paths, unless already overridden.
 func WithAuthServer(base string) DeviceFlowOption {
 	return func(d *DeviceFlow) {
 		if d.DeviceCodeURL == "" {
@@ -69,32 +70,32 @@ func WithAuthServer(base string) DeviceFlowOption {
 	}
 }
 
-// WithDeviceCodeURL sobrescreve o endpoint de device code.
+// WithDeviceCodeURL overrides the device code endpoint.
 func WithDeviceCodeURL(u string) DeviceFlowOption {
 	return func(d *DeviceFlow) { d.DeviceCodeURL = u }
 }
 
-// WithTokenURL sobrescreve o endpoint de token.
+// WithTokenURL overrides the token endpoint.
 func WithTokenURL(u string) DeviceFlowOption { return func(d *DeviceFlow) { d.TokenURL = u } }
 
-// WithScopes define os escopos solicitados.
+// WithScopes sets the requested scopes.
 func WithScopes(scopes ...string) DeviceFlowOption {
 	return func(d *DeviceFlow) { d.Scopes = scopes }
 }
 
-// WithPrompt define o callback de instrução ao usuário.
+// WithPrompt sets the user-instruction callback.
 func WithPrompt(fn func(VerificationInfo)) DeviceFlowOption {
 	return func(d *DeviceFlow) { d.Prompt = fn }
 }
 
-// WithDeviceFlowHTTPClient injeta um *http.Client.
+// WithDeviceFlowHTTPClient injects an *http.Client.
 func WithDeviceFlowHTTPClient(h *http.Client) DeviceFlowOption {
 	return func(d *DeviceFlow) { d.HTTPClient = h }
 }
 
-// NewDeviceFlow cria um Device Flow. Por padrão usa DefaultAuthServer e os
-// caminhos convencionais de RFC 8628; sobrescreva conforme a documentação
-// oficial da xAI.
+// NewDeviceFlow creates a Device Flow. By default it uses DefaultAuthServer and
+// the conventional RFC 8628 paths; override them per the official xAI
+// documentation.
 func NewDeviceFlow(clientID string, opts ...DeviceFlowOption) *DeviceFlow {
 	d := &DeviceFlow{
 		ClientID:   clientID,
@@ -108,7 +109,7 @@ func NewDeviceFlow(clientID string, opts ...DeviceFlowOption) *DeviceFlow {
 	return d
 }
 
-// Token é um token OAuth com validade e refresh token.
+// Token is an OAuth token with an expiry and a refresh token.
 type Token struct {
 	AccessToken  string    `json:"access_token"`
 	RefreshToken string    `json:"refresh_token"`
@@ -116,7 +117,8 @@ type Token struct {
 	Expiry       time.Time `json:"expiry"`
 }
 
-// Valid indica se o token existe e ainda não expirou (com 60s de folga).
+// Valid reports whether the token exists and has not expired (with a 60s grace
+// period).
 func (t Token) Valid() bool {
 	return t.AccessToken != "" && time.Now().Add(60*time.Second).Before(t.Expiry)
 }
@@ -139,11 +141,11 @@ type tokenResponse struct {
 	ErrorDescription string `json:"error_description"`
 }
 
-// Authorize executa o Device Flow completo: solicita um código, instrui o
-// usuário e faz o polling até a autorização, devolvendo o Token final.
+// Authorize runs the full Device Flow: requests a code, instructs the user,
+// and polls until authorization, returning the final Token.
 func (d *DeviceFlow) Authorize(ctx context.Context) (Token, error) {
 	if d.ClientID == "" {
-		return Token{}, fmt.Errorf("xai/oauth: ClientID é obrigatório")
+		return Token{}, fmt.Errorf("xai/oauth: ClientID is required")
 	}
 
 	verifier, challenge, err := pkcePair()
@@ -151,7 +153,7 @@ func (d *DeviceFlow) Authorize(ctx context.Context) (Token, error) {
 		return Token{}, err
 	}
 
-	// 1) Solicita o device code.
+	// 1) Request the device code.
 	form := url.Values{
 		"client_id":             {d.ClientID},
 		"scope":                 {strings.Join(d.Scopes, " ")},
@@ -160,10 +162,10 @@ func (d *DeviceFlow) Authorize(ctx context.Context) (Token, error) {
 	}
 	var dc deviceCodeResponse
 	if err := d.postForm(ctx, d.DeviceCodeURL, form, &dc); err != nil {
-		return Token{}, fmt.Errorf("xai/oauth: solicitando device code: %w", err)
+		return Token{}, fmt.Errorf("xai/oauth: requesting device code: %w", err)
 	}
 
-	// 2) Instrui o usuário.
+	// 2) Instruct the user.
 	info := VerificationInfo{
 		VerificationURI:         dc.VerificationURI,
 		VerificationURIComplete: dc.VerificationURIComplete,
@@ -176,8 +178,8 @@ func (d *DeviceFlow) Authorize(ctx context.Context) (Token, error) {
 		defaultPrompt(info)
 	}
 
-	// 3) Polling do token. Honra o intervalo do servidor; usa 5s (padrão da
-	// RFC 8628) quando não informado.
+	// 3) Poll for the token. Honors the server interval; uses 5s (the RFC 8628
+	// default) when not provided.
 	pollSecs := dc.Interval
 	if pollSecs <= 0 {
 		pollSecs = 5
@@ -198,7 +200,7 @@ func (d *DeviceFlow) Authorize(ctx context.Context) (Token, error) {
 		}
 		var tr tokenResponse
 		if err := d.postForm(ctx, d.TokenURL, tokForm, &tr); err != nil {
-			return Token{}, fmt.Errorf("xai/oauth: trocando token: %w", err)
+			return Token{}, fmt.Errorf("xai/oauth: exchanging token: %w", err)
 		}
 		switch tr.Error {
 		case "":
@@ -208,12 +210,12 @@ func (d *DeviceFlow) Authorize(ctx context.Context) (Token, error) {
 		case "slow_down":
 			interval += 5 * time.Second
 		default:
-			return Token{}, fmt.Errorf("xai/oauth: autorização falhou: %s (%s)", tr.Error, tr.ErrorDescription)
+			return Token{}, fmt.Errorf("xai/oauth: authorization failed: %s (%s)", tr.Error, tr.ErrorDescription)
 		}
 	}
 }
 
-// Refresh renova um token usando seu refresh token.
+// Refresh renews a token using its refresh token.
 func (d *DeviceFlow) Refresh(ctx context.Context, refreshToken string) (Token, error) {
 	form := url.Values{
 		"grant_type":    {"refresh_token"},
@@ -222,14 +224,14 @@ func (d *DeviceFlow) Refresh(ctx context.Context, refreshToken string) (Token, e
 	}
 	var tr tokenResponse
 	if err := d.postForm(ctx, d.TokenURL, form, &tr); err != nil {
-		return Token{}, fmt.Errorf("xai/oauth: renovando token: %w", err)
+		return Token{}, fmt.Errorf("xai/oauth: refreshing token: %w", err)
 	}
 	if tr.Error != "" {
-		return Token{}, fmt.Errorf("xai/oauth: renovação falhou: %s (%s)", tr.Error, tr.ErrorDescription)
+		return Token{}, fmt.Errorf("xai/oauth: refresh failed: %s (%s)", tr.Error, tr.ErrorDescription)
 	}
 	tok := tokenFromResponse(tr)
 	if tok.RefreshToken == "" {
-		tok.RefreshToken = refreshToken // alguns servidores não reemitem
+		tok.RefreshToken = refreshToken // some servers don't reissue it
 	}
 	return tok, nil
 }
@@ -253,16 +255,16 @@ func (d *DeviceFlow) postForm(ctx context.Context, endpoint string, form url.Val
 		return err
 	}
 	if err := json.Unmarshal(data, out); err != nil {
-		return fmt.Errorf("resposta inválida (status %d): %s", resp.StatusCode, string(data))
+		return fmt.Errorf("invalid response (status %d): %s", resp.StatusCode, string(data))
 	}
 	return nil
 }
 
-// --- TokenSource com renovação automática ------------------------------------
+// --- TokenSource with auto-renewal -------------------------------------------
 
-// TokenSource devolve uma fonte de token que renova automaticamente usando o
-// refresh token quando o access token expira. Se save != nil, ele é chamado a
-// cada renovação para persistir o novo token.
+// TokenSource returns a token source that automatically renews using the
+// refresh token when the access token expires. If save != nil, it is called on
+// each renewal to persist the new token.
 func (d *DeviceFlow) TokenSource(tok Token, save func(Token) error) openai.TokenSource {
 	return &refreshingSource{df: d, tok: tok, save: save}
 }
@@ -274,7 +276,7 @@ type refreshingSource struct {
 	save func(Token) error
 }
 
-// Token implementa openai.TokenSource.
+// Token implements openai.TokenSource.
 func (s *refreshingSource) Token(ctx context.Context) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -283,7 +285,7 @@ func (s *refreshingSource) Token(ctx context.Context) (string, error) {
 		return s.tok.AccessToken, nil
 	}
 	if s.tok.RefreshToken == "" {
-		return "", fmt.Errorf("xai/oauth: token expirado e sem refresh token; refaça o login")
+		return "", fmt.Errorf("xai/oauth: token expired and no refresh token; log in again")
 	}
 	newTok, err := s.df.Refresh(ctx, s.tok.RefreshToken)
 	if err != nil {
@@ -292,15 +294,15 @@ func (s *refreshingSource) Token(ctx context.Context) (string, error) {
 	s.tok = newTok
 	if s.save != nil {
 		if err := s.save(newTok); err != nil {
-			return "", fmt.Errorf("xai/oauth: persistindo token renovado: %w", err)
+			return "", fmt.Errorf("xai/oauth: persisting renewed token: %w", err)
 		}
 	}
 	return s.tok.AccessToken, nil
 }
 
-// --- Persistência ------------------------------------------------------------
+// --- Persistence -------------------------------------------------------------
 
-// SaveToken grava o token em um arquivo JSON (permissão 0600).
+// SaveToken writes the token to a JSON file (permission 0600).
 func SaveToken(path string, tok Token) error {
 	data, err := json.MarshalIndent(tok, "", "  ")
 	if err != nil {
@@ -309,7 +311,7 @@ func SaveToken(path string, tok Token) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
-// LoadToken lê um token de um arquivo JSON.
+// LoadToken reads a token from a JSON file.
 func LoadToken(path string) (Token, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -322,8 +324,8 @@ func LoadToken(path string) (Token, error) {
 	return tok, nil
 }
 
-// LoadTokenSource carrega um token de um arquivo e devolve uma TokenSource que
-// renova e regrava o token nesse mesmo arquivo automaticamente.
+// LoadTokenSource loads a token from a file and returns a TokenSource that
+// renews and rewrites the token to that same file automatically.
 func LoadTokenSource(path string, d *DeviceFlow) (openai.TokenSource, error) {
 	tok, err := LoadToken(path)
 	if err != nil {
@@ -337,7 +339,7 @@ func LoadTokenSource(path string, d *DeviceFlow) (openai.TokenSource, error) {
 func tokenFromResponse(tr tokenResponse) Token {
 	exp := time.Now().Add(time.Duration(tr.ExpiresIn) * time.Second)
 	if tr.ExpiresIn == 0 {
-		exp = time.Now().Add(time.Hour) // fallback conservador
+		exp = time.Now().Add(time.Hour) // conservative fallback
 	}
 	tt := tr.TokenType
 	if tt == "" {
@@ -363,12 +365,12 @@ func pkcePair() (verifier, challenge string, err error) {
 }
 
 func defaultPrompt(info VerificationInfo) {
-	fmt.Fprintln(os.Stderr, "\n=== Autorização xAI (OAuth de assinatura) ===")
+	fmt.Fprintln(os.Stderr, "\n=== xAI Authorization (subscription OAuth) ===")
 	if info.VerificationURIComplete != "" {
-		fmt.Fprintf(os.Stderr, "Abra: %s\n", info.VerificationURIComplete)
+		fmt.Fprintf(os.Stderr, "Open: %s\n", info.VerificationURIComplete)
 	} else {
-		fmt.Fprintf(os.Stderr, "Abra: %s\n", info.VerificationURI)
-		fmt.Fprintf(os.Stderr, "E informe o código: %s\n", info.UserCode)
+		fmt.Fprintf(os.Stderr, "Open: %s\n", info.VerificationURI)
+		fmt.Fprintf(os.Stderr, "And enter the code: %s\n", info.UserCode)
 	}
-	fmt.Fprintln(os.Stderr, "Aguardando autorização...")
+	fmt.Fprintln(os.Stderr, "Waiting for authorization...")
 }

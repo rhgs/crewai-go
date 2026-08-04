@@ -1,6 +1,6 @@
-// Exemplo básico: um único agente executa uma única tarefa.
+// Basic example: a single agent executes a single task.
 //
-// Execução:
+// Run:
 //
 //	export OPENAI_API_KEY=sk-...
 //	go run ./examples/basic
@@ -18,20 +18,20 @@ import (
 func main() {
 	llm := openai.New("gpt-4o-mini")
 
-	poeta := crewai.NewAgent(
-		"Poeta",
-		"Escrever poemas curtos e memoráveis",
-		"Você é um poeta premiado, mestre da concisão.",
+	poet := crewai.NewAgent(
+		"Poet",
+		"Write short, memorable poems",
+		"You are an award-winning poet, master of brevity.",
 		llm,
 	)
 
-	tarefa := crewai.NewTask(
-		"Escreva um haikai sobre a linguagem Go.",
-		"Um haikai (3 versos) em português.",
-		poeta,
+	task := crewai.NewTask(
+		"Write a haiku about the Go programming language.",
+		"A haiku (3 lines) in English.",
+		poet,
 	)
 
-	crew := crewai.NewCrew([]*crewai.Agent{poeta}, []*crewai.Task{tarefa})
+	crew := crewai.NewCrew([]*crewai.Agent{poet}, []*crewai.Task{task})
 	crew.Verbose = true
 
 	out, err := crew.Kickoff(context.Background(), nil)
@@ -39,7 +39,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("\n=== Resultado ===")
+	fmt.Println("\n=== Result ===")
 	fmt.Println(out.Final)
-	fmt.Printf("\n(concluído em %s)\n", out.Duration)
+	fmt.Printf("\n(completed in %s)\n", out.Duration)
 }

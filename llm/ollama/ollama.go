@@ -1,7 +1,7 @@
-// Package ollama implementa crewai.LLM para o Ollama, tanto na modalidade
-// local (http://localhost:11434, sem autenticação) quanto no Ollama Cloud
-// (https://ollama.com, autenticado por token), usando a API nativa /api/chat
-// e apenas a biblioteca padrão.
+// Package ollama implements crewai.LLM for Ollama, both in local mode
+// (http://localhost:11434, no authentication) and Ollama Cloud
+// (https://ollama.com, token-authenticated), using the native /api/chat API
+// and only the standard library.
 package ollama
 
 import (
@@ -18,38 +18,38 @@ import (
 )
 
 const (
-	// LocalBaseURL é o endereço padrão de uma instância local do Ollama.
+	// LocalBaseURL is the default address of a local Ollama instance.
 	LocalBaseURL = "http://localhost:11434"
-	// CloudBaseURL é o endereço do Ollama Cloud.
+	// CloudBaseURL is the address of Ollama Cloud.
 	CloudBaseURL = "https://ollama.com"
 )
 
-// Client fala com um servidor Ollama (local ou cloud).
+// Client talks to an Ollama server (local or cloud).
 type Client struct {
 	model       string
 	baseURL     string
-	apiKey      string // vazio para local; Bearer token para o cloud
+	apiKey      string // empty for local; Bearer token for cloud
 	temperature float64
 	httpClient  *http.Client
 }
 
-// Option configura o Client.
+// Option configures the Client.
 type Option func(*Client)
 
-// WithBaseURL define uma URL base alternativa (ex.: outra máquina na rede).
-// Não inclua a barra final.
+// WithBaseURL sets an alternative base URL (e.g. another machine on the
+// network). Do not include a trailing slash.
 func WithBaseURL(url string) Option { return func(c *Client) { c.baseURL = url } }
 
-// WithAPIKey define o token usado no Ollama Cloud. Ignorado no uso local.
+// WithAPIKey sets the token used for Ollama Cloud. Ignored in local mode.
 func WithAPIKey(key string) Option { return func(c *Client) { c.apiKey = key } }
 
-// WithTemperature ajusta a temperatura de amostragem.
+// WithTemperature adjusts the sampling temperature.
 func WithTemperature(t float64) Option { return func(c *Client) { c.temperature = t } }
 
-// WithHTTPClient injeta um *http.Client customizado.
+// WithHTTPClient injects a custom *http.Client.
 func WithHTTPClient(h *http.Client) Option { return func(c *Client) { c.httpClient = h } }
 
-// New cria um cliente para uma instância LOCAL do Ollama (sem autenticação).
+// New creates a client for a LOCAL Ollama instance (no authentication).
 //
 //	llm := ollama.New("llama3.2")
 func New(model string, opts ...Option) *Client {
@@ -65,8 +65,8 @@ func New(model string, opts ...Option) *Client {
 	return c
 }
 
-// NewCloud cria um cliente para o Ollama Cloud. Se nenhuma chave for passada
-// via WithAPIKey, usa a variável de ambiente OLLAMA_API_KEY.
+// NewCloud creates a client for Ollama Cloud. If no key is passed via
+// WithAPIKey, the OLLAMA_API_KEY environment variable is used.
 //
 //	llm := ollama.NewCloud("gpt-oss:120b")
 func NewCloud(model string, opts ...Option) *Client {
@@ -83,7 +83,7 @@ func NewCloud(model string, opts ...Option) *Client {
 	return c
 }
 
-// Model implementa crewai.LLM.
+// Model implements crewai.LLM.
 func (c *Client) Model() string { return c.model }
 
 type chatRequest struct {
@@ -108,10 +108,10 @@ type chatResponse struct {
 	Error   string      `json:"error"`
 }
 
-// Call implementa crewai.LLM.
+// Call implements crewai.LLM.
 func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, error) {
 	if c.baseURL == CloudBaseURL && c.apiKey == "" {
-		return "", fmt.Errorf("ollama: Ollama Cloud requer um token (defina OLLAMA_API_KEY ou use WithAPIKey)")
+		return "", fmt.Errorf("ollama: Ollama Cloud requires a token (set OLLAMA_API_KEY or use WithAPIKey)")
 	}
 
 	reqBody := chatRequest{
@@ -126,12 +126,12 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 
 	buf, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", fmt.Errorf("ollama: codificando requisição: %w", err)
+		return "", fmt.Errorf("ollama: encoding request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/chat", bytes.NewReader(buf))
 	if err != nil {
-		return "", fmt.Errorf("ollama: criando requisição: %w", err)
+		return "", fmt.Errorf("ollama: creating request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if c.apiKey != "" {
@@ -140,24 +140,24 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("ollama: enviando requisição: %w", err)
+		return "", fmt.Errorf("ollama: sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("ollama: lendo resposta: %w", err)
+		return "", fmt.Errorf("ollama: reading response: %w", err)
 	}
 
 	var parsed chatResponse
 	if err := json.Unmarshal(data, &parsed); err != nil {
-		return "", fmt.Errorf("ollama: decodificando resposta (status %d): %w", resp.StatusCode, err)
+		return "", fmt.Errorf("ollama: decoding response (status %d): %w", resp.StatusCode, err)
 	}
 	if parsed.Error != "" {
-		return "", fmt.Errorf("ollama: erro da API: %s", parsed.Error)
+		return "", fmt.Errorf("ollama: API error: %s", parsed.Error)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("ollama: status inesperado %d: %s", resp.StatusCode, string(data))
+		return "", fmt.Errorf("ollama: unexpected status %d: %s", resp.StatusCode, string(data))
 	}
 	return parsed.Message.Content, nil
 }

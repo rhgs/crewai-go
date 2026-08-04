@@ -1,8 +1,8 @@
-// Exemplo hierárquico: um gerente (ManagerLLM) delega cada tarefa ao membro
-// da equipe mais adequado. As tarefas não têm agente fixo — a delegação é
-// decidida em tempo de execução.
+// Hierarchical example: a manager (ManagerLLM) delegates each task to the
+// most suitable team member. The tasks have no fixed agent — delegation is
+// decided at runtime.
 //
-// Execução:
+// Run:
 //
 //	export OPENAI_API_KEY=sk-...
 //	go run ./examples/hierarchical
@@ -21,39 +21,39 @@ func main() {
 	llm := openai.New("gpt-4o-mini")
 
 	dev := crewai.NewAgent(
-		"Desenvolvedor Go",
-		"Implementar e explicar código Go idiomático",
-		"Você domina Go e boas práticas de engenharia.",
+		"Go Developer",
+		"Implement and explain idiomatic Go code",
+		"You master Go and engineering best practices.",
 		llm,
 	)
 	qa := crewai.NewAgent(
-		"Engenheiro de QA",
-		"Garantir qualidade escrevendo testes e revisando código",
-		"Você é meticuloso e pensa em casos de borda.",
+		"QA Engineer",
+		"Ensure quality by writing tests and reviewing code",
+		"You are meticulous and think about edge cases.",
 		llm,
 	)
 
-	// Sem Agent definido: o gerente decide quem executa.
-	implementar := crewai.NewTask(
-		"Escreva uma função Go que inverte uma string respeitando runes UTF-8.",
-		"Código Go comentado.",
+	// No Agent set: the manager decides who runs it.
+	implement := crewai.NewTask(
+		"Write a Go function that reverses a string respecting UTF-8 runes.",
+		"Commented Go code.",
 		nil,
 	)
-	implementar.Name = "Implementação"
+	implement.Name = "Implementation"
 
-	testar := crewai.NewTask(
-		"Escreva testes de unidade para a função de inversão de string.",
-		"Um arquivo _test.go com casos de borda.",
+	test := crewai.NewTask(
+		"Write unit tests for the string reversal function.",
+		"A _test.go file with edge cases.",
 		nil,
 	)
-	testar.Name = "Testes"
+	test.Name = "Tests"
 
 	crew := crewai.NewCrew(
 		[]*crewai.Agent{dev, qa},
-		[]*crewai.Task{implementar, testar},
+		[]*crewai.Task{implement, test},
 	)
 	crew.Process = crewai.Hierarchical
-	crew.ManagerLLM = llm // o gerente é criado automaticamente a partir do LLM
+	crew.ManagerLLM = llm // the manager is created automatically from the LLM
 	crew.Verbose = true
 
 	out, err := crew.Kickoff(context.Background(), nil)
@@ -62,6 +62,6 @@ func main() {
 	}
 
 	for _, to := range out.TasksOutput {
-		fmt.Printf("\n=== %s → delegado a %s ===\n%s\n", to.Task, to.Agent, to.Output)
+		fmt.Printf("\n=== %s → delegated to %s ===\n%s\n", to.Task, to.Agent, to.Output)
 	}
 }

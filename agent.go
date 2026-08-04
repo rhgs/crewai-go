@@ -4,36 +4,36 @@ import "context"
 
 const defaultMaxIterations = 15
 
-// Agent é um trabalhador autônomo com um papel, um objetivo e uma história.
-// Ele usa um LLM para raciocinar e, opcionalmente, ferramentas para agir,
-// executando as tarefas que a crew lhe atribui.
+// Agent is an autonomous worker with a role, a goal, and a backstory.
+// It uses an LLM to reason and, optionally, tools to act, executing the tasks
+// the crew assigns to it.
 //
-// O zero value não é utilizável; crie agentes com NewAgent ou preenchendo os
-// campos obrigatórios (Role e LLM) diretamente.
+// The zero value is not usable; create agents with NewAgent or by filling the
+// required fields (Role and LLM) directly.
 type Agent struct {
-	// Role é a função/papel do agente (ex.: "Pesquisador Sênior").
+	// Role is the agent's role/function (e.g. "Senior Researcher").
 	Role string
-	// Goal é o objetivo pessoal que guia as decisões do agente.
+	// Goal is the personal goal that guides the agent's decisions.
 	Goal string
-	// Backstory dá contexto e personalidade ao agente.
+	// Backstory gives context and personality to the agent.
 	Backstory string
 
-	// LLM é o modelo de linguagem usado pelo agente. Obrigatório.
+	// LLM is the language model used by the agent. Required.
 	LLM LLM
 
-	// Tools são as ferramentas que o agente pode usar em qualquer tarefa.
+	// Tools are the tools the agent can use for any task.
 	Tools []Tool
 
-	// MaxIterations limita o número de ciclos de raciocínio/uso de ferramentas
-	// por tarefa. Se <= 0, usa o padrão (15).
+	// MaxIterations limits the number of reasoning/tool-use cycles per task.
+	// If <= 0, the default (15) is used.
 	MaxIterations int
 
-	// AllowDelegation habilita este agente a ser considerado como gerente
-	// no processo hierárquico e a delegar trabalho (informativo nesta versão).
+	// AllowDelegation enables this agent to be considered as a manager in the
+	// hierarchical process and to delegate work (informational in this version).
 	AllowDelegation bool
 }
 
-// NewAgent cria um agente com os campos essenciais preenchidos.
+// NewAgent creates an agent with the essential fields filled in.
 func NewAgent(role, goal, backstory string, llm LLM) *Agent {
 	return &Agent{
 		Role:      role,
@@ -43,15 +43,15 @@ func NewAgent(role, goal, backstory string, llm LLM) *Agent {
 	}
 }
 
-// WithTools adiciona ferramentas ao agente e devolve o próprio agente para
-// encadeamento fluente.
+// WithTools adds tools to the agent and returns the agent itself for fluent
+// chaining.
 func (a *Agent) WithTools(tools ...Tool) *Agent {
 	a.Tools = append(a.Tools, tools...)
 	return a
 }
 
-// Execute roda uma tarefa isolada com este agente e devolve a saída. É útil
-// para usar um agente fora de uma crew ou em testes.
+// Execute runs a standalone task with this agent and returns the output. It is
+// useful for using an agent outside a crew or in tests.
 func (a *Agent) Execute(ctx context.Context, t *Task) (string, error) {
 	return executeTask(ctx, a, t, "", nopLogger{})
 }

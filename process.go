@@ -1,19 +1,19 @@
 package crewai
 
-// Process define a estratégia de orquestração das tarefas em uma crew.
+// Process defines the strategy for orchestrating tasks in a crew.
 type Process string
 
 const (
-	// Sequential executa as tarefas na ordem em que foram definidas, passando
-	// a saída de cada uma como contexto para as seguintes.
+	// Sequential executes the tasks in the order they were defined, passing
+	// each task's output as context to the following ones.
 	Sequential Process = "sequential"
 
-	// Hierarchical usa um agente gerente (ou um ManagerLLM) para coordenar a
-	// execução, decidindo qual agente executa cada tarefa.
+	// Hierarchical uses a manager agent (or a ManagerLLM) to coordinate the
+	// execution, deciding which agent runs each task.
 	Hierarchical Process = "hierarchical"
 )
 
-// valid indica se o processo é reconhecido.
+// valid reports whether the process is recognized.
 func (p Process) valid() bool {
 	switch p {
 	case Sequential, Hierarchical:

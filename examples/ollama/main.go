@@ -1,11 +1,11 @@
-// Exemplo Ollama: usa um modelo local ou o Ollama Cloud.
+// Ollama example: uses a local model or Ollama Cloud.
 //
-// Local (requer `ollama serve` rodando e o modelo baixado):
+// Local (requires `ollama serve` running and the model downloaded):
 //
 //	ollama pull llama3.2
 //	go run ./examples/ollama
 //
-// Cloud (requer conta no ollama.com):
+// Cloud (requires an account on ollama.com):
 //
 //	export OLLAMA_API_KEY=...
 //	OLLAMA_CLOUD=1 go run ./examples/ollama
@@ -24,28 +24,28 @@ import (
 func main() {
 	var llm crewai.LLM
 	if os.Getenv("OLLAMA_CLOUD") != "" {
-		// Ollama Cloud: modelo hospedado, autenticado por OLLAMA_API_KEY.
+		// Ollama Cloud: hosted model, authenticated by OLLAMA_API_KEY.
 		llm = ollama.NewCloud("gpt-oss:120b")
-		fmt.Println("Usando Ollama Cloud (gpt-oss:120b)")
+		fmt.Println("Using Ollama Cloud (gpt-oss:120b)")
 	} else {
-		// Ollama local: sem autenticação, em http://localhost:11434.
+		// Local Ollama: no auth, at http://localhost:11434.
 		llm = ollama.New("llama3.2")
-		fmt.Println("Usando Ollama local (llama3.2)")
+		fmt.Println("Using local Ollama (llama3.2)")
 	}
 
-	assistente := crewai.NewAgent(
-		"Assistente Técnico",
-		"Explicar conceitos de programação com clareza",
-		"Você é didático e direto ao ponto.",
+	assistant := crewai.NewAgent(
+		"Technical Assistant",
+		"Explain programming concepts clearly",
+		"You are didactic and straight to the point.",
 		llm,
 	)
-	tarefa := crewai.NewTask(
-		"Explique em 2 frases o que é uma goroutine em Go.",
-		"Duas frases claras.",
-		assistente,
+	task := crewai.NewTask(
+		"Explain in 2 sentences what a goroutine is in Go.",
+		"Two clear sentences.",
+		assistant,
 	)
 
-	crew := crewai.NewCrew([]*crewai.Agent{assistente}, []*crewai.Task{tarefa})
+	crew := crewai.NewCrew([]*crewai.Agent{assistant}, []*crewai.Task{task})
 	out, err := crew.Kickoff(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)

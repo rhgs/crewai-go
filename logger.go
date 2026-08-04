@@ -5,15 +5,15 @@ import (
 	"os"
 )
 
-// Logger é a interface de log usada internamente pela crew. Permite silenciar
-// ou redirecionar a saída conforme a necessidade da aplicação.
+// Logger is the logging interface used internally by the crew. It allows
+// silencing or redirecting output as needed by the application.
 type Logger interface {
 	Infof(format string, args ...any)
 	Debugf(format string, args ...any)
 }
 
-// stdLogger imprime mensagens na saída de erro padrão. Debug só é impresso
-// quando verbose está ativo.
+// stdLogger prints messages to standard error. Debug is only printed when
+// verbose is on.
 type stdLogger struct {
 	verbose bool
 	l       *log.Logger
@@ -38,7 +38,7 @@ func (s *stdLogger) Debugf(format string, args ...any) {
 	}
 }
 
-// nopLogger descarta todas as mensagens.
+// nopLogger discards all messages.
 type nopLogger struct{}
 
 func (nopLogger) Infof(string, ...any)  {}

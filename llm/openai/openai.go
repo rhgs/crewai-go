@@ -1,6 +1,6 @@
-// Package openai implementa crewai.LLM para a API de Chat Completions da
-// OpenAI e de qualquer endpoint compatível (Azure OpenAI, Groq, Together,
-// Ollama, LM Studio, etc.), usando apenas a biblioteca padrão.
+// Package openai implements crewai.LLM for the OpenAI Chat Completions API and
+// any compatible endpoint (Azure OpenAI, Groq, Together, Ollama, LM Studio,
+// etc.), using only the standard library.
 package openai
 
 import (
@@ -18,14 +18,14 @@ import (
 
 const defaultBaseURL = "https://api.openai.com/v1"
 
-// TokenSource fornece um token Bearer dinâmico (ex.: um access token OAuth
-// renovável). Quando definido, tem prioridade sobre a chave estática.
+// TokenSource provides a dynamic Bearer token (e.g. a renewable OAuth access
+// token). When set, it takes precedence over the static key.
 type TokenSource interface {
-	// Token devolve um token de acesso válido, renovando-o se necessário.
+	// Token returns a valid access token, renewing it if necessary.
 	Token(ctx context.Context) (string, error)
 }
 
-// Client fala com um endpoint compatível com a API da OpenAI.
+// Client talks to an OpenAI-compatible endpoint.
 type Client struct {
 	apiKey      string
 	tokenSource TokenSource
@@ -35,28 +35,28 @@ type Client struct {
 	httpClient  *http.Client
 }
 
-// Option configura o Client.
+// Option configures the Client.
 type Option func(*Client)
 
-// WithBaseURL define uma URL base alternativa (ex.: "http://localhost:11434/v1"
-// para Ollama). Não inclua a barra final.
+// WithBaseURL sets an alternative base URL (e.g. "http://localhost:11434/v1"
+// for Ollama). Do not include a trailing slash.
 func WithBaseURL(url string) Option { return func(c *Client) { c.baseURL = url } }
 
-// WithTemperature ajusta a temperatura de amostragem.
+// WithTemperature adjusts the sampling temperature.
 func WithTemperature(t float64) Option { return func(c *Client) { c.temperature = t } }
 
-// WithHTTPClient injeta um *http.Client customizado (timeouts, proxy, etc.).
+// WithHTTPClient injects a custom *http.Client (timeouts, proxy, etc.).
 func WithHTTPClient(h *http.Client) Option { return func(c *Client) { c.httpClient = h } }
 
-// WithAPIKey define a chave de API explicitamente.
+// WithAPIKey sets the API key explicitly.
 func WithAPIKey(key string) Option { return func(c *Client) { c.apiKey = key } }
 
-// WithTokenSource usa um token Bearer dinâmico (ex.: OAuth) em vez de uma
-// chave de API estática. Útil para autenticação por assinatura/OAuth.
+// WithTokenSource uses a dynamic Bearer token (e.g. OAuth) instead of a static
+// API key. Useful for subscription/OAuth authentication.
 func WithTokenSource(ts TokenSource) Option { return func(c *Client) { c.tokenSource = ts } }
 
-// New cria um cliente para o modelo informado. Se nenhuma chave for passada
-// via WithAPIKey, a variável de ambiente OPENAI_API_KEY é usada.
+// New creates a client for the given model. If no key is passed via WithAPIKey,
+// the OPENAI_API_KEY environment variable is used.
 func New(model string, opts ...Option) *Client {
 	c := &Client{
 		apiKey:      os.Getenv("OPENAI_API_KEY"),
@@ -71,7 +71,7 @@ func New(model string, opts ...Option) *Client {
 	return c
 }
 
-// Model implementa crewai.LLM.
+// Model implements crewai.LLM.
 func (c *Client) Model() string { return c.model }
 
 type chatRequest struct {
@@ -95,19 +95,19 @@ type chatResponse struct {
 	} `json:"error"`
 }
 
-// authToken resolve o token de autenticação (OAuth dinâmico tem prioridade
-// sobre a chave estática).
+// authToken resolves the auth token (dynamic OAuth takes precedence over the
+// static key).
 func (c *Client) authToken(ctx context.Context) (string, error) {
 	if c.tokenSource != nil {
 		return c.tokenSource.Token(ctx)
 	}
 	if c.apiKey == "" {
-		return "", fmt.Errorf("openai: credencial ausente (defina OPENAI_API_KEY, use WithAPIKey ou WithTokenSource)")
+		return "", fmt.Errorf("openai: missing credentials (set OPENAI_API_KEY, use WithAPIKey or WithTokenSource)")
 	}
 	return c.apiKey, nil
 }
 
-// Call implementa crewai.LLM.
+// Call implements crewai.LLM.
 func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, error) {
 	token, err := c.authToken(ctx)
 	if err != nil {
@@ -125,39 +125,39 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 
 	buf, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", fmt.Errorf("openai: codificando requisição: %w", err)
+		return "", fmt.Errorf("openai: encoding request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(buf))
 	if err != nil {
-		return "", fmt.Errorf("openai: criando requisição: %w", err)
+		return "", fmt.Errorf("openai: creating request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("openai: enviando requisição: %w", err)
+		return "", fmt.Errorf("openai: sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("openai: lendo resposta: %w", err)
+		return "", fmt.Errorf("openai: reading response: %w", err)
 	}
 
 	var parsed chatResponse
 	if err := json.Unmarshal(data, &parsed); err != nil {
-		return "", fmt.Errorf("openai: decodificando resposta (status %d): %w", resp.StatusCode, err)
+		return "", fmt.Errorf("openai: decoding response (status %d): %w", resp.StatusCode, err)
 	}
 	if parsed.Error != nil {
-		return "", fmt.Errorf("openai: erro da API: %s", parsed.Error.Message)
+		return "", fmt.Errorf("openai: API error: %s", parsed.Error.Message)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("openai: status inesperado %d: %s", resp.StatusCode, string(data))
+		return "", fmt.Errorf("openai: unexpected status %d: %s", resp.StatusCode, string(data))
 	}
 	if len(parsed.Choices) == 0 {
-		return "", fmt.Errorf("openai: resposta sem choices")
+		return "", fmt.Errorf("openai: response with no choices")
 	}
 	return parsed.Choices[0].Message.Content, nil
 }

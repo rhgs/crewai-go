@@ -7,40 +7,40 @@ import (
 )
 
 func TestFunctionTool(t *testing.T) {
-	tool := NewTool("eco", "repete a entrada", func(_ context.Context, in string) (string, error) {
-		return "eco: " + in, nil
+	tool := NewTool("echo", "repeats the input", func(_ context.Context, in string) (string, error) {
+		return "echo: " + in, nil
 	})
 
-	if tool.Name() != "eco" {
-		t.Errorf("Name() = %q, quer %q", tool.Name(), "eco")
+	if tool.Name() != "echo" {
+		t.Errorf("Name() = %q, want %q", tool.Name(), "echo")
 	}
-	if tool.Description() != "repete a entrada" {
+	if tool.Description() != "repeats the input" {
 		t.Errorf("Description() = %q", tool.Description())
 	}
 
-	out, err := tool.Call(context.Background(), "olá")
+	out, err := tool.Call(context.Background(), "hi")
 	if err != nil {
-		t.Fatalf("Call() erro: %v", err)
+		t.Fatalf("Call() error: %v", err)
 	}
-	if out != "eco: olá" {
-		t.Errorf("Call() = %q, quer %q", out, "eco: olá")
+	if out != "echo: hi" {
+		t.Errorf("Call() = %q, want %q", out, "echo: hi")
 	}
 }
 
 func TestFunctionToolNilFn(t *testing.T) {
 	tool := &FunctionTool{name: "x"}
 	if _, err := tool.Call(context.Background(), "a"); err == nil {
-		t.Error("esperava erro para função nula")
+		t.Error("expected an error for a nil function")
 	}
 }
 
 func TestFunctionToolPropagatesError(t *testing.T) {
-	sentinel := errors.New("falhou")
+	sentinel := errors.New("failed")
 	tool := NewTool("f", "", func(_ context.Context, _ string) (string, error) {
 		return "", sentinel
 	})
 	if _, err := tool.Call(context.Background(), ""); !errors.Is(err, sentinel) {
-		t.Errorf("erro = %v, quer %v", err, sentinel)
+		t.Errorf("error = %v, want %v", err, sentinel)
 	}
 }
 
@@ -54,6 +54,6 @@ func TestFindTool(t *testing.T) {
 		t.Errorf("findTool(b) = %v, %v", got, ok)
 	}
 	if _, ok := findTool(tools, "z"); ok {
-		t.Error("findTool(z) deveria falhar")
+		t.Error("findTool(z) should fail")
 	}
 }

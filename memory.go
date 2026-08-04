@@ -5,40 +5,40 @@ import (
 	"sync"
 )
 
-// Memory guarda registros produzidos ao longo da execução de uma crew para que
-// tarefas posteriores possam recuperar contexto de tarefas anteriores.
+// Memory stores records produced during a crew's execution so that later
+// tasks can recover context from earlier ones.
 //
-// Esta é uma implementação simples em memória e segura para concorrência.
-// Para cenários avançados (busca semântica/embeddings) basta fornecer sua
-// própria implementação satisfazendo a mesma interface mínima usada pela Crew.
+// This is a simple, concurrency-safe, in-memory implementation. For advanced
+// scenarios (semantic search/embeddings), provide your own implementation
+// satisfying the same minimal interface used by the Crew.
 type Memory struct {
 	mu      sync.RWMutex
 	records []MemoryRecord
 }
 
-// MemoryRecord é uma anotação armazenada na memória.
+// MemoryRecord is an annotation stored in memory.
 type MemoryRecord struct {
-	// Agent é o papel (role) do agente que gerou o registro.
+	// Agent is the role of the agent that produced the record.
 	Agent string
-	// Task é o nome/descrição curta da tarefa relacionada.
+	// Task is the short name/description of the related task.
 	Task string
-	// Content é o conteúdo memorizado (normalmente a saída da tarefa).
+	// Content is the memorized content (usually the task output).
 	Content string
 }
 
-// NewMemory cria uma memória vazia.
+// NewMemory creates an empty memory.
 func NewMemory() *Memory {
 	return &Memory{}
 }
 
-// Save adiciona um registro à memória.
+// Save adds a record to the memory.
 func (m *Memory) Save(rec MemoryRecord) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.records = append(m.records, rec)
 }
 
-// Records devolve uma cópia de todos os registros armazenados.
+// Records returns a copy of all stored records.
 func (m *Memory) Records() []MemoryRecord {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -47,9 +47,9 @@ func (m *Memory) Records() []MemoryRecord {
 	return out
 }
 
-// Search faz uma busca textual simples (substring, case-insensitive) e
-// devolve os registros que contêm a consulta. Uma consulta vazia devolve
-// todos os registros.
+// Search performs a simple text search (substring, case-insensitive) and
+// returns the records that contain the query. An empty query returns all
+// records.
 func (m *Memory) Search(query string) []MemoryRecord {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -69,8 +69,8 @@ func (m *Memory) Search(query string) []MemoryRecord {
 	return out
 }
 
-// String devolve uma representação legível de toda a memória, útil para
-// injetar como contexto em prompts.
+// String returns a readable representation of the entire memory, useful for
+// injecting as context into prompts.
 func (m *Memory) String() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

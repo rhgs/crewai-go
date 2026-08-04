@@ -17,10 +17,10 @@ func chatServer(t *testing.T, wantAuth string) *httptest.Server {
 			t.Errorf("path = %q", r.URL.Path)
 		}
 		if got := r.Header.Get("Authorization"); got != wantAuth {
-			t.Errorf("Authorization = %q, quer %q", got, wantAuth)
+			t.Errorf("Authorization = %q, want %q", got, wantAuth)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"olá Grok"}}]}`))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"hello Grok"}}]}`))
 	}))
 }
 
@@ -32,16 +32,16 @@ func TestAPIKey(t *testing.T) {
 	if llm.Model() != "grok-4" {
 		t.Errorf("Model() = %q", llm.Model())
 	}
-	out, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("oi")})
+	out, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("hi")})
 	if err != nil {
-		t.Fatalf("erro: %v", err)
+		t.Fatalf("error: %v", err)
 	}
-	if out != "olá Grok" {
+	if out != "hello Grok" {
 		t.Errorf("out = %q", out)
 	}
 }
 
-// staticSource é uma TokenSource fixa para teste.
+// staticSource is a fixed TokenSource for testing.
 type staticSource struct{ tok string }
 
 func (s staticSource) Token(context.Context) (string, error) { return s.tok, nil }
@@ -51,11 +51,11 @@ func TestOAuthTokenSource(t *testing.T) {
 	defer srv.Close()
 
 	llm := xai.NewWithOAuth("grok-4", staticSource{tok: "oauth-access-token"}, xai.WithBaseURL(srv.URL))
-	out, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("oi")})
+	out, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("hi")})
 	if err != nil {
-		t.Fatalf("erro: %v", err)
+		t.Fatalf("error: %v", err)
 	}
-	if out != "olá Grok" {
+	if out != "hello Grok" {
 		t.Errorf("out = %q", out)
 	}
 }

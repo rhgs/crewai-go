@@ -3,17 +3,17 @@ package crewai
 import "errors"
 
 var (
-	// ErrNoLLM é retornado quando um agente é executado sem um LLM configurado.
-	ErrNoLLM = errors.New("crewai: agente sem LLM configurado")
-	// ErrNoAgent é retornado quando uma tarefa não tem agente atribuído e a
-	// crew não consegue resolver um responsável.
-	ErrNoAgent = errors.New("crewai: tarefa sem agente atribuído")
-	// ErrNoTasks é retornado quando uma crew é iniciada sem tarefas.
-	ErrNoTasks = errors.New("crewai: crew sem tarefas")
-	// ErrNoManager é retornado quando o processo hierárquico é usado sem um
-	// LLM (ManagerLLM) ou agente gerente (ManagerAgent).
-	ErrNoManager = errors.New("crewai: processo hierárquico requer ManagerLLM ou ManagerAgent")
-	// ErrMaxIterations é retornado quando o agente atinge o número máximo de
-	// iterações sem produzir uma resposta final.
-	ErrMaxIterations = errors.New("crewai: número máximo de iterações atingido")
+	// ErrNoLLM is returned when an agent is executed without a configured LLM.
+	ErrNoLLM = errors.New("crewai: agent without a configured LLM")
+	// ErrNoAgent is returned when a task has no assigned agent and the crew
+	// cannot resolve a responsible one.
+	ErrNoAgent = errors.New("crewai: task without an assigned agent")
+	// ErrNoTasks is returned when a crew is started with no tasks.
+	ErrNoTasks = errors.New("crewai: crew without tasks")
+	// ErrNoManager is returned when the hierarchical process is used without
+	// a ManagerLLM or a ManagerAgent.
+	ErrNoManager = errors.New("crewai: hierarchical process requires ManagerLLM or ManagerAgent")
+	// ErrMaxIterations is returned when the agent reaches the maximum number
+	// of iterations without producing a final answer.
+	ErrMaxIterations = errors.New("crewai: maximum number of iterations reached")
 )

@@ -5,56 +5,56 @@ import (
 	"fmt"
 )
 
-// Tool é uma capacidade que um agente pode invocar durante a execução de uma
-// tarefa (buscar na web, consultar um banco, fazer um cálculo, etc.).
+// Tool is a capability an agent can invoke during task execution (search the
+// web, query a database, do a calculation, etc.).
 //
-// A entrada e a saída são strings para manter a interface simples e
-// interoperável com o raciocínio baseado em texto (ReAct) do agente. Uma
-// ferramenta que precise de argumentos estruturados deve documentar, na sua
-// Description, o formato esperado (por exemplo, um JSON).
+// The input and output are strings to keep the interface simple and
+// interoperable with the agent's text-based (ReAct) reasoning. A tool that
+// needs structured arguments should document the expected format (for example,
+// a JSON object) in its Description.
 type Tool interface {
-	// Name é o identificador único e curto da ferramenta.
+	// Name is the unique, short identifier of the tool.
 	Name() string
-	// Description explica ao modelo o que a ferramenta faz e como usá-la.
+	// Description explains to the model what the tool does and how to use it.
 	Description() string
-	// Call executa a ferramenta com a entrada fornecida pelo agente.
+	// Call runs the tool with the input provided by the agent.
 	Call(ctx context.Context, input string) (string, error)
 }
 
-// FunctionTool adapta uma função Go comum para a interface Tool.
+// FunctionTool adapts an ordinary Go function to the Tool interface.
 type FunctionTool struct {
 	name        string
 	description string
 	fn          func(ctx context.Context, input string) (string, error)
 }
 
-// NewTool cria uma ferramenta a partir de uma função.
+// NewTool creates a tool from a function.
 //
 //	calc := crewai.NewTool(
-//	    "calculadora",
-//	    "Avalia uma expressão aritmética simples. Entrada: a expressão.",
+//	    "calculator",
+//	    "Evaluates a simple arithmetic expression. Input: the expression.",
 //	    func(ctx context.Context, in string) (string, error) { ... },
 //	)
 func NewTool(name, description string, fn func(ctx context.Context, input string) (string, error)) *FunctionTool {
 	return &FunctionTool{name: name, description: description, fn: fn}
 }
 
-// Name implementa Tool.
+// Name implements Tool.
 func (t *FunctionTool) Name() string { return t.name }
 
-// Description implementa Tool.
+// Description implements Tool.
 func (t *FunctionTool) Description() string { return t.description }
 
-// Call implementa Tool.
+// Call implements Tool.
 func (t *FunctionTool) Call(ctx context.Context, input string) (string, error) {
 	if t.fn == nil {
-		return "", fmt.Errorf("ferramenta %q: função nula", t.name)
+		return "", fmt.Errorf("tool %q: nil function", t.name)
 	}
 	return t.fn(ctx, input)
 }
 
-// findTool procura uma ferramenta pelo nome (case-insensitive nas bordas)
-// dentro de uma lista.
+// findTool looks up a tool by name (case-insensitive at the edges) within a
+// list.
 func findTool(tools []Tool, name string) (Tool, bool) {
 	for _, t := range tools {
 		if t.Name() == name {

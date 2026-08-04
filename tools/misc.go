@@ -9,30 +9,30 @@ import (
 	"github.com/rhgs/crewai-go"
 )
 
-// CurrentTime devolve uma ferramenta que informa a data e hora atuais.
-// O layout segue o padrão do pacote time; se vazio, usa RFC3339.
+// CurrentTime returns a tool that reports the current date and time.
+// The layout follows the time package convention; if empty, RFC3339 is used.
 func CurrentTime(layout string) crewai.Tool {
 	if layout == "" {
 		layout = time.RFC3339
 	}
 	return crewai.NewTool(
-		"hora_atual",
-		"Informa a data e a hora atuais. A entrada é ignorada.",
+		"current_time",
+		"Reports the current date and time. The input is ignored.",
 		func(_ context.Context, _ string) (string, error) {
 			return time.Now().Format(layout), nil
 		},
 	)
 }
 
-// WordCount devolve uma ferramenta que conta palavras e caracteres de um texto.
+// WordCount returns a tool that counts words and characters in the input text.
 func WordCount() crewai.Tool {
 	return crewai.NewTool(
-		"contador_palavras",
-		"Conta o número de palavras e de caracteres do texto de entrada.",
+		"word_count",
+		"Counts the number of words and characters in the input text.",
 		func(_ context.Context, input string) (string, error) {
 			words := len(strings.Fields(input))
 			chars := len([]rune(input))
-			return fmt.Sprintf("palavras=%d caracteres=%d", words, chars), nil
+			return fmt.Sprintf("words=%d characters=%d", words, chars), nil
 		},
 	)
 }

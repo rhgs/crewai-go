@@ -1,68 +1,68 @@
 # crewai-go
 
-**Orquestração de agentes de IA autônomos e colaborativos, em Go.**
+**Orchestration of autonomous, collaborative AI agents in Go.**
 
-`crewai-go` é um port idiomático em Go do framework [CrewAI](https://github.com/crewAIInc/crewAI). Ele permite montar equipes (_crews_) de agentes com papéis distintos que colaboram — de forma sequencial ou hierárquica — para concluir tarefas complexas usando modelos de linguagem (LLMs).
+`crewai-go` is an idiomatic Go port of the [CrewAI](https://github.com/crewAIInc/crewAI) framework. It lets you assemble teams (_crews_) of agents with distinct roles that collaborate — sequentially or hierarchically — to complete complex tasks using large language models (LLMs).
 
-> Feito com **zero dependências externas** — apenas a biblioteca padrão do Go. Fácil de instalar, auditar e integrar.
-
----
-
-## Sumário
-
-- [Por que crewai-go](#por-que-crewai-go)
-- [Conceitos](#conceitos)
-- [Instalação](#instalação)
-- [Início rápido](#início-rápido)
-- [Provedores de LLM](#provedores-de-llm)
-- [Ferramentas](#ferramentas)
-- [Processos: sequencial e hierárquico](#processos-sequencial-e-hierárquico)
-- [Memória](#memória)
-- [Exemplos](#exemplos)
-- [Documentação](#documentação)
-- [Testes](#testes)
-- [Comparação com o CrewAI (Python)](#comparação-com-o-crewai-python)
-- [Licença](#licença)
+> Built with **zero external dependencies** — only the Go standard library. Easy to install, audit, and integrate.
 
 ---
 
-## Por que crewai-go
+## Table of Contents
 
-- 🧩 **API simples e composável** — `Agent`, `Task`, `Crew`, `Tool`, `LLM`.
-- ⚡ **Sem dependências** — só stdlib; builds pequenos e rápidos.
-- 🔌 **Qualquer LLM** — OpenAI (e compatíveis: Ollama, Groq, Azure…), Anthropic (Claude) e qualquer implementação sua da interface `LLM`.
-- 🛠️ **Ferramentas via ReAct** — agentes raciocinam e chamam ferramentas em texto.
-- 🧠 **Memória** entre tarefas e **contexto** encadeável.
-- 👔 **Processo hierárquico** com gerente que delega dinamicamente.
-- ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
+- [Why crewai-go](#why-crewai-go)
+- [Concepts](#concepts)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [LLM Providers](#llm-providers)
+- [Tools](#tools)
+- [Processes: Sequential and Hierarchical](#processes-sequential-and-hierarchical)
+- [Memory](#memory)
+- [Examples](#examples)
+- [Documentation](#documentation)
+- [Tests](#tests)
+- [Comparison with CrewAI (Python)](#comparison-with-crewai-python)
+- [License](#license)
 
-## Conceitos
+---
 
-| Conceito     | O que é                                                                 |
+## Why crewai-go
+
+- 🧩 **Simple, composable API** — `Agent`, `Task`, `Crew`, `Tool`, `LLM`.
+- ⚡ **No dependencies** — stdlib only; small, fast builds.
+- 🔌 **Any LLM** — OpenAI (and compatible: Ollama, Groq, Azure…), Anthropic (Claude), or your own implementation of the `LLM` interface.
+- 🛠️ **Tools via ReAct** — agents reason and call tools in plain text.
+- 🧠 **Memory** between tasks and chainable **context**.
+- 👔 **Hierarchical process** with a manager that delegates dynamically.
+- ✅ **Testable** — mock LLM included; ~90% core coverage.
+
+## Concepts
+
+| Concept     | What it is                                                              |
 |--------------|-------------------------------------------------------------------------|
-| **Agent**    | Um trabalhador com papel, objetivo, história, um LLM e ferramentas.     |
-| **Task**     | Uma unidade de trabalho com descrição, saída esperada e responsável.    |
-| **Crew**     | A equipe: agrupa agentes e tarefas e as orquestra.                      |
-| **Process**  | Estratégia de execução: `Sequential` ou `Hierarchical`.                 |
-| **Tool**     | Uma capacidade que o agente pode invocar (cálculo, busca, API…).        |
-| **LLM**      | Abstração do modelo de linguagem. Vários provedores prontos.            |
-| **Memory**   | Armazena saídas de tarefas para dar contexto às seguintes.             |
+| **Agent**    | A worker with a role, a goal, a backstory, an LLM, and tools.           |
+| **Task**     | A unit of work with a description, expected output, and an assignee.   |
+| **Crew**     | The team: groups agents and tasks and orchestrates them.                |
+| **Process**  | Execution strategy: `Sequential` or `Hierarchical`.                    |
+| **Tool**     | A capability an agent can invoke (calculation, search, API…).          |
+| **LLM**      | Abstraction over the language model. Several providers ready to use.   |
+| **Memory**   | Stores task outputs to give context to following tasks.                |
 
-## Instalação
+## Installation
 
-Requer **Go 1.24+**.
+Requires **Go 1.24+**.
 
 ```bash
 go get github.com/rhgs/crewai-go@latest
 ```
 
-No seu código:
+In your code:
 
 ```go
 import "github.com/rhgs/crewai-go"
 ```
 
-## Início rápido
+## Quick Start
 
 ```go
 package main
@@ -77,26 +77,26 @@ import (
 )
 
 func main() {
-	// 1. Escolha um LLM (usa OPENAI_API_KEY do ambiente).
+	// 1. Pick an LLM (uses OPENAI_API_KEY from the environment).
 	llm := openai.New("gpt-4o-mini")
 
-	// 2. Crie um agente.
-	poeta := crewai.NewAgent(
-		"Poeta",
-		"Escrever poemas curtos e memoráveis",
-		"Você é um poeta premiado, mestre da concisão.",
+	// 2. Create an agent.
+	poet := crewai.NewAgent(
+		"Poet",
+		"Write short, memorable poems",
+		"You are an award-winning poet, master of brevity.",
 		llm,
 	)
 
-	// 3. Defina uma tarefa.
-	tarefa := crewai.NewTask(
-		"Escreva um haikai sobre a linguagem Go.",
-		"Um haikai (3 versos) em português.",
-		poeta,
+	// 3. Define a task.
+	task := crewai.NewTask(
+		"Write a haiku about the Go programming language.",
+		"A haiku (3 lines) in English.",
+		poet,
 	)
 
-	// 4. Monte a crew e execute.
-	crew := crewai.NewCrew([]*crewai.Agent{poeta}, []*crewai.Task{tarefa})
+	// 4. Assemble the crew and run it.
+	crew := crewai.NewCrew([]*crewai.Agent{poet}, []*crewai.Task{task})
 	out, err := crew.Kickoff(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)
@@ -110,9 +110,9 @@ export OPENAI_API_KEY=sk-...
 go run .
 ```
 
-## Provedores de LLM
+## LLM Providers
 
-Qualquer tipo que implemente a interface abaixo funciona:
+Any type implementing the interface below works:
 
 ```go
 type LLM interface {
@@ -121,7 +121,7 @@ type LLM interface {
 }
 ```
 
-Prontos para uso:
+Ready to use:
 
 ```go
 import (
@@ -129,97 +129,97 @@ import (
 	"github.com/rhgs/crewai-go/llm/anthropic"
 	"github.com/rhgs/crewai-go/llm/ollama"
 	"github.com/rhgs/crewai-go/llm/xai"
-	"github.com/rhgs/crewai-go/llm/mock" // para testes
+	"github.com/rhgs/crewai-go/llm/mock" // for tests
 )
 
-// OpenAI (e compatíveis: Groq, Azure, Together…)
+// OpenAI (and compatible: Groq, Azure, Together…)
 llm := openai.New("gpt-4o-mini")
 
 // Anthropic (Claude)
 llm := anthropic.New("claude-sonnet-5")
 
-// Ollama local (sem chave)
+// Ollama local (no key)
 llm := ollama.New("llama3.2")
 
-// Ollama Cloud (usa OLLAMA_API_KEY)
+// Ollama Cloud (uses OLLAMA_API_KEY)
 llm := ollama.NewCloud("gpt-oss:120b")
 
-// xAI (Grok) por chave de API
+// xAI (Grok) via API key
 llm := xai.New("grok-4")
 
-// xAI (Grok) por OAuth de assinatura (SuperGrok / X Premium) — sem chave cobrada
+// xAI (Grok) via subscription OAuth (SuperGrok / X Premium) — no per-token key
 df := xai.NewDeviceFlow(clientID)
 ts, _ := xai.LoadTokenSource("~/.crewai-xai-token.json", df)
 llm := xai.NewWithOAuth("grok-4", ts)
 ```
 
-| Provedor | Pacote | Autenticação |
-|----------|--------|--------------|
-| OpenAI (e compatíveis) | `llm/openai` | `OPENAI_API_KEY` / `WithTokenSource` |
+| Provider | Package | Authentication |
+|----------|--------|----------------|
+| OpenAI (and compatible) | `llm/openai` | `OPENAI_API_KEY` / `WithTokenSource` |
 | Anthropic (Claude) | `llm/anthropic` | `ANTHROPIC_API_KEY` |
-| Ollama local | `llm/ollama` (`New`) | nenhuma |
+| Ollama local | `llm/ollama` (`New`) | none |
 | Ollama Cloud | `llm/ollama` (`NewCloud`) | `OLLAMA_API_KEY` |
 | xAI (Grok) — API key | `llm/xai` (`New`) | `XAI_API_KEY` |
-| xAI (Grok) — assinatura | `llm/xai` (`NewWithOAuth`) | OAuth Device Flow |
-| Mock (testes) | `llm/mock` | nenhuma |
+| xAI (Grok) — subscription | `llm/xai` (`NewWithOAuth`) | OAuth Device Flow |
+| Mock (tests) | `llm/mock` | none |
 
-Veja [`docs/llms.md`](docs/llms.md) para todas as opções.
+See [`docs/llms.md`](docs/llms.md) for all options.
 
-## Ferramentas
+## Tools
 
-Crie uma ferramenta a partir de qualquer função Go:
+Create a tool from any Go function:
 
 ```go
-busca := crewai.NewTool(
-	"busca_web",
-	"Busca um termo na web. Entrada: o termo de busca.",
-	func(ctx context.Context, termo string) (string, error) {
-		// ... sua lógica ...
-		return resultado, nil
+search := crewai.NewTool(
+	"web_search",
+	"Searches the web for a term. Input: the search term.",
+	func(ctx context.Context, term string) (string, error) {
+		// ... your logic ...
+		return result, nil
 	},
 )
 
-agente.WithTools(busca)
+agent.WithTools(search)
 ```
 
-Ferramentas embutidas no pacote `tools`:
+Built-in tools in the `tools` package:
 
 ```go
 import "github.com/rhgs/crewai-go/tools"
 
-agente.WithTools(
-	tools.Calculator(),        // avalia expressões aritméticas
-	tools.CurrentTime(""),     // data/hora atual
-	tools.WordCount(),         // conta palavras/caracteres
+agent.WithTools(
+	tools.Calculator(),        // evaluates arithmetic expressions
+	tools.CurrentTime(""),      // current date/time
+	tools.WordCount(),         // counts words/characters
 )
 ```
 
-O agente usa ferramentas via o protocolo **ReAct** (`Thought → Action → Action Input → Observation → Final Answer`). Detalhes em [`docs/tools.md`](docs/tools.md).
+The agent uses tools via the **ReAct** protocol (`Thought → Action → Action Input → Observation → Final Answer`). Details in [`docs/tools.md`](docs/tools.md).
 
-## Processos: sequencial e hierárquico
+## Processes: Sequential and Hierarchical
 
-**Sequencial** — tarefas em ordem, cada saída vira contexto da próxima:
+**Sequential** — tasks in order, each output becomes context for the next:
 
 ```go
-crew := crewai.NewCrew(agentes, tarefas)
+crew := crewai.NewCrew(agents, tasks)
 crew.Process = crewai.Sequential
 ```
 
-**Hierárquico** — um gerente delega cada tarefa ao agente mais adequado:
+**Hierarchical** — a manager delegates each task to the most suitable agent:
 
 ```go
 crew.Process = crewai.Hierarchical
-crew.ManagerLLM = llm // ou crew.ManagerAgent = meuGerente
+crew.ManagerLLM = llm // or crew.ManagerAgent = myManager
 ```
 
-Encadeie contexto explicitamente com `WithContext`:
+Chain context explicitly with `WithContext`:
 
 ```go
-analise := crewai.NewTask("Analise os dados", "insights", analista).
-	WithContext(coleta) // recebe a saída da tarefa 'coleta'
+analysis := crewai.NewTask("Analyze the data", "insights", analyst).
+	WithContext(collection) // receives the output of the 'collection' task
 ```
 
-## Memória
+## Memory
 
 ```go
 crew.Memory = true
@@ -231,13 +231,13 @@ for _, r := range crew.MemorySnapshot().Records() {
 }
 ```
 
-## Exemplos
+## Examples
 
-Execute os exemplos incluídos:
+Run the included examples:
 
 ```bash
-go run ./examples/custom_llm     # offline, sem chave de API
-go run ./examples/ollama         # Ollama local (ou OLLAMA_CLOUD=1)
+go run ./examples/custom_llm     # offline, no API key
+go run ./examples/ollama         # local Ollama (or OLLAMA_CLOUD=1)
 
 export OPENAI_API_KEY=sk-...
 go run ./examples/basic
@@ -245,34 +245,34 @@ go run ./examples/sequential
 go run ./examples/hierarchical
 go run ./examples/tools
 
-export XAI_API_KEY=xai-...        # ou XAI_OAUTH=1 + XAI_CLIENT_ID
+export XAI_API_KEY=xai-...        # or XAI_OAUTH=1 + XAI_CLIENT_ID
 go run ./examples/xai_oauth
 ```
 
-## Documentação
+## Documentation
 
-| Guia | Conteúdo |
+| Guide | Contents |
 |------|----------|
-| [Getting Started](docs/getting-started.md) | Instalação e primeiro projeto |
-| [Agents](docs/agents.md)   | Como criar e configurar agentes |
-| [Tasks](docs/tasks.md)     | Tarefas, contexto e interpolação |
-| [Crews](docs/crews.md)     | Orquestração e processos |
-| [Tools](docs/tools.md)     | Ferramentas e o protocolo ReAct |
-| [LLMs](docs/llms.md)       | Provedores e LLMs customizados |
-| [Memory](docs/memory.md)   | Memória e contexto |
-| [Plano / Roadmap](PLAN.md) | Arquitetura, decisões, status e próximos passos |
+| [Getting Started](docs/getting-started.md) | Installation and first project |
+| [Agents](docs/agents.md)   | How to create and configure agents |
+| [Tasks](docs/tasks.md)     | Tasks, context, and interpolation |
+| [Crews](docs/crews.md)     | Orchestration and processes |
+| [Tools](docs/tools.md)     | Tools and the ReAct protocol |
+| [LLMs](docs/llms.md)       | Providers and custom LLMs |
+| [Memory](docs/memory.md)   | Memory and context |
+| [Plan / Roadmap](PLAN.md)  | Architecture, decisions, status, and next steps |
 
-## Testes
+## Tests
 
 ```bash
-go test ./...            # todos os testes
-go test ./... -cover     # com cobertura
-go vet ./...             # análise estática
+go test ./...            # all tests
+go test ./... -cover     # with coverage
+go vet ./...             # static analysis
 ```
 
-Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de rede reais.
+Tests are **hermetic**: they use the `mock` LLM and `httptest`, with no real network calls.
 
-## Comparação com o CrewAI (Python)
+## Comparison with CrewAI (Python)
 
 | CrewAI (Python)        | crewai-go                         |
 |------------------------|-----------------------------------|
@@ -283,10 +283,10 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 | `Process.sequential`   | `crewai.Sequential`               |
 | `Process.hierarchical` | `crewai.Hierarchical`             |
 | `@tool` / `BaseTool`   | `crewai.NewTool` / `crewai.Tool`  |
-| litellm                | interface `LLM` (openai/anthropic)|
+| litellm                | `LLM` interface (openai/anthropic)|
 
-Este port cobre o núcleo do CrewAI (agentes, tarefas, crews, processos, ferramentas, memória). Recursos avançados do projeto original (Flows event-driven, training, telemetria) não fazem parte desta versão.
+This port covers the CrewAI core (agents, tasks, crews, processes, tools, memory). Advanced features of the original project (event-driven Flows, training, telemetry) are not part of this version.
 
-## Licença
+## License
 
 [MIT](LICENSE).

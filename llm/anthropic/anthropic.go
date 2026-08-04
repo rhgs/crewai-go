@@ -1,5 +1,5 @@
-// Package anthropic implementa crewai.LLM para a API de Mensagens da
-// Anthropic (Claude), usando apenas a biblioteca padrão.
+// Package anthropic implements crewai.LLM for the Anthropic (Claude) Messages
+// API, using only the standard library.
 package anthropic
 
 import (
@@ -21,7 +21,7 @@ const (
 	apiVersion     = "2023-06-01"
 )
 
-// Client fala com a API de Mensagens da Anthropic.
+// Client talks to the Anthropic Messages API.
 type Client struct {
 	apiKey      string
 	model       string
@@ -31,26 +31,26 @@ type Client struct {
 	httpClient  *http.Client
 }
 
-// Option configura o Client.
+// Option configures the Client.
 type Option func(*Client)
 
-// WithBaseURL define uma URL base alternativa.
+// WithBaseURL sets an alternative base URL.
 func WithBaseURL(url string) Option { return func(c *Client) { c.baseURL = url } }
 
-// WithMaxTokens define o máximo de tokens gerados por resposta.
+// WithMaxTokens sets the maximum number of tokens generated per response.
 func WithMaxTokens(n int) Option { return func(c *Client) { c.maxTokens = n } }
 
-// WithTemperature ajusta a temperatura de amostragem.
+// WithTemperature adjusts the sampling temperature.
 func WithTemperature(t float64) Option { return func(c *Client) { c.temperature = t } }
 
-// WithHTTPClient injeta um *http.Client customizado.
+// WithHTTPClient injects a custom *http.Client.
 func WithHTTPClient(h *http.Client) Option { return func(c *Client) { c.httpClient = h } }
 
-// WithAPIKey define a chave de API explicitamente.
+// WithAPIKey sets the API key explicitly.
 func WithAPIKey(key string) Option { return func(c *Client) { c.apiKey = key } }
 
-// New cria um cliente para o modelo Claude informado (ex.: "claude-sonnet-5").
-// Se nenhuma chave for passada, usa a variável ANTHROPIC_API_KEY.
+// New creates a client for the given Claude model (e.g. "claude-sonnet-5").
+// If no key is passed, the ANTHROPIC_API_KEY environment variable is used.
 func New(model string, opts ...Option) *Client {
 	c := &Client{
 		apiKey:      os.Getenv("ANTHROPIC_API_KEY"),
@@ -66,7 +66,7 @@ func New(model string, opts ...Option) *Client {
 	return c
 }
 
-// Model implementa crewai.LLM.
+// Model implements crewai.LLM.
 func (c *Client) Model() string { return c.model }
 
 type messagesRequest struct {
@@ -93,14 +93,14 @@ type messagesResponse struct {
 	} `json:"error"`
 }
 
-// Call implementa crewai.LLM.
+// Call implements crewai.LLM.
 func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, error) {
 	if c.apiKey == "" {
-		return "", fmt.Errorf("anthropic: chave de API ausente (defina ANTHROPIC_API_KEY ou use WithAPIKey)")
+		return "", fmt.Errorf("anthropic: missing API key (set ANTHROPIC_API_KEY or use WithAPIKey)")
 	}
 
-	// A API da Anthropic recebe o system prompt em um campo separado e só
-	// aceita mensagens 'user' e 'assistant'.
+	// The Anthropic API receives the system prompt in a separate field and
+	// only accepts 'user' and 'assistant' messages.
 	var systemParts []string
 	var msgs []anthMsg
 	for _, m := range messages {
@@ -109,7 +109,7 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 			systemParts = append(systemParts, m.Content)
 		case crewai.RoleAssistant:
 			msgs = append(msgs, anthMsg{Role: "assistant", Content: m.Content})
-		default: // user e tool são mapeados para user
+		default: // user and tool are mapped to user
 			msgs = append(msgs, anthMsg{Role: "user", Content: m.Content})
 		}
 	}
@@ -124,12 +124,12 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 
 	buf, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", fmt.Errorf("anthropic: codificando requisição: %w", err)
+		return "", fmt.Errorf("anthropic: encoding request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/messages", bytes.NewReader(buf))
 	if err != nil {
-		return "", fmt.Errorf("anthropic: criando requisição: %w", err)
+		return "", fmt.Errorf("anthropic: creating request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", c.apiKey)
@@ -137,24 +137,24 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("anthropic: enviando requisição: %w", err)
+		return "", fmt.Errorf("anthropic: sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("anthropic: lendo resposta: %w", err)
+		return "", fmt.Errorf("anthropic: reading response: %w", err)
 	}
 
 	var parsed messagesResponse
 	if err := json.Unmarshal(data, &parsed); err != nil {
-		return "", fmt.Errorf("anthropic: decodificando resposta (status %d): %w", resp.StatusCode, err)
+		return "", fmt.Errorf("anthropic: decoding response (status %d): %w", resp.StatusCode, err)
 	}
 	if parsed.Error != nil {
-		return "", fmt.Errorf("anthropic: erro da API: %s", parsed.Error.Message)
+		return "", fmt.Errorf("anthropic: API error: %s", parsed.Error.Message)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("anthropic: status inesperado %d: %s", resp.StatusCode, string(data))
+		return "", fmt.Errorf("anthropic: unexpected status %d: %s", resp.StatusCode, string(data))
 	}
 
 	var b strings.Builder

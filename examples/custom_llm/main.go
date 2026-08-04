@@ -1,8 +1,8 @@
-// Exemplo de LLM customizado: qualquer tipo que implemente a interface
-// crewai.LLM pode ser usado. Aqui criamos um LLM "eco" totalmente offline,
-// útil para demonstrar a integração sem custo de API.
+// Custom LLM example: any type implementing the crewai.LLM interface can be
+// used. Here we create a fully offline "echo" LLM, useful for demonstrating
+// the integration with no API cost.
 //
-// Execução:
+// Run:
 //
 //	go run ./examples/custom_llm
 package main
@@ -16,14 +16,14 @@ import (
 	"github.com/rhgs/crewai-go"
 )
 
-// echoLLM é um LLM determinístico que não faz nenhuma chamada de rede.
+// echoLLM is a deterministic LLM that makes no network calls.
 type echoLLM struct{}
 
 func (echoLLM) Model() string { return "echo-1" }
 
 func (echoLLM) Call(_ context.Context, messages []crewai.Message) (string, error) {
-	// Devolve a última mensagem do usuário em ordem invertida, apenas para
-	// demonstrar que a integração funciona.
+	// Returns the last user message reversed, just to demonstrate that the
+	// integration works.
 	var last string
 	for _, m := range messages {
 		if m.Role == crewai.RoleUser {
@@ -34,19 +34,19 @@ func (echoLLM) Call(_ context.Context, messages []crewai.Message) (string, error
 	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
 		runes[i], runes[j] = runes[j], runes[i]
 	}
-	return "Resposta do echoLLM: " + strings.TrimSpace(string(runes)), nil
+	return "echoLLM response: " + strings.TrimSpace(string(runes)), nil
 }
 
 func main() {
-	agente := crewai.NewAgent(
-		"Agente de Demonstração",
-		"Demonstrar um LLM customizado",
-		"Você usa um modelo offline.",
+	agent := crewai.NewAgent(
+		"Demo Agent",
+		"Demonstrate a custom LLM",
+		"You use an offline model.",
 		echoLLM{},
 	)
-	tarefa := crewai.NewTask("Olá, mundo!", "qualquer coisa", agente)
+	task := crewai.NewTask("Hello, world!", "anything", agent)
 
-	crew := crewai.NewCrew([]*crewai.Agent{agente}, []*crewai.Task{tarefa})
+	crew := crewai.NewCrew([]*crewai.Agent{agent}, []*crewai.Task{task})
 	out, err := crew.Kickoff(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)

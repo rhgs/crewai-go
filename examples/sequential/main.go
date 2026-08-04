@@ -1,8 +1,8 @@
-// Exemplo sequencial: um pesquisador coleta informações e um redator
-// transforma o resultado em um artigo. A saída da 1ª tarefa é passada como
-// contexto para a 2ª.
+// Sequential example: a researcher gathers information and a writer turns
+// the result into an article. The output of the 1st task is passed as context
+// to the 2nd.
 //
-// Execução:
+// Run:
 //
 //	export OPENAI_API_KEY=sk-...
 //	go run ./examples/sequential
@@ -20,42 +20,42 @@ import (
 func main() {
 	llm := openai.New("gpt-4o-mini")
 
-	pesquisador := crewai.NewAgent(
-		"Pesquisador de Tecnologia",
-		"Descobrir os pontos mais relevantes sobre um tema",
-		"Você é analista técnico, objetivo e detalhista.",
+	researcher := crewai.NewAgent(
+		"Technology Researcher",
+		"Discover the most relevant points about a topic",
+		"You are a technical analyst, objective and detail-oriented.",
 		llm,
 	)
-	redator := crewai.NewAgent(
-		"Redator Técnico",
-		"Transformar pesquisa em conteúdo claro e envolvente",
-		"Você escreve para desenvolvedores, com clareza e precisão.",
+	writer := crewai.NewAgent(
+		"Technical Writer",
+		"Turn research into clear, engaging content",
+		"You write for developers, with clarity and precision.",
 		llm,
 	)
 
-	pesquisa := crewai.NewTask(
-		"Liste 5 vantagens de usar Go para sistemas concorrentes sobre o tema {tema}.",
-		"Uma lista de 5 itens com uma frase de explicação cada.",
-		pesquisador,
+	research := crewai.NewTask(
+		"List 5 advantages of using Go for concurrent systems on the {topic} theme.",
+		"A list of 5 items with one explanatory sentence each.",
+		researcher,
 	)
-	pesquisa.Name = "Pesquisa"
+	research.Name = "Research"
 
-	artigo := crewai.NewTask(
-		"Escreva um parágrafo introdutório de blog usando a pesquisa.",
-		"Um parágrafo de ~120 palavras.",
-		redator,
-	).WithContext(pesquisa)
+	article := crewai.NewTask(
+		"Write an introductory blog paragraph using the research.",
+		"A paragraph of ~120 words.",
+		writer,
+	).WithContext(research)
 
 	crew := crewai.NewCrew(
-		[]*crewai.Agent{pesquisador, redator},
-		[]*crewai.Task{pesquisa, artigo},
+		[]*crewai.Agent{researcher, writer},
+		[]*crewai.Task{research, article},
 	)
 	crew.Process = crewai.Sequential
 	crew.Verbose = true
 	crew.Memory = true
 
 	out, err := crew.Kickoff(context.Background(), map[string]string{
-		"tema": "concorrência",
+		"topic": "concurrency",
 	})
 	if err != nil {
 		log.Fatal(err)

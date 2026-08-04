@@ -18,21 +18,21 @@ func TestClientCall(t *testing.T) {
 			t.Errorf("x-api-key = %q", r.Header.Get("x-api-key"))
 		}
 		if r.Header.Get("anthropic-version") == "" {
-			t.Error("anthropic-version ausente")
+			t.Error("anthropic-version missing")
 		}
 		body, _ := io.ReadAll(r.Body)
 		var req map[string]any
 		_ = json.Unmarshal(body, &req)
-		// O system prompt deve ser separado das mensagens.
-		if req["system"] != "instruções" {
+		// The system prompt must be separate from the messages.
+		if req["system"] != "instructions" {
 			t.Errorf("system = %v", req["system"])
 		}
 		msgs, _ := req["messages"].([]any)
 		if len(msgs) != 1 {
-			t.Errorf("esperava 1 mensagem, obteve %d", len(msgs))
+			t.Errorf("expected 1 message, got %d", len(msgs))
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"content":[{"type":"text","text":"resposta do Claude"}]}`))
+		_, _ = w.Write([]byte(`{"content":[{"type":"text","text":"Claude response"}]}`))
 	}))
 	defer srv.Close()
 
@@ -41,13 +41,13 @@ func TestClientCall(t *testing.T) {
 		anthropic.WithBaseURL(srv.URL),
 	)
 	out, err := c.Call(context.Background(), []crewai.Message{
-		crewai.SystemMessage("instruções"),
-		crewai.UserMessage("olá"),
+		crewai.SystemMessage("instructions"),
+		crewai.UserMessage("hi"),
 	})
 	if err != nil {
-		t.Fatalf("erro: %v", err)
+		t.Fatalf("error: %v", err)
 	}
-	if out != "resposta do Claude" {
+	if out != "Claude response" {
 		t.Errorf("out = %q", out)
 	}
 }
@@ -55,6 +55,6 @@ func TestClientCall(t *testing.T) {
 func TestClientMissingKey(t *testing.T) {
 	c := anthropic.New("claude-sonnet-5", anthropic.WithAPIKey(""))
 	if _, err := c.Call(context.Background(), nil); err == nil {
-		t.Error("esperava erro por chave ausente")
+		t.Error("expected an error for a missing key")
 	}
 }

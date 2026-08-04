@@ -8,26 +8,26 @@ import (
 	"github.com/rhgs/crewai-go/llm/mock"
 )
 
-// ExampleCrew_Kickoff demonstra uma crew sequencial de duas tarefas usando o
-// LLM mock (determinístico, sem rede).
+// ExampleCrew_Kickoff demonstrates a sequential crew of two tasks using the
+// mock LLM (deterministic, no network).
 func ExampleCrew_Kickoff() {
-	// Em produção, troque o mock por openai.New(...) ou anthropic.New(...).
+	// In production, swap the mock for openai.New(...) or anthropic.New(...).
 	llm := mock.New(
-		"Go tem goroutines leves e canais.", // saída da 1ª tarefa
-		"Go é ótimo para concorrência.",     // saída da 2ª tarefa
+		"Go has lightweight goroutines and channels.", // 1st task output
+		"Go is great for concurrency.",                // 2nd task output
 	)
 
-	pesquisador := crewai.NewAgent("Pesquisador", "pesquisar", "", llm)
-	redator := crewai.NewAgent("Redator", "escrever", "", llm)
+	researcher := crewai.NewAgent("Researcher", "research", "", llm)
+	writer := crewai.NewAgent("Writer", "write", "", llm)
 
-	pesquisa := crewai.NewTask("Pesquise sobre concorrência em Go.", "fatos", pesquisador)
-	pesquisa.Name = "Pesquisa"
-	resumo := crewai.NewTask("Resuma em uma frase.", "frase", redator).
-		WithContext(pesquisa)
+	research := crewai.NewTask("Research concurrency in Go.", "facts", researcher)
+	research.Name = "Research"
+	summary := crewai.NewTask("Summarize in one sentence.", "sentence", writer).
+		WithContext(research)
 
 	crew := crewai.NewCrew(
-		[]*crewai.Agent{pesquisador, redator},
-		[]*crewai.Task{pesquisa, resumo},
+		[]*crewai.Agent{researcher, writer},
+		[]*crewai.Task{research, summary},
 	)
 
 	out, err := crew.Kickoff(context.Background(), nil)
@@ -35,19 +35,19 @@ func ExampleCrew_Kickoff() {
 		panic(err)
 	}
 	fmt.Println(out.Final)
-	// Output: Go é ótimo para concorrência.
+	// Output: Go is great for concurrency.
 }
 
-// ExampleNewTool demonstra a criação de uma ferramenta a partir de uma função.
+// ExampleNewTool demonstrates creating a tool from a function.
 func ExampleNewTool() {
-	saudacao := crewai.NewTool(
-		"saudacao",
-		"Cumprimenta pelo nome. Entrada: o nome.",
-		func(_ context.Context, nome string) (string, error) {
-			return "Olá, " + nome + "!", nil
+	greet := crewai.NewTool(
+		"greet",
+		"Greets by name. Input: the name.",
+		func(_ context.Context, name string) (string, error) {
+			return "Hello, " + name + "!", nil
 		},
 	)
-	out, _ := saudacao.Call(context.Background(), "Ada")
+	out, _ := greet.Call(context.Background(), "Ada")
 	fmt.Println(out)
-	// Output: Olá, Ada!
+	// Output: Hello, Ada!
 }

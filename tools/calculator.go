@@ -1,4 +1,4 @@
-// Package tools reúne ferramentas prontas para uso pelos agentes.
+// Package tools groups ready-to-use tools for agents.
 package tools
 
 import (
@@ -11,14 +11,14 @@ import (
 	"github.com/rhgs/crewai-go"
 )
 
-// Calculator devolve uma ferramenta que avalia expressões aritméticas com
-// +, -, *, /, parênteses e números decimais. É totalmente offline e segura
-// (não usa eval de terceiros).
+// Calculator returns a tool that evaluates arithmetic expressions with
+// +, -, *, /, parentheses, and decimal numbers. It is fully offline and safe
+// (no third-party eval).
 func Calculator() crewai.Tool {
 	return crewai.NewTool(
-		"calculadora",
-		"Avalia uma expressão aritmética (ex.: '2 + 2 * (3 - 1)'). "+
-			"A entrada deve ser apenas a expressão.",
+		"calculator",
+		"Evaluates an arithmetic expression (e.g. '2 + 2 * (3 - 1)'). "+
+			"The input must be the expression only.",
 		func(_ context.Context, input string) (string, error) {
 			val, err := evalExpr(strings.TrimSpace(input))
 			if err != nil {
@@ -29,7 +29,7 @@ func Calculator() crewai.Tool {
 	)
 }
 
-// evalExpr avalia uma expressão aritmética simples.
+// evalExpr evaluates a simple arithmetic expression.
 func evalExpr(s string) (float64, error) {
 	p := &parser{src: s}
 	v, err := p.parseExpression()
@@ -38,12 +38,12 @@ func evalExpr(s string) (float64, error) {
 	}
 	p.skipSpaces()
 	if p.pos != len(p.src) {
-		return 0, fmt.Errorf("expressão inválida perto de %q", p.src[p.pos:])
+		return 0, fmt.Errorf("invalid expression near %q", p.src[p.pos:])
 	}
 	return v, nil
 }
 
-// parser é um analisador recursivo descendente para expressões aritméticas.
+// parser is a recursive-descent parser for arithmetic expressions.
 //
 //	expression = term { ("+" | "-") term }
 //	term       = factor { ("*" | "/") factor }
@@ -109,7 +109,7 @@ func (p *parser) parseTerm() (float64, error) {
 			v *= rhs
 		} else {
 			if rhs == 0 {
-				return 0, fmt.Errorf("divisão por zero")
+				return 0, fmt.Errorf("division by zero")
 			}
 			v /= rhs
 		}
@@ -119,7 +119,7 @@ func (p *parser) parseTerm() (float64, error) {
 func (p *parser) parseFactor() (float64, error) {
 	p.skipSpaces()
 	if p.pos >= len(p.src) {
-		return 0, fmt.Errorf("fim inesperado da expressão")
+		return 0, fmt.Errorf("unexpected end of expression")
 	}
 	switch p.src[p.pos] {
 	case '+':
@@ -137,7 +137,7 @@ func (p *parser) parseFactor() (float64, error) {
 		}
 		p.skipSpaces()
 		if p.pos >= len(p.src) || p.src[p.pos] != ')' {
-			return 0, fmt.Errorf("parêntese ')' esperado")
+			return 0, fmt.Errorf("expected ')'")
 		}
 		p.pos++
 		return v, nil
@@ -158,7 +158,7 @@ func (p *parser) parseNumber() (float64, error) {
 		break
 	}
 	if start == p.pos {
-		return 0, fmt.Errorf("número esperado perto de %q", p.src[p.pos:])
+		return 0, fmt.Errorf("expected number near %q", p.src[p.pos:])
 	}
 	return strconv.ParseFloat(p.src[start:p.pos], 64)
 }

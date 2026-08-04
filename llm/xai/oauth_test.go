@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// oauthServer simula um servidor RFC 8628 (device flow) + refresh.
+// oauthServer simulates an RFC 8628 (device flow) + refresh server.
 func oauthServer(t *testing.T, pendingPolls int32) *httptest.Server {
 	t.Helper()
 	var polls int32
@@ -31,20 +31,20 @@ func oauthServer(t *testing.T, pendingPolls int32) *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.Form.Get("grant_type") {
 		case "refresh_token":
-			_, _ = w.Write([]byte(`{"access_token":"renovado","refresh_token":"rt2","token_type":"Bearer","expires_in":3600}`))
+			_, _ = w.Write([]byte(`{"access_token":"renewed","refresh_token":"rt2","token_type":"Bearer","expires_in":3600}`))
 		default: // device_code
 			if atomic.AddInt32(&polls, 1) <= pendingPolls {
 				_, _ = w.Write([]byte(`{"error":"authorization_pending"}`))
 				return
 			}
-			_, _ = w.Write([]byte(`{"access_token":"inicial","refresh_token":"rt1","token_type":"Bearer","expires_in":3600}`))
+			_, _ = w.Write([]byte(`{"access_token":"initial","refresh_token":"rt1","token_type":"Bearer","expires_in":3600}`))
 		}
 	})
 	return httptest.NewServer(mux)
 }
 
 func TestDeviceFlowAuthorize(t *testing.T) {
-	srv := oauthServer(t, 2) // 2 polls pendentes antes de autorizar
+	srv := oauthServer(t, 2) // 2 pending polls before authorizing
 	defer srv.Close()
 
 	var prompted bool
@@ -61,16 +61,16 @@ func TestDeviceFlowAuthorize(t *testing.T) {
 
 	tok, err := df.Authorize(context.Background())
 	if err != nil {
-		t.Fatalf("Authorize erro: %v", err)
+		t.Fatalf("Authorize error: %v", err)
 	}
 	if !prompted {
-		t.Error("Prompt não foi chamado")
+		t.Error("Prompt was not called")
 	}
-	if tok.AccessToken != "inicial" || tok.RefreshToken != "rt1" {
+	if tok.AccessToken != "initial" || tok.RefreshToken != "rt1" {
 		t.Errorf("token = %+v", tok)
 	}
 	if !tok.Valid() {
-		t.Error("token deveria ser válido")
+		t.Error("token should be valid")
 	}
 }
 
@@ -83,9 +83,9 @@ func TestDeviceFlowRefresh(t *testing.T) {
 	)
 	tok, err := df.Refresh(context.Background(), "rt1")
 	if err != nil {
-		t.Fatalf("Refresh erro: %v", err)
+		t.Fatalf("Refresh error: %v", err)
 	}
-	if tok.AccessToken != "renovado" {
+	if tok.AccessToken != "renewed" {
 		t.Errorf("AccessToken = %q", tok.AccessToken)
 	}
 }
@@ -96,25 +96,25 @@ func TestRefreshingTokenSource(t *testing.T) {
 
 	df := NewDeviceFlow("client-abc", WithTokenURL(srv.URL+"/oauth2/token"))
 
-	// Token já expirado força a renovação na primeira chamada.
-	expired := Token{AccessToken: "velho", RefreshToken: "rt1", Expiry: time.Now().Add(-time.Hour)}
+	// An already-expired token forces a renewal on the first call.
+	expired := Token{AccessToken: "old", RefreshToken: "rt1", Expiry: time.Now().Add(-time.Hour)}
 	ts := df.TokenSource(expired, nil)
 
 	got, err := ts.Token(context.Background())
 	if err != nil {
-		t.Fatalf("Token erro: %v", err)
+		t.Fatalf("Token error: %v", err)
 	}
-	if got != "renovado" {
-		t.Errorf("token = %q, quer 'renovado'", got)
+	if got != "renewed" {
+		t.Errorf("token = %q, want 'renewed'", got)
 	}
 }
 
 func TestTokenSourceNoRefresh(t *testing.T) {
 	df := NewDeviceFlow("c")
-	expired := Token{AccessToken: "velho", Expiry: time.Now().Add(-time.Hour)} // sem refresh
+	expired := Token{AccessToken: "old", Expiry: time.Now().Add(-time.Hour)} // no refresh
 	ts := df.TokenSource(expired, nil)
 	if _, err := ts.Token(context.Background()); err == nil {
-		t.Error("esperava erro sem refresh token")
+		t.Error("expected an error with no refresh token")
 	}
 }
 
@@ -142,7 +142,7 @@ func TestLoadTokenSourcePersistsRefresh(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tok.json")
-	_ = SaveToken(path, Token{AccessToken: "velho", RefreshToken: "rt1", Expiry: time.Now().Add(-time.Hour)})
+	_ = SaveToken(path, Token{AccessToken: "old", RefreshToken: "rt1", Expiry: time.Now().Add(-time.Hour)})
 
 	ts, err := LoadTokenSource(path, df)
 	if err != nil {
@@ -151,10 +151,10 @@ func TestLoadTokenSourcePersistsRefresh(t *testing.T) {
 	if _, err := ts.Token(context.Background()); err != nil {
 		t.Fatalf("Token: %v", err)
 	}
-	// O arquivo deve ter sido regravado com o token renovado.
+	// The file should have been rewritten with the renewed token.
 	reloaded, _ := LoadToken(path)
-	if reloaded.AccessToken != "renovado" {
-		t.Errorf("arquivo não atualizado: %+v", reloaded)
+	if reloaded.AccessToken != "renewed" {
+		t.Errorf("file not updated: %+v", reloaded)
 	}
 }
 
@@ -164,6 +164,6 @@ func TestPKCEPair(t *testing.T) {
 		t.Fatal(err)
 	}
 	if v == "" || c == "" || v == c {
-		t.Errorf("pkce inválido: verifier=%q challenge=%q", v, c)
+		t.Errorf("invalid pkce: verifier=%q challenge=%q", v, c)
 	}
 }

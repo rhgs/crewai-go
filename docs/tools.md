@@ -1,9 +1,9 @@
 # Tools
 
-Uma **Tool** dá "mãos" ao agente: permite que ele realize ações — calcular,
-consultar uma API, ler um arquivo — durante o raciocínio.
+A **Tool** gives "hands" to an agent: it lets the agent perform actions —
+calculate, query an API, read a file — during reasoning.
 
-## A interface
+## The interface
 
 ```go
 type Tool interface {
@@ -13,85 +13,85 @@ type Tool interface {
 }
 ```
 
-Entrada e saída são `string`, para casar com o raciocínio textual do agente.
-Se sua ferramenta precisa de argumentos estruturados, documente o formato
-(ex.: um JSON) na `Description`.
+Input and output are `string` to match the agent's text-based reasoning. If
+your tool needs structured arguments, document the expected format (e.g. a
+JSON object) in its `Description`.
 
-## Criando uma ferramenta a partir de uma função
+## Creating a tool from a function
 
 ```go
-clima := crewai.NewTool(
-	"clima",
-	"Consulta o clima de uma cidade. Entrada: o nome da cidade.",
-	func(ctx context.Context, cidade string) (string, error) {
-		// chame sua API aqui...
-		return fmt.Sprintf("Ensolarado em %s, 27°C", cidade), nil
+weather := crewai.NewTool(
+	"weather",
+	"Looks up the weather for a city. Input: the city name.",
+	func(ctx context.Context, city string) (string, error) {
+		// call your API here...
+		return fmt.Sprintf("Sunny in %s, 27°C", city), nil
 	},
 )
 ```
 
-## Ferramentas embutidas (`pacote tools`)
+## Built-in tools (the `tools` package)
 
 ```go
 import "github.com/rhgs/crewai-go/tools"
 
-tools.Calculator()      // avalia "2 + 2 * (3 - 1)" — offline e seguro
-tools.CurrentTime("")   // data/hora atual (layout do pacote time; "" = RFC3339)
-tools.WordCount()       // conta palavras e caracteres do texto
+tools.Calculator()      // evaluates "2 + 2 * (3 - 1)" — offline and safe
+tools.CurrentTime("")   // current date/time (time package layout; "" = RFC3339)
+tools.WordCount()       // counts words and characters in the text
 ```
 
-## Anexando ferramentas
+## Attaching tools
 
-A um agente (disponível em todas as suas tarefas):
+To an agent (available for all its tasks):
 
 ```go
-agente.WithTools(tools.Calculator(), clima)
+agent.WithTools(tools.Calculator(), weather)
 ```
 
-A uma tarefa específica (sobrepõe as do agente só naquela tarefa):
+To a specific task (overrides the agent's tools for that task only):
 
 ```go
-tarefa.Tools = []crewai.Tool{clima}
+task.Tools = []crewai.Tool{weather}
 ```
 
-## O protocolo ReAct
+## The ReAct protocol
 
-Quando um agente tem ferramentas, ele segue um ciclo de **Raciocínio + Ação**.
-O modelo é instruído a responder neste formato:
+When an agent has tools, it follows a **Reasoning + Action** cycle. The model
+is instructed to respond in this format:
 
 ```
-Thought: preciso calcular o total
-Action: calculadora
+Thought: I need to calculate the total
+Action: calculator
 Action Input: 1500 * 1.12
 ```
 
-O framework executa a ferramenta e devolve:
+The framework runs the tool and returns:
 
 ```
 Observation: 1680
 ```
 
-O ciclo se repete até o modelo concluir:
+The cycle repeats until the model concludes:
 
 ```
-Thought: agora sei a resposta
-Final Answer: O valor final é R$ 1.680,00.
+Thought: now I know the answer
+Final Answer: The final value is $1,680.00.
 ```
 
-### Robustez
+### Robustness
 
-- Se o modelo **não** seguir o protocolo, a saída é tratada como resposta final
-  (em vez de travar).
-- Se o modelo pedir uma ferramenta **inexistente**, o framework devolve uma
-  `Observation` de erro listando as ferramentas válidas, e o agente tenta de novo.
-- Erros retornados pela ferramenta viram uma `Observation` de erro — o agente
-  pode reagir a eles.
-- O laço para em `MaxIterations` (padrão 15), retornando `ErrMaxIterations`.
+- If the model does **not** follow the protocol, the output is treated as the
+  final answer (instead of stalling).
+- If the model asks for a **non-existent** tool, the framework returns an error
+  `Observation` listing the valid tools, and the agent tries again.
+- Errors returned by a tool become an error `Observation` — the agent can react
+  to them.
+- The loop stops at `MaxIterations` (default 15), returning `ErrMaxIterations`.
 
-## Boas práticas
+## Best practices
 
-- **Nomes curtos** e sem espaços (`busca_web`, não `Busca na Web`).
-- **Descrições claras** dizendo *o que faz* e *qual é a entrada esperada*.
-- Ferramentas devem ser **idempotentes** quando possível — o agente pode
-  chamá-las mais de uma vez.
-- Respeite o `context.Context` (timeouts/cancelamento) em chamadas de rede.
+- **Short names** without spaces (`web_search`, not `Web Search`).
+- **Clear descriptions** stating *what it does* and *what input is expected*.
+- Tools should be **idempotent** when possible — the agent may call them more
+  than once.
+- Respect `context.Context` (timeouts/cancellation) in network calls.

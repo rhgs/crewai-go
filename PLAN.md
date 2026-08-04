@@ -1,27 +1,27 @@
-# Plano — Port do CrewAI para Go (crewai-go)
+# Plan — CrewAI port to Go (crewai-go)
 
-Documento vivo do planejamento, decisões de arquitetura, status e roadmap do
-port do [CrewAI](https://github.com/crewAIInc/crewAI) (Python) para Go.
+A living document for the planning, architecture decisions, status, and roadmap
+of porting [CrewAI](https://github.com/crewAIInc/crewAI) (Python) to Go.
 
 ---
 
-## 1. Objetivo
+## 1. Goal
 
-Portar o **núcleo** do framework CrewAI para Go de forma **idiomática**,
-**sem dependências externas** (apenas stdlib), com **documentação e testes
-completos** e **exemplos** de instalação/uso.
+Port the **core** of the CrewAI framework to Go in an **idiomatic** way, with
+**no external dependencies** (stdlib only), **complete docs and tests**, and
+**examples** for installation/usage.
 
-## 2. Princípios de design
+## 2. Design principles
 
-| Princípio | Decisão |
+| Principle | Decision |
 |-----------|---------|
-| Zero dependências | Só biblioteca padrão do Go — fácil auditar, instalar e testar. |
-| LLM-agnóstico | Interface `LLM` mínima; provedores em subpacotes. |
-| Ferramentas via texto | Protocolo **ReAct** (Thought/Action/Observation/Final Answer) — sem depender de _function calling_ nativo de cada provedor. |
-| Testável | LLM `mock` + `httptest`; testes hermeticos (sem rede real). |
-| Idiomático | `context.Context` em toda I/O, erros sentinela, _functional options_. |
+| Zero dependencies | Go standard library only — easy to audit, install, and test. |
+| LLM-agnostic | Minimal `LLM` interface; providers in subpackages. |
+| Text-based tools | **ReAct** protocol (Thought/Action/Observation/Final Answer) — no dependency on each provider's native _function calling_. |
+| Testable | `mock` LLM + `httptest`; hermetic tests (no real network). |
+| Idiomatic | `context.Context` on all I/O, sentinel errors, _functional options_. |
 
-## 3. Mapeamento CrewAI → crewai-go
+## 3. CrewAI → crewai-go mapping
 
 | CrewAI (Python)          | crewai-go                          |
 |--------------------------|------------------------------------|
@@ -32,183 +32,190 @@ completos** e **exemplos** de instalação/uso.
 | `Process.sequential`     | `crewai.Sequential`                |
 | `Process.hierarchical`   | `crewai.Hierarchical`              |
 | `BaseTool` / `@tool`     | `crewai.Tool` / `NewTool`          |
-| memória de curto prazo   | `crewai.Memory`                    |
-| litellm                  | interface `LLM` + subpacotes `llm/*` |
+| short-term memory        | `crewai.Memory`                    |
+| litellm                  | `LLM` interface + `llm/*` subpackages |
 
-## 4. Arquitetura (pacotes)
+## 4. Architecture (packages)
 
 ```
-crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor ReAct
-├── llm/openai         OpenAI e compatíveis (Groq, Azure…) + WithTokenSource (OAuth)
-├── llm/anthropic      Claude (system prompt separado)
-├── llm/ollama         Ollama local (sem auth) e cloud (Bearer) — API nativa /api/chat
-├── llm/xai            Grok: API key + OAuth de assinatura (Device Flow RFC 8628 + PKCE)
-├── llm/mock           LLM determinístico para testes
-├── tools              Calculadora, hora atual, contador de palavras
+crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct executor
+├── llm/openai         OpenAI and compatible (Groq, Azure…) + WithTokenSource (OAuth)
+├── llm/anthropic      Claude (separate system prompt)
+├── llm/ollama         Ollama local (no auth) and cloud (Bearer) — native /api/chat
+├── llm/xai            Grok: API key + subscription OAuth (Device Flow RFC 8628 + PKCE)
+├── llm/mock           Deterministic LLM for tests
+├── tools              Calculator, current time, word counter
 ├── examples           basic, sequential, hierarchical, tools, custom_llm, ollama, xai_oauth
 └── docs               getting-started, agents, tasks, crews, tools, llms, memory
 ```
 
-### Fluxo de execução
+### Execution flow
 
-1. `Crew.Kickoff` interpola `{inputs}` nas tarefas.
-2. Sequencial: executa em ordem, encadeando contexto/memória.
-   Hierárquico: um gerente (ManagerLLM/ManagerAgent) delega cada tarefa.
-3. Por tarefa, o `executor` roda o laço ReAct: monta prompt (persona + tools),
-   chama o LLM, interpreta `Action`/`Final Answer`, executa ferramentas e
-   repete até a resposta final ou `MaxIterations`.
+1. `Crew.Kickoff` interpolates `{inputs}` into tasks.
+2. Sequential: runs in order, chaining context/memory.
+   Hierarchical: a manager (ManagerLLM/ManagerAgent) delegates each task.
+3. Per task, the `executor` runs the ReAct loop: builds the prompt (persona +
+   tools), calls the LLM, parses `Action`/`Final Answer`, runs tools, and
+   repeats until the final answer or `MaxIterations`.
 
-## 5. Status atual — ✅ CONCLUÍDO (fase 1)
+## 5. Current status — ✅ COMPLETE (phase 1)
 
-- [x] Núcleo: Agent, Task, Crew, Process, Tool, Memory, executor ReAct.
-- [x] Processos sequencial e hierárquico (com delegação por LLM).
-- [x] Contexto entre tarefas (`WithContext`) e interpolação de `{inputs}`.
-- [x] Provedores: OpenAI(+compatíveis), Anthropic, Ollama local, Ollama Cloud, xAI (API key + OAuth), mock.
-- [x] OAuth de assinatura do xAI: Device Flow (RFC 8628) + PKCE + refresh + persistência.
-- [x] Ferramentas embutidas (calculadora com parser próprio, hora, contador).
-- [x] Testes herméticos (~90% núcleo; provedores via httptest) e `Example`s.
-- [x] Documentação: README + 7 guias + godoc; 7 exemplos executáveis.
-- [x] `go build`, `go vet` e `go test ./...` limpos.
+- [x] Core: Agent, Task, Crew, Process, Tool, Memory, ReAct executor.
+- [x] Sequential and hierarchical processes (with LLM delegation).
+- [x] Context between tasks (`WithContext`) and `{inputs}` interpolation.
+- [x] Providers: OpenAI(+compatible), Anthropic, Ollama local, Ollama Cloud, xAI (API key + OAuth), mock.
+- [x] xAI subscription OAuth: Device Flow (RFC 8628) + PKCE + refresh + persistence.
+- [x] Built-in tools (calculator with its own parser, time, word counter).
+- [x] Hermetic tests (~90% core; providers via httptest) and `Example`s.
+- [x] Documentation: README + 7 guides + godoc; 7 runnable examples.
+- [x] Clean `go build`, `go vet`, and `go test ./...`.
 
-### Snapshot de maturidade (2026-08-04)
+### Maturity snapshot (2026-08-04)
 
-| Métrica | Valor |
+| Metric | Value |
 |---------|-------|
-| LOC Go (total) | 3.818 |
-| Arquivos `.go` | 41 |
-| Dependências externas | 0 (stdlib) |
-| Cobertura — núcleo (`crewai`) | 90.0% |
-| Cobertura — `tools` | 92.1% |
-| Cobertura — provedores `llm/*` | 71.7%–87.5% |
-| Exemplos executáveis | 7 |
-| Guias de documentação | 7 + README |
+| Go LOC (total) | 3.818 |
+| `.go` files | 41 |
+| External dependencies | 0 (stdlib) |
+| Coverage — core (`crewai`) | 90.0% |
+| Coverage — `tools` | 92.1% |
+| Coverage — `llm/*` providers | 71.7%–87.5% |
+| Runnable examples | 7 |
+| Documentation guides | 7 + README |
 
-### Limitações conhecidas da fase 1
+### Known limitations of phase 1
 
-- ~~**Sem git**~~ — **resolvido (2026-08-04):** repositório inicializado e publicado
-  em https://github.com/rhgs/crewai-go.git (branch `main`), `.gitignore` cobrindo
-  `.claude/`, tokens OAuth do xAI e `.env`; licença MIT mantida (remote trazia GPL
-  v3 do template do GitHub, resolvido em favor da MIT declarada no README). Falta
-  apenas configurar CI.
-- **Hierárquico simplificado** — o gerente escolhe um agente por tarefa via LLM, mas
-  não há delegação interagente em tempo de execução (um agente chamar outro
-  durante o raciocínio). O campo `Agent.AllowDelegation` é "informativo nesta
-  versão" (sem efeito prático).
-- **Sem streaming** — `LLM.Call` retorna a resposta completa; não há
+- ~~**No git**~~ — **resolved (2026-08-04):** repository initialized and published
+  at https://github.com/rhgs/crewai-go.git (branch `main`), `.gitignore` covering
+  `.claude/`, xAI OAuth tokens, and `.env`; MIT license kept (the remote came
+  with GPL v3 from the GitHub template, resolved in favor of the MIT declared
+  in the README). Only CI setup remains.
+- **Simplified hierarchical** — the manager picks one agent per task via LLM,
+  but there is no runtime inter-agent delegation (one agent calling another
+  during reasoning). The `Agent.AllowDelegation` field is "informational in this
+  version" (no practical effect).
+- **No streaming** — `LLM.Call` returns the full response; there is no
   `CallStream(ctx, messages) (<-chan StreamChunk, error)`.
-- **Memória apenas em processo** — sem persistência nem busca semântica.
-- **Sem function calling nativo** — todo uso de ferramentas passa pelo ReAct
-  textual, que funciona com qualquer provedor mas não aproveita tools nativas.
+- **In-process memory only** — no persistence or semantic search.
+- **No native function calling** — all tool usage goes through the text-based
+  ReAct loop, which works with any provider but doesn't leverage native tools.
 
-## 6. Roadmap — próximos passos (fora do escopo atual)
+## 6. Roadmap — next steps (out of current scope)
 
-Recursos avançados do CrewAI original ainda **não** portados, por prioridade
-sugerida (maior impacto / menor esforço primeiro):
+Advanced features of the original CrewAI **not** yet ported, by suggested
+priority (highest impact / lowest effort first):
 
-### P0 — Publicação e fundamentos
+### P0 — Publishing and fundamentals
 
-- [ ] **`git init` + repositório público** — versionar, definir CI (lint, test,
-  build de exemplos), tag `v0.1.0`.
-  - [x] **`git init` + push** — feito em `https://github.com/rhgs/crewai-go.git`.
-  - [x] **Module path corrigido** — `github.com/rodolphosa/crewai-go` →
-    `github.com/rhgs/crewai-go` em `go.mod` + 27 arquivos (imports, docs,
-    exemplos). Publicação consistente com o remote.
-  - [x] **G306 (gosec) corrigido** — `Task.setOutput` agora grava com `0600`.
-  - [ ] Definir CI (GitHub Actions: lint, `go vet`, `go test`, build de exemplos).
+- [ ] **`git init` + public repository** — version, set up CI (lint, test,
+  examples build), tag `v0.1.0`.
+  - [x] **`git init` + push** — done at `https://github.com/rhgs/crewai-go.git`.
+  - [x] **Module path fixed** — `github.com/rodolphosa/crewai-go` →
+    `github.com/rhgs/crewai-go` in `go.mod` + 27 files (imports, docs,
+    examples). Publication consistent with the remote.
+  - [x] **G306 (gosec) fixed** — `Task.setOutput` now writes with `0600`.
+  - [x] **Full English translation** — README, PLAN, all docs/*.md, examples/README,
+    godoc comments, error messages, prompts, tool names/descriptions, and test
+    strings translated to English. `gofmt` clean; `go test -race` clean; offline
+    example verified.
+  - [ ] Set up CI (GitHub Actions: lint, `go vet`, `go test`, examples build).
   - [ ] Tag `v0.1.0`.
-  - [ ] **Upgrade toolchain para Go 1.24.9+** — govulncheck reporta 21 CVEs na
-    stdlib do Go 1.24.4 (crypto/x509 etc.), corrigidos em 1.24.9. Sem mudança de
-    código, só bumpar `go.mod`/CI.
-- [x] **Confirmar module path** (`github.com/rodolphosa/crewai-go` → destino
-  final) e atualizar import paths nos exemplos/docs. **Resolvido (2026-08-04).**
-- [x] **Documentar o `go vet` e `-race` no CI** (testes já usam concorrência).
-  `go test -race ./...` limpo.
+  - [ ] **Upgrade toolchain to Go 1.24.9+** — govulncheck reports 21 CVEs in
+    the Go 1.24.4 stdlib (crypto/x509 etc.), fixed in 1.24.9. No code change,
+    just bump `go.mod`/CI.
+- [x] **Confirm module path** (`github.com/rodolphosa/crewai-go` → final
+  destination) and update import paths in examples/docs. **Resolved (2026-08-04).**
+- [x] **Document `go vet` and `-race` in CI** (tests already use concurrency).
+  `go test -race ./...` is clean.
 
-## 6.1 Code review e validação de segurança (2026-08-04)
+## 6.1 Code review and security validation (2026-08-04)
 
-**Ferramentas:** `go vet` ✅ · `gofmt -l` ✅ · `go test -race` ✅ · `gosec` ·
+**Tools:** `go vet` ✅ · `gofmt -l` ✅ · `go test -race` ✅ · `gosec` ·
 `govulncheck`.
 
-### gosec — 2 findings restantes (falsos positivos, sem `//nolint`)
+### gosec — 2 remaining findings (false positives, no `//nolint`)
 
-| ID | Arquivo | Veredito |
+| ID | File | Verdict |
 |----|---------|----------|
-| G304 | `llm/xai/oauth.go:314` `os.ReadFile(path)` | **Falso positivo.** `path` é
-  fornecido pelo chamador da biblioteca (ex.: `~/.crewai-xai-token.json`), não
-  por atacante. Uma lib não pode restringir o caminho que o usuário escolhe. |
-| G117 | `llm/xai/oauth.go:305` marshal de `AccessToken` | **Falso positivo.** O
-  propósito do arquivo é justamente persistir o token; não há exposição. |
+| G304 | `llm/xai/oauth.go:314` `os.ReadFile(path)` | **False positive.** `path`
+  is provided by the library caller (e.g. `~/.crewai-xai-token.json`), not by an
+  attacker. A library cannot restrict the path the user chooses. |
+| G117 | `llm/xai/oauth.go:305` marshal of `AccessToken` | **False positive.** The
+  file's purpose is precisely to persist the token; there is no exposure. |
 
-Não há diretivas `//nolint` no código (campo `Nosec: 0`). Decidido deixar os
-falsos positivos sem supressão para não mascarar findings reais no futuro.
+There are no `//nolint` directives in the code (`Nosec: 0`). The false positives
+are intentionally left unsuppressed so as not to mask real findings in the
+future.
 
-### govulncheck — 21 CVEs na stdlib (Go 1.24.4)
+### govulncheck — 21 CVEs in the stdlib (Go 1.24.4)
 
-Todas em `crypto/x509` e afins, via caminhos TLS dos provedores (`ollama.NewCloud`
-→ `x509.ParseCertificate`, etc.). **Corrigidas em Go 1.24.9.** Não há vuln no
-código do projeto; basta bumpar a toolchain no `go.mod` e no CI.
+All in `crypto/x509` and related, via the providers' TLS paths
+(`ollama.NewCloud` → `x509.ParseCertificate`, etc.). **Fixed in Go 1.24.9.**
+There is no vulnerability in the project's code; just bump the toolchain in
+`go.mod` and CI.
 
-### Code review manual — pontos de atenção
+### Manual code review — points of attention
 
-- **`Crew.Kickoff` muta `Task.Description`/`ExpectedOutput` em `interpolate`
-  sem segurar `Task.mu`.** Seguro no uso normal (Kickoff é chamado uma vez, fluxo
-  single-threaded), mas **não é seguro para reusar a mesma `Crew` em goroutines
-  concorrentes**. Documentar ou proteger com lock se o P1 (async) for
-  implementado.
-- **OAuth Device Flow** (`llm/xai/oauth.go`): implementação correta — PKCE com
-  `crypto/rand` (32 bytes), S256, polling honra `authorization_pending`/`slow_down`
-  (RFC 8628 §3.5), `refreshingSource` com `sync.Mutex`, persistência `0600`.
-  Sem hardcoded de `client_id`/endpoints (configuráveis via options).
-- **Auth dos provedores** (`llm/openai`): `TokenSource` dinâmico (OAuth) tem
-  prioridade sobre chave estática; token resolvido por chamada → renovação
-  automática. Correto.
-- **`delegate` (hierárquico)** faz fallback gracioso para o 1º agente em caso de
-  erro do LLM — não trava a execução.
-- Nenhum `TODO`/`FIXME`/`HACK` no código de produção.
+- **`Crew.Kickoff` mutates `Task.Description`/`ExpectedOutput` in `interpolate`
+  without holding `Task.mu`.** Safe in normal use (Kickoff is called once, the
+  flow is single-threaded), but **not safe for reusing the same `Crew` across
+  concurrent goroutines**. Document or protect with a lock if P1 (async) is
+  implemented.
+- **OAuth Device Flow** (`llm/xai/oauth.go`): correct implementation — PKCE with
+  `crypto/rand` (32 bytes), S256, polling honors `authorization_pending`/`slow_down`
+  (RFC 8628 §3.5), `refreshingSource` with `sync.Mutex`, `0600` persistence.
+  No hardcoded `client_id`/endpoints (configurable via options).
+- **Provider auth** (`llm/openai`): dynamic `TokenSource` (OAuth) takes
+  precedence over the static key; token resolved per call → auto-renewal.
+  Correct.
+- **`delegate` (hierarchical)** gracefully falls back to the first agent on LLM
+  error — does not stall execution.
+- No `TODO`/`FIXME`/`HACK` in production code.
 
-### Validação de segredos
+### Secret validation
 
-Varredura completa (arquivos rastreados + histórico de commits): **nenhuma
-chave, token ou credencial publicada.** Menções a segredos são apenas
-placeholders (`sk-...`, `xai-...`) e nomes de variáveis de ambiente em
-docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
+Full scan (tracked files + commit history): **no key, token, or credential
+published.** Mentions of secrets are only placeholders (`sk-...`, `xai-...`)
+and environment variable names in docs/README. The `.gitignore` protects
+`.claude/`, `.env`, `*token.json`.
 
-### P1 — Extensibilidade do núcleo
+### P1 — Core extensibility
 
-- [ ] **Streaming** — adicionar `CallStream(ctx, messages) (<-chan StreamChunk, error)`
-  à interface `LLM` (ou interface opcional `StreamingLLM`) e propagar no executor.
-- [ ] **Function calling nativo** por provedor (OpenAI/Anthropic) como via
-  alternativa ao ReAct textual — mantém o ReAct como fallback universal.
-- [ ] **Async/paralelismo** de tarefas (`async_execution`) com `sync.WaitGroup`
-  / `errgroup`-like usando goroutines e canais.
-- [ ] **Delegação real** entre agentes — ferramenta "Delegate work to coworker"
-  que permite a um agente invocar outro durante o raciocínio (remove a
-  inércia do `AllowDelegation`).
+- [ ] **Streaming** — add `CallStream(ctx, messages) (<-chan StreamChunk, error)`
+  to the `LLM` interface (or an optional `StreamingLLM` interface) and propagate
+  in the executor.
+- [ ] **Native function calling** per provider (OpenAI/Anthropic) as an
+  alternative to the text-based ReAct — keep ReAct as the universal fallback.
+- [ ] **Async/parallelism** of tasks (`async_execution`) with `sync.WaitGroup`
+  / an errgroup-like pattern using goroutines and channels.
+- [ ] **Real delegation** between agents — a "Delegate work to coworker" tool
+  that lets an agent invoke another during reasoning (removes the inertia of
+  `AllowDelegation`).
 
-### P2 — Persistência e observabilidade
+### P2 — Persistence and observability
 
-- [ ] **Memória de longo prazo** com embeddings/busca semântica e persistência
-  (interface `MemoryStore` + implementação em arquivo/sqlite como padrão).
-- [ ] **Callbacks e telemetria** — hooks de início/fim de tarefa e iteração
-  ReAct, exportáveis (log estruturado, métricas).
-- [ ] **Guardrails** — validação/transformação de saída com retry.
+- [ ] **Long-term memory** with embeddings/semantic search and persistence
+  (`MemoryStore` interface + file/sqlite implementation as default).
+- [ ] **Callbacks and telemetry** — task and ReAct-iteration start/end hooks,
+  exportable (structured logs, metrics).
+- [ ] **Guardrails** — output validation/transformation with retry.
 
-### P3 — Avançado
+### P3 — Advanced
 
-- [ ] **Flows** (orquestração event-driven com estado e roteamento).
-- [ ] Mais ferramentas (busca web, HTTP, arquivos, RAG).
-- [ ] Definição declarativa via YAML (agents.yaml/tasks.yaml).
-- [ ] _Training_ (ajuste fino de prompts a partir de execuções).
+- [ ] **Flows** (event-driven orchestration with state and routing).
+- [ ] More tools (web search, HTTP, files, RAG).
+- [ ] Declarative YAML definition (agents.yaml/tasks.yaml).
+- [ ] _Training_ (prompt fine-tuning from executions).
 
-## 7. Decisões em aberto
+## 7. Open decisions
 
-- **Module path**: hoje `github.com/rhgs/crewai-go`. Ajustar ao publicar.
-- **xAI OAuth**: `client_id` e endpoints exatos não são públicos; implementado
-  conforme RFC 8628 com endpoints configuráveis. Fixar padrões quando a xAI
-  publicar a documentação oficial.
-- **Streaming**: definir se a interface `LLM` ganha um método `CallStream` (quebra
-  implementações existentes) ou se introduzimos interface opcional
-  `StreamingLLM` que o executor verifica com type assertion.
-- **Function calling vs ReAct**: manter o ReAct como camada universal de
-  ferramentas e adicionar function calling nativo como otimização opcional por
-  provedor, ou migrar completamente para function calling? Tende-se à primeira.
+- **Module path**: currently `github.com/rhgs/crewai-go`. Adjust on publishing.
+- **xAI OAuth**: `client_id` and exact endpoints are not public; implemented
+  per RFC 8628 with configurable endpoints. Fix the defaults when xAI publishes
+  the official documentation.
+- **Streaming**: decide whether the `LLM` interface gets a `CallStream` method
+  (breaks existing implementations) or whether we introduce an optional
+  `StreamingLLM` interface that the executor checks via type assertion.
+- **Function calling vs ReAct**: keep ReAct as the universal tool layer and add
+  native function calling as an optional per-provider optimization, or migrate
+  completely to function calling? Leaning toward the former.

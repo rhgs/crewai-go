@@ -7,52 +7,53 @@ import (
 	"time"
 )
 
-// Crew reúne agentes e tarefas e as orquestra segundo um Process.
+// Crew groups agents and tasks and orchestrates them according to a Process.
 type Crew struct {
-	// Agents são os membros da equipe.
+	// Agents are the team members.
 	Agents []*Agent
-	// Tasks são as tarefas a executar.
+	// Tasks are the tasks to execute.
 	Tasks []*Task
-	// Process define a estratégia de orquestração. Padrão: Sequential.
+	// Process defines the orchestration strategy. Default: Sequential.
 	Process Process
 
-	// Verbose ativa logs detalhados da execução.
+	// Verbose enables detailed execution logs.
 	Verbose bool
 
-	// Memory, se ativado, armazena as saídas das tarefas para consulta.
+	// Memory, when enabled, stores task outputs for later reference.
 	Memory bool
 
-	// ManagerLLM é o modelo usado pelo agente gerente no processo hierárquico.
+	// ManagerLLM is the model used by the manager agent in the hierarchical
+	// process.
 	ManagerLLM LLM
-	// ManagerAgent é um agente gerente explícito para o processo hierárquico.
-	// Se definido, tem prioridade sobre ManagerLLM.
+	// ManagerAgent is an explicit manager agent for the hierarchical process.
+	// When set, it takes precedence over ManagerLLM.
 	ManagerAgent *Agent
 
 	logger Logger
 	mem    *Memory
 }
 
-// CrewOutput é o resultado da execução de uma crew.
+// CrewOutput is the result of a crew's execution.
 type CrewOutput struct {
-	// Final é a saída da última tarefa executada.
+	// Final is the output of the last executed task.
 	Final string
-	// TasksOutput contém a saída de cada tarefa, na ordem de execução.
+	// TasksOutput contains the output of each task, in execution order.
 	TasksOutput []TaskOutput
-	// Duration é o tempo total de execução.
+	// Duration is the total execution time.
 	Duration time.Duration
 }
 
-// TaskOutput é a saída de uma tarefa individual.
+// TaskOutput is the output of a single task.
 type TaskOutput struct {
 	Task   string
 	Agent  string
 	Output string
 }
 
-// String devolve a saída final da crew.
+// String returns the crew's final output.
 func (o *CrewOutput) String() string { return o.Final }
 
-// NewCrew cria uma crew sequencial com os agentes e tarefas informados.
+// NewCrew creates a sequential crew with the given agents and tasks.
 func NewCrew(agents []*Agent, tasks []*Task) *Crew {
 	return &Crew{
 		Agents:  agents,
@@ -61,10 +62,10 @@ func NewCrew(agents []*Agent, tasks []*Task) *Crew {
 	}
 }
 
-// Kickoff executa todas as tarefas da crew e devolve o resultado consolidado.
+// Kickoff executes all the crew's tasks and returns the consolidated result.
 //
-// inputs é um mapa opcional de variáveis interpoladas em {chave} nas
-// descrições e saídas esperadas das tarefas.
+// inputs is an optional map of variables interpolated into {key} in the tasks'
+// descriptions and expected outputs.
 func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutput, error) {
 	if len(c.Tasks) == 0 {
 		return nil, ErrNoTasks
@@ -73,7 +74,7 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 		c.Process = Sequential
 	}
 	if !c.Process.valid() {
-		return nil, fmt.Errorf("crewai: processo inválido %q", c.Process)
+		return nil, fmt.Errorf("crewai: invalid process %q", c.Process)
 	}
 
 	c.logger = newStdLogger(c.Verbose)
@@ -81,7 +82,7 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 		c.mem = NewMemory()
 	}
 
-	// Interpola inputs em todas as tarefas.
+	// Interpolate inputs into all tasks.
 	for _, t := range c.Tasks {
 		t.interpolate(inputs)
 	}
@@ -103,7 +104,7 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 	return out, nil
 }
 
-// runSequential executa as tarefas em ordem.
+// runSequential executes the tasks in order.
 func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 	out := &CrewOutput{}
 	for i, task := range c.Tasks {
@@ -117,7 +118,7 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 
 		result, err := c.execute(ctx, agent, task)
 		if err != nil {
-			return nil, fmt.Errorf("tarefa %d: %w", i+1, err)
+			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
 		out.TasksOutput = append(out.TasksOutput, TaskOutput{
 			Task:   taskLabel(task, i),
@@ -129,13 +130,13 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 	return out, nil
 }
 
-// runHierarchical usa um gerente para atribuir cada tarefa ao melhor agente.
+// runHierarchical uses a manager to assign each task to the best agent.
 func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 	manager, err := c.resolveManager()
 	if err != nil {
 		return nil, err
 	}
-	c.logger.Infof("gerente: %s", manager.Role)
+	c.logger.Infof("manager: %s", manager.Role)
 
 	out := &CrewOutput{}
 	for i, task := range c.Tasks {
@@ -146,11 +147,11 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 		if agent == nil {
 			return nil, ErrNoAgent
 		}
-		c.logger.Infof("gerente delegou a tarefa %d para %q", i+1, agent.Role)
+		c.logger.Infof("manager delegated task %d to %q", i+1, agent.Role)
 
 		result, err := c.execute(ctx, agent, task)
 		if err != nil {
-			return nil, fmt.Errorf("tarefa %d: %w", i+1, err)
+			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
 		out.TasksOutput = append(out.TasksOutput, TaskOutput{
 			Task:   taskLabel(task, i),
@@ -162,11 +163,11 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 	return out, nil
 }
 
-// execute roda uma tarefa, monta o contexto e persiste a saída/memória.
+// execute runs a task, assembles the context, and persists the output/memory.
 func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, error) {
 	contextText := task.contextText()
 	if c.mem != nil && contextText == "" {
-		// Sem contexto explícito, injeta a memória acumulada.
+		// With no explicit context, inject the accumulated memory.
 		if mem := strings.TrimSpace(c.mem.String()); mem != "" {
 			contextText = mem
 		}
@@ -177,7 +178,7 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, e
 		return "", err
 	}
 	if err := task.setOutput(result); err != nil {
-		return "", fmt.Errorf("gravando saída da tarefa: %w", err)
+		return "", fmt.Errorf("writing task output: %w", err)
 	}
 	if c.mem != nil {
 		c.mem.Save(MemoryRecord{
@@ -189,23 +190,23 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, e
 	return result, nil
 }
 
-// resolveManager devolve o agente gerente do processo hierárquico.
+// resolveManager returns the manager agent for the hierarchical process.
 func (c *Crew) resolveManager() (*Agent, error) {
 	if c.ManagerAgent != nil {
 		return c.ManagerAgent, nil
 	}
 	if c.ManagerLLM != nil {
 		return &Agent{
-			Role:      "Gerente da Equipe",
-			Goal:      "Coordenar a equipe para concluir as tarefas com excelência.",
-			Backstory: "Você é um gerente experiente, hábil em delegar trabalho para o membro mais adequado da equipe.",
+			Role:      "Team Manager",
+			Goal:      "Coordinate the team to complete the tasks with excellence.",
+			Backstory: "You are an experienced manager, skilled at delegating work to the most suitable team member.",
 			LLM:       c.ManagerLLM,
 		}, nil
 	}
 	return nil, ErrNoManager
 }
 
-// delegate pede ao gerente que escolha o melhor agente para a tarefa.
+// delegate asks the manager to choose the best agent for the task.
 func (c *Crew) delegate(ctx context.Context, manager *Agent, task *Task) *Agent {
 	if len(c.Agents) == 0 {
 		return nil
@@ -215,25 +216,25 @@ func (c *Crew) delegate(ctx context.Context, manager *Agent, task *Task) *Agent 
 	}
 
 	var b strings.Builder
-	b.WriteString("Você deve escolher qual membro da equipe é o mais adequado para a tarefa a seguir.\n\n")
-	b.WriteString("Membros disponíveis:\n")
+	b.WriteString("You must choose which team member is the most suitable for the following task.\n\n")
+	b.WriteString("Available members:\n")
 	for _, a := range c.Agents {
 		fmt.Fprintf(&b, "- %s: %s\n", a.Role, a.Goal)
 	}
-	fmt.Fprintf(&b, "\nTarefa: %s\n", task.Description)
-	b.WriteString("\nResponda APENAS com o papel exato do membro escolhido, sem nenhum outro texto.")
+	fmt.Fprintf(&b, "\nTask: %s\n", task.Description)
+	b.WriteString("\nRespond ONLY with the exact role of the chosen member, with no other text.")
 
 	resp, err := manager.LLM.Call(ctx, []Message{
 		SystemMessage(buildSystemPrompt(manager)),
 		UserMessage(b.String()),
 	})
 	if err != nil {
-		c.logger.Infof("falha na delegação, usando primeiro agente: %v", err)
+		c.logger.Infof("delegation failed, using first agent: %v", err)
 		return c.Agents[0]
 	}
 
 	resp = strings.TrimSpace(resp)
-	// Match exato e, na falta, match por substring.
+	// Exact match, and on failure, substring match.
 	for _, a := range c.Agents {
 		if strings.EqualFold(strings.TrimSpace(resp), a.Role) {
 			return a
@@ -247,7 +248,7 @@ func (c *Crew) delegate(ctx context.Context, manager *Agent, task *Task) *Agent 
 	return c.Agents[0]
 }
 
-// agentForIndex escolhe um agente para a tarefa i quando ela não tem agente.
+// agentForIndex chooses an agent for task i when it has no agent.
 func (c *Crew) agentForIndex(i int) *Agent {
 	if len(c.Agents) == 0 {
 		return nil
@@ -258,12 +259,12 @@ func (c *Crew) agentForIndex(i int) *Agent {
 	return c.Agents[len(c.Agents)-1]
 }
 
-// MemorySnapshot devolve a memória acumulada (nil se a memória estiver desativada).
+// MemorySnapshot returns the accumulated memory (nil if memory is disabled).
 func (c *Crew) MemorySnapshot() *Memory { return c.mem }
 
 func taskLabel(t *Task, i int) string {
 	if t.Name != "" {
 		return t.Name
 	}
-	return fmt.Sprintf("Tarefa %d", i+1)
+	return fmt.Sprintf("Task %d", i+1)
 }

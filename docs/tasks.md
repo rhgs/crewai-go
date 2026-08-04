@@ -1,73 +1,74 @@
 # Tasks
 
-Uma **Task** é uma unidade de trabalho: o que fazer, qual saída esperar e quem
-é o responsável.
+A **Task** is a unit of work: what to do, what output to expect, and who is
+responsible.
 
-## Criando uma tarefa
+## Creating a task
 
 ```go
-tarefa := crewai.NewTask(
-	"Escreva um resumo executivo do relatório trimestral.", // Description
-	"Um resumo de até 200 palavras em tópicos.",            // ExpectedOutput
-	redator,                                                 // Agent
+task := crewai.NewTask(
+	"Write an executive summary of the quarterly report.", // Description
+	"A summary of up to 200 words in bullet points.",       // ExpectedOutput
+	writer,                                                  // Agent
 )
 ```
 
-## Campos
+## Fields
 
-| Campo            | Tipo            | Descrição |
-|------------------|-----------------|-----------|
-| `Name`           | `string`        | Identificador curto (aparece em logs/memória). |
-| `Description`    | `string`        | Instrução detalhada. Suporta `{variáveis}`. |
-| `ExpectedOutput` | `string`        | Formato/qualidade esperados. |
-| `Agent`          | `*crewai.Agent` | Responsável. Pode ser `nil` (a crew resolve). |
-| `Tools`          | `[]crewai.Tool` | Sobrepõe as ferramentas do agente nesta tarefa. |
-| `Context`        | `[]*crewai.Task`| Tarefas cujas saídas viram contexto desta. |
-| `OutputFile`     | `string`        | Se definido, grava a saída neste arquivo. |
+| Field            | Type            | Description |
+|------------------|-----------------|-------------|
+| `Name`           | `string`        | Short identifier (shows in logs/memory). |
+| `Description`    | `string`        | Detailed instruction. Supports `{variables}`. |
+| `ExpectedOutput` | `string`        | Expected format/quality. |
+| `Agent`          | `*crewai.Agent` | The assignee. Can be `nil` (the crew resolves it). |
+| `Tools`          | `[]crewai.Tool` | Overrides the agent's tools for this task. |
+| `Context`        | `[]*crewai.Task`| Tasks whose outputs become this task's context. |
+| `OutputFile`     | `string`        | If set, writes the output to this file. |
 
-## Contexto entre tarefas
+## Context between tasks
 
-Use `WithContext` para passar a saída de tarefas anteriores:
+Use `WithContext` to pass previous tasks' outputs:
 
 ```go
-coleta  := crewai.NewTask("Colete os dados de vendas.", "tabela", analista)
-analise := crewai.NewTask("Analise as tendências.", "insights", analista).
-	WithContext(coleta) // recebe a saída de 'coleta' no prompt
+collect  := crewai.NewTask("Collect the sales data.", "table", analyst)
+analyze  := crewai.NewTask("Analyze the trends.", "insights", analyst).
+	WithContext(collect) // receives 'collect' output in the prompt
 ```
 
-No **processo sequencial**, a saída da tarefa anterior também é encadeada
-automaticamente quando você usa `WithContext`. Sem `WithContext`, cada tarefa
-recebe apenas a memória acumulada (se `crew.Memory = true`).
+In the **sequential process**, the previous task's output is also chained
+automatically when you use `WithContext`. Without `WithContext`, each task
+receives only accumulated memory (if `crew.Memory = true`).
 
-## Interpolação de variáveis
+## Variable interpolation
 
-Use `{chave}` na descrição e na saída esperada; passe os valores no `Kickoff`:
+Use `{key}` in the description and expected output; pass the values in `Kickoff`:
 
 ```go
-tarefa := crewai.NewTask("Pesquise sobre {tema} no setor de {setor}.", "...", agente)
+task := crewai.NewTask("Research {topic} in the {sector} sector.", "...", agent)
 
 crew.Kickoff(ctx, map[string]string{
-	"tema":  "IA generativa",
-	"setor": "saúde",
+	"topic":  "generative AI",
+	"sector": "healthcare",
 })
 ```
 
-## Salvando a saída em arquivo
+## Saving the output to a file
 
 ```go
-tarefa.OutputFile = "relatorio.md"
+task.OutputFile = "report.md"
 ```
 
-Após a execução, a saída é gravada no arquivo (além de ficar em `tarefa.Output()`).
+After execution, the output is written to the file (in addition to being
+available via `task.Output()`).
 
-## Recuperando a saída
+## Retrieving the output
 
 ```go
 crew.Kickoff(ctx, nil)
-fmt.Println(tarefa.Output()) // saída desta tarefa específica
+fmt.Println(task.Output()) // output of this specific task
 ```
 
-Ou pelo resultado consolidado:
+Or from the consolidated result:
 
 ```go
 out, _ := crew.Kickoff(ctx, nil)
