@@ -6,6 +6,10 @@
 
 [![CI](https://github.com/rhgs/crewai-go/actions/workflows/ci.yml/badge.svg)](https://github.com/rhgs/crewai-go/actions/workflows/ci.yml)
 
+<p align="center">
+  <img src="gopher.jpg" alt="capa do crewai-go" width="600">
+</p>
+
 **Orquestração de agentes de IA autônomos e colaborativos, em Go.**
 
 `crewai-go` é um port idiomático em Go do framework [CrewAI](https://github.com/crewAIInc/crewAI). Ele permite montar equipes (_crews_) de agentes com papéis distintos que colaboram — de forma sequencial ou hierárquica — para concluir tarefas complexas usando modelos de linguagem (LLMs).
