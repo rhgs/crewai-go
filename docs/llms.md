@@ -1,5 +1,10 @@
 # LLMs
 
+> **Languages:** **English** (current) · [Português](pt-BR/llms.md)
+
+> **Languages:** [**English**](pt-BR/llms.md) · [Português](pt-BR/llms.md)
+
+
 Every agent needs an **LLM**. The framework doesn't tie you to a provider: just
 implement a small interface.
 

@@ -1,5 +1,10 @@
 # Crews
 
+> **Languages:** **English** (current) · [Português](pt-BR/crews.md)
+
+> **Languages:** [**English**](pt-BR/crews.md) · [Português](pt-BR/crews.md)
+
+
 A **Crew** groups agents and tasks and orchestrates them according to a
 **Process**.
 

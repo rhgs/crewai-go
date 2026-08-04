@@ -1,5 +1,10 @@
 # Tasks
 
+> **Languages:** **English** (current) · [Português](pt-BR/tasks.md)
+
+> **Languages:** [**English**](pt-BR/tasks.md) · [Português](pt-BR/tasks.md)
+
+
 A **Task** is a unit of work: what to do, what output to expect, and who is
 responsible.
 

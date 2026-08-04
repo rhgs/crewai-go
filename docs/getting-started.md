@@ -1,5 +1,10 @@
 # Getting Started
 
+> **Languages:** **English** (current) · [Português](pt-BR/getting-started.md)
+
+> **Languages:** [**English**](pt-BR/getting-started.md) · [Português](pt-BR/getting-started.md)
+
+
 This guide takes you from zero to a working _crew_.
 
 ## Prerequisites

@@ -1,5 +1,13 @@
 # crewai-go
 
+> **Languages:** **English** (current) · [Português](README.pt-BR.md)
+
+> **Languages:** [**English**](README.pt-BR.md) · [Português](README.pt-BR.md)
+
+
+> **Languages:** English (default) · [Português](README.pt-BR.md)
+
+
 **Orchestration of autonomous, collaborative AI agents in Go.**
 
 `crewai-go` is an idiomatic Go port of the [CrewAI](https://github.com/crewAIInc/crewAI) framework. It lets you assemble teams (_crews_) of agents with distinct roles that collaborate — sequentially or hierarchically — to complete complex tasks using large language models (LLMs).
@@ -251,16 +259,18 @@ go run ./examples/xai_oauth
 
 ## Documentation
 
-| Guide | Contents |
-|------|----------|
-| [Getting Started](docs/getting-started.md) | Installation and first project |
-| [Agents](docs/agents.md)   | How to create and configure agents |
-| [Tasks](docs/tasks.md)     | Tasks, context, and interpolation |
-| [Crews](docs/crews.md)     | Orchestration and processes |
-| [Tools](docs/tools.md)     | Tools and the ReAct protocol |
-| [LLMs](docs/llms.md)       | Providers and custom LLMs |
-| [Memory](docs/memory.md)   | Memory and context |
-| [Plan / Roadmap](PLAN.md)  | Architecture, decisions, status, and next steps |
+> 📖 All docs are available in **English** (default) and **Português** (`*.pt-BR.md` / `docs/pt-BR/`). Each file has a language switch link at the top.
+
+| Guide | English | Português |
+|------|---------|-----------|
+| Getting Started | [EN](docs/getting-started.md) | [PT](docs/pt-BR/getting-started.md) |
+| Agents | [EN](docs/agents.md) | [PT](docs/pt-BR/agents.md) |
+| Tasks | [EN](docs/tasks.md) | [PT](docs/pt-BR/tasks.md) |
+| Crews | [EN](docs/crews.md) | [PT](docs/pt-BR/crews.md) |
+| Tools | [EN](docs/tools.md) | [PT](docs/pt-BR/tools.md) |
+| LLMs | [EN](docs/llms.md) | [PT](docs/pt-BR/llms.md) |
+| Memory | [EN](docs/memory.md) | [PT](docs/pt-BR/memory.md) |
+| Plan / Roadmap | [EN](PLAN.md) | [PT](PLAN.pt-BR.md) |
 
 ## Tests
 

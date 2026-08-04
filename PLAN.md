@@ -1,5 +1,10 @@
 # Plan — CrewAI port to Go (crewai-go)
 
+> **Languages:** **English** (current) · [Português](PLAN.pt-BR.md)
+
+> **Languages:** [**English**](PLAN.pt-BR.md) · [Português](PLAN.pt-BR.md)
+
+
 A living document for the planning, architecture decisions, status, and roadmap
 of porting [CrewAI](https://github.com/crewAIInc/crewAI) (Python) to Go.
 
@@ -20,6 +25,15 @@ Port the **core** of the CrewAI framework to Go in an **idiomatic** way, with
 | Text-based tools | **ReAct** protocol (Thought/Action/Observation/Final Answer) — no dependency on each provider's native _function calling_. |
 | Testable | `mock` LLM + `httptest`; hermetic tests (no real network). |
 | Idiomatic | `context.Context` on all I/O, sentinel errors, _functional options_. |
+
+## 2.1 Documentation conventions
+
+| Convention | Rule |
+|------------|------|
+| Bilingual docs | `README.md`, `PLAN.md`, and all `*.md` docs are kept in **both** English (default) and Portuguese (`*.pt-BR.md` / `docs/pt-BR/`). |
+| Language switch | Each doc has a `> **Languages:** …` link at the top to toggle between EN/PT. |
+| Code comments | Always in **English, no accents**. Applies to godoc, error messages, prompts, and identifier strings. |
+| Default language | English is the primary/authoritative version; PT is a faithful mirror kept in sync. |
 
 ## 3. CrewAI → crewai-go mapping
 
@@ -118,6 +132,10 @@ priority (highest impact / lowest effort first):
     godoc comments, error messages, prompts, tool names/descriptions, and test
     strings translated to English. `gofmt` clean; `go test -race` clean; offline
     example verified.
+  - [x] **Bilingual docs rule** — English (default) + Portuguese versions
+    restored (`README.pt-BR.md`, `PLAN.pt-BR.md`, `docs/pt-BR/`, `examples/pt-BR/`)
+    with language-switch links. Code comments remain English-only. Documented in
+    `PLAN.md §2.1` and the `_rules/documentation-language.md` memory page.
   - [ ] Set up CI (GitHub Actions: lint, `go vet`, `go test`, examples build).
   - [ ] Tag `v0.1.0`.
   - [ ] **Upgrade toolchain to Go 1.24.9+** — govulncheck reports 21 CVEs in

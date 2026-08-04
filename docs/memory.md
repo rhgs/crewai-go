@@ -1,5 +1,10 @@
 # Memory
 
+> **Languages:** **English** (current) · [Português](pt-BR/memory.md)
+
+> **Languages:** [**English**](pt-BR/memory.md) · [Português](pt-BR/memory.md)
+
+
 **Memory** stores task outputs during a crew's execution, allowing later tasks
 to access what has already been produced — even without an explicit
 `WithContext`.
