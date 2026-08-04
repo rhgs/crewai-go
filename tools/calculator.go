@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/rodolphosa/crewai-go"
+	"github.com/rhgs/crewai-go"
 )
 
 // Calculator devolve uma ferramenta que avalia expressões aritméticas com

@@ -13,9 +13,9 @@ import (
 	"log"
 	"strings"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/openai"
-	"github.com/rodolphosa/crewai-go/tools"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/openai"
+	"github.com/rhgs/crewai-go/tools"
 )
 
 func main() {

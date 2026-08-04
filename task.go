@@ -67,7 +67,7 @@ func (t *Task) setOutput(out string) error {
 	t.mu.Unlock()
 
 	if file != "" {
-		return os.WriteFile(file, []byte(out), 0o644)
+		return os.WriteFile(file, []byte(out), 0o600)
 	}
 	return nil
 }

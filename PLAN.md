@@ -110,11 +110,68 @@ sugerida (maior impacto / menor esforço primeiro):
 - [ ] **`git init` + repositório público** — versionar, definir CI (lint, test,
   build de exemplos), tag `v0.1.0`.
   - [x] **`git init` + push** — feito em `https://github.com/rhgs/crewai-go.git`.
+  - [x] **Module path corrigido** — `github.com/rodolphosa/crewai-go` →
+    `github.com/rhgs/crewai-go` em `go.mod` + 27 arquivos (imports, docs,
+    exemplos). Publicação consistente com o remote.
+  - [x] **G306 (gosec) corrigido** — `Task.setOutput` agora grava com `0600`.
   - [ ] Definir CI (GitHub Actions: lint, `go vet`, `go test`, build de exemplos).
   - [ ] Tag `v0.1.0`.
-- [ ] **Confirmar module path** (`github.com/rodolphosa/crewai-go` → destino
-  final) e atualizar import paths nos exemplos/docs.
-- [ ] **Documentar o `go vet` e `-race` no CI** (testes já usam concorrência).
+  - [ ] **Upgrade toolchain para Go 1.24.9+** — govulncheck reporta 21 CVEs na
+    stdlib do Go 1.24.4 (crypto/x509 etc.), corrigidos em 1.24.9. Sem mudança de
+    código, só bumpar `go.mod`/CI.
+- [x] **Confirmar module path** (`github.com/rodolphosa/crewai-go` → destino
+  final) e atualizar import paths nos exemplos/docs. **Resolvido (2026-08-04).**
+- [x] **Documentar o `go vet` e `-race` no CI** (testes já usam concorrência).
+  `go test -race ./...` limpo.
+
+## 6.1 Code review e validação de segurança (2026-08-04)
+
+**Ferramentas:** `go vet` ✅ · `gofmt -l` ✅ · `go test -race` ✅ · `gosec` ·
+`govulncheck`.
+
+### gosec — 2 findings restantes (falsos positivos, sem `//nolint`)
+
+| ID | Arquivo | Veredito |
+|----|---------|----------|
+| G304 | `llm/xai/oauth.go:314` `os.ReadFile(path)` | **Falso positivo.** `path` é
+  fornecido pelo chamador da biblioteca (ex.: `~/.crewai-xai-token.json`), não
+  por atacante. Uma lib não pode restringir o caminho que o usuário escolhe. |
+| G117 | `llm/xai/oauth.go:305` marshal de `AccessToken` | **Falso positivo.** O
+  propósito do arquivo é justamente persistir o token; não há exposição. |
+
+Não há diretivas `//nolint` no código (campo `Nosec: 0`). Decidido deixar os
+falsos positivos sem supressão para não mascarar findings reais no futuro.
+
+### govulncheck — 21 CVEs na stdlib (Go 1.24.4)
+
+Todas em `crypto/x509` e afins, via caminhos TLS dos provedores (`ollama.NewCloud`
+→ `x509.ParseCertificate`, etc.). **Corrigidas em Go 1.24.9.** Não há vuln no
+código do projeto; basta bumpar a toolchain no `go.mod` e no CI.
+
+### Code review manual — pontos de atenção
+
+- **`Crew.Kickoff` muta `Task.Description`/`ExpectedOutput` em `interpolate`
+  sem segurar `Task.mu`.** Seguro no uso normal (Kickoff é chamado uma vez, fluxo
+  single-threaded), mas **não é seguro para reusar a mesma `Crew` em goroutines
+  concorrentes**. Documentar ou proteger com lock se o P1 (async) for
+  implementado.
+- **OAuth Device Flow** (`llm/xai/oauth.go`): implementação correta — PKCE com
+  `crypto/rand` (32 bytes), S256, polling honra `authorization_pending`/`slow_down`
+  (RFC 8628 §3.5), `refreshingSource` com `sync.Mutex`, persistência `0600`.
+  Sem hardcoded de `client_id`/endpoints (configuráveis via options).
+- **Auth dos provedores** (`llm/openai`): `TokenSource` dinâmico (OAuth) tem
+  prioridade sobre chave estática; token resolvido por chamada → renovação
+  automática. Correto.
+- **`delegate` (hierárquico)** faz fallback gracioso para o 1º agente em caso de
+  erro do LLM — não trava a execução.
+- Nenhum `TODO`/`FIXME`/`HACK` no código de produção.
+
+### Validação de segredos
+
+Varredura completa (arquivos rastreados + histórico de commits): **nenhuma
+chave, token ou credencial publicada.** Menções a segredos são apenas
+placeholders (`sk-...`, `xai-...`) e nomes de variáveis de ambiente em
+docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 
 ### P1 — Extensibilidade do núcleo
 
@@ -145,7 +202,7 @@ sugerida (maior impacto / menor esforço primeiro):
 
 ## 7. Decisões em aberto
 
-- **Module path**: hoje `github.com/rodolphosa/crewai-go`. Ajustar ao publicar.
+- **Module path**: hoje `github.com/rhgs/crewai-go`. Ajustar ao publicar.
 - **xAI OAuth**: `client_id` e endpoints exatos não são públicos; implementado
   conforme RFC 8628 com endpoints configuráveis. Fixar padrões quando a xAI
   publicar a documentação oficial.

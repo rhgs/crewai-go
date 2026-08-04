@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/anthropic"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/anthropic"
 )
 
 func TestClientCall(t *testing.T) {

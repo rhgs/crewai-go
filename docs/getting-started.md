@@ -12,7 +12,7 @@ Este guia leva você do zero à primeira _crew_ funcionando.
 ```bash
 mkdir minha-crew && cd minha-crew
 go mod init exemplo.com/minha-crew
-go get github.com/rodolphosa/crewai-go@latest
+go get github.com/rhgs/crewai-go@latest
 ```
 
 ## 2. Escreva o programa
@@ -27,8 +27,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/openai"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/openai"
 )
 
 func main() {
@@ -72,7 +72,7 @@ Você pode implementar a interface `crewai.LLM` você mesmo (veja
 `examples/custom_llm` roda totalmente offline:
 
 ```bash
-go run github.com/rodolphosa/crewai-go/examples/custom_llm
+go run github.com/rhgs/crewai-go/examples/custom_llm
 ```
 
 ## Próximos passos

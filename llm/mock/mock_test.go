@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/mock"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/mock"
 )
 
 func TestMockSequential(t *testing.T) {

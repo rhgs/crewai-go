@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rodolphosa/crewai-go"
+	"github.com/rhgs/crewai-go"
 )
 
 // CurrentTime devolve uma ferramenta que informa a data e hora atuais.

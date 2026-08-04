@@ -24,7 +24,7 @@ type Message struct {
 ## OpenAI (e endpoints compatíveis)
 
 ```go
-import "github.com/rodolphosa/crewai-go/llm/openai"
+import "github.com/rhgs/crewai-go/llm/openai"
 
 llm := openai.New("gpt-4o-mini") // usa OPENAI_API_KEY do ambiente
 ```
@@ -57,7 +57,7 @@ openai.New("llama-3.1-70b-versatile",
 ## Anthropic (Claude)
 
 ```go
-import "github.com/rodolphosa/crewai-go/llm/anthropic"
+import "github.com/rhgs/crewai-go/llm/anthropic"
 
 llm := anthropic.New("claude-sonnet-5") // usa ANTHROPIC_API_KEY
 ```
@@ -73,7 +73,7 @@ O pacote `llm/ollama` usa a API nativa `/api/chat` e cobre as duas modalidades.
 **Local** — sem autenticação, em `http://localhost:11434`:
 
 ```go
-import "github.com/rodolphosa/crewai-go/llm/ollama"
+import "github.com/rhgs/crewai-go/llm/ollama"
 
 llm := ollama.New("llama3.2")
 // outra máquina na rede:
@@ -101,7 +101,7 @@ oferece dois modos de autenticação.
 **Chave de API** (cobrada por token):
 
 ```go
-import "github.com/rodolphosa/crewai-go/llm/xai"
+import "github.com/rhgs/crewai-go/llm/xai"
 
 llm := xai.New("grok-4") // usa XAI_API_KEY
 ```
@@ -162,7 +162,7 @@ Isso é ideal para:
 ## LLM mock (para testes)
 
 ```go
-import "github.com/rodolphosa/crewai-go/llm/mock"
+import "github.com/rhgs/crewai-go/llm/mock"
 
 // Respostas em sequência:
 llm := mock.New("primeira resposta", "segunda resposta")

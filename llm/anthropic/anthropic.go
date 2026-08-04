@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rodolphosa/crewai-go"
+	"github.com/rhgs/crewai-go"
 )
 
 const (

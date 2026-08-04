@@ -13,7 +13,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/rodolphosa/crewai-go"
+	"github.com/rhgs/crewai-go"
 )
 
 const defaultBaseURL = "https://api.openai.com/v1"

@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/xai"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/xai"
 )
 
 func chatServer(t *testing.T, wantAuth string) *httptest.Server {

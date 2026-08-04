@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/openai"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/openai"
 )
 
 func main() {

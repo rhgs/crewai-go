@@ -33,7 +33,7 @@ clima := crewai.NewTool(
 ## Ferramentas embutidas (`pacote tools`)
 
 ```go
-import "github.com/rodolphosa/crewai-go/tools"
+import "github.com/rhgs/crewai-go/tools"
 
 tools.Calculator()      // avalia "2 + 2 * (3 - 1)" — offline e seguro
 tools.CurrentTime("")   // data/hora atual (layout do pacote time; "" = RFC3339)

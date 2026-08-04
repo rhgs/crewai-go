@@ -53,13 +53,13 @@
 Requer **Go 1.24+**.
 
 ```bash
-go get github.com/rodolphosa/crewai-go@latest
+go get github.com/rhgs/crewai-go@latest
 ```
 
 No seu código:
 
 ```go
-import "github.com/rodolphosa/crewai-go"
+import "github.com/rhgs/crewai-go"
 ```
 
 ## Início rápido
@@ -72,8 +72,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/openai"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/openai"
 )
 
 func main() {
@@ -125,11 +125,11 @@ Prontos para uso:
 
 ```go
 import (
-	"github.com/rodolphosa/crewai-go/llm/openai"
-	"github.com/rodolphosa/crewai-go/llm/anthropic"
-	"github.com/rodolphosa/crewai-go/llm/ollama"
-	"github.com/rodolphosa/crewai-go/llm/xai"
-	"github.com/rodolphosa/crewai-go/llm/mock" // para testes
+	"github.com/rhgs/crewai-go/llm/openai"
+	"github.com/rhgs/crewai-go/llm/anthropic"
+	"github.com/rhgs/crewai-go/llm/ollama"
+	"github.com/rhgs/crewai-go/llm/xai"
+	"github.com/rhgs/crewai-go/llm/mock" // para testes
 )
 
 // OpenAI (e compatíveis: Groq, Azure, Together…)
@@ -185,7 +185,7 @@ agente.WithTools(busca)
 Ferramentas embutidas no pacote `tools`:
 
 ```go
-import "github.com/rodolphosa/crewai-go/tools"
+import "github.com/rhgs/crewai-go/tools"
 
 agente.WithTools(
 	tools.Calculator(),        // avalia expressões aritméticas

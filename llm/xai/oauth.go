@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rodolphosa/crewai-go/llm/openai"
+	"github.com/rhgs/crewai-go/llm/openai"
 )
 
 // DefaultAuthServer é o servidor de identidade da xAI usado no OAuth de

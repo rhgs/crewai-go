@@ -6,7 +6,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/rodolphosa/crewai-go"
+	"github.com/rhgs/crewai-go"
 )
 
 // LLM é um modelo falso e determinístico. Ele devolve respostas pré-definidas

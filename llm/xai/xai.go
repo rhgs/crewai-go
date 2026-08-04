@@ -13,8 +13,8 @@ import (
 	"context"
 	"os"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/openai"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/openai"
 )
 
 // DefaultBaseURL é o endpoint compatível com OpenAI da xAI.

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/mock"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/mock"
 )
 
 // ExampleCrew_Kickoff demonstra uma crew sequencial de duas tarefas usando o

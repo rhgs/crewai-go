@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/ollama"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/ollama"
 )
 
 func TestLocalCall(t *testing.T) {

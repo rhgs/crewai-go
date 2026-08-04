@@ -13,7 +13,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/rodolphosa/crewai-go"
+	"github.com/rhgs/crewai-go"
 )
 
 // echoLLM é um LLM determinístico que não faz nenhuma chamada de rede.

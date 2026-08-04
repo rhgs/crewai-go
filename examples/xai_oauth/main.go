@@ -24,8 +24,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rodolphosa/crewai-go"
-	"github.com/rodolphosa/crewai-go/llm/xai"
+	"github.com/rhgs/crewai-go"
+	"github.com/rhgs/crewai-go/llm/xai"
 )
 
 func main() {
