@@ -126,7 +126,7 @@ sugerida (maior impacto / menor esforço primeiro):
     exemplos). Publicação consistente com o remote.
   - [x] **G306 (gosec) corrigido** — `Task.setOutput` agora grava com `0600`.
   - [ ] Definir CI (GitHub Actions: lint, `go vet`, `go test`, build de exemplos).
-  - [ ] Tag `v0.1.0`.
+  - [x] Tag `v0.1.0` — **publicada (2026-08-04)** com CHANGELOG bilíngue.
   - [ ] **Upgrade toolchain para Go 1.24.9+** — govulncheck reporta 21 CVEs na
     stdlib do Go 1.24.4 (crypto/x509 etc.), corrigidos em 1.24.9. Sem mudança de
     código, só bumpar `go.mod`/CI.

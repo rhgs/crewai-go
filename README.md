@@ -294,3 +294,7 @@ This port covers the CrewAI core (agents, tasks, crews, processes, tools, memory
 ## License
 
 [MIT](LICENSE).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) (EN) / [CHANGELOG.pt-BR.md](CHANGELOG.pt-BR.md) (PT).

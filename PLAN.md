@@ -134,7 +134,7 @@ priority (highest impact / lowest effort first):
     with language-switch links. Code comments remain English-only. Documented in
     `PLAN.md §2.1` and the `_rules/documentation-language.md` memory page.
   - [ ] Set up CI (GitHub Actions: lint, `go vet`, `go test`, examples build).
-  - [ ] Tag `v0.1.0`.
+  - [x] Tag `v0.1.0` — **published (2026-08-04)** with a bilingual CHANGELOG.
   - [ ] **Upgrade toolchain to Go 1.24.9+** — govulncheck reports 21 CVEs in
     the Go 1.24.4 stdlib (crypto/x509 etc.), fixed in 1.24.9. No code change,
     just bump `go.mod`/CI.
