@@ -46,6 +46,18 @@ completos** e **exemplos** de instalação/uso.
 | memória de curto prazo   | `crewai.Memory`                    |
 | litellm                  | interface `LLM` + subpacotes `llm/*` |
 
+## 3.1 Recursos exclusivos do crewai-go (ausentes no CrewAI Python)
+
+Os recursos a seguir sao originais do crewai-go e nao tem equivalente direto
+no framework CrewAI em Python:
+
+| Recurso | O que faz | Por que importa |
+|---|---|---|
+| **Saida estruturada com validacao por JSON Schema** | `Task.Structured` (`*StructuredOutput`) exige que o modelo emita JSON validado contra um JSON Schema, com loop de reparo limitado (`RepairMax`). Validacao em Go, nao via prompt. | Garante dados tipados e confiaveis para pipelines que persistem facts em bancos de dados. Sem dependencia de validador externo. |
+| **Guardrails pos-saida** | `Crew.Guardrails` e `Task.Guardrail` sao hooks de validacao pos-saida em codigo que bloqueiam a publicacao de saidas que violam invariantes de negocio. Retorna `ErrBlockedByGuardrail`. | A "barreira anti-alucinacao como garantia de codigo". Decisoes de bloqueio sao feitas em Go, nao via prompt. Complementa a validacao de schema (forma vs. significado). |
+| **Modelo de Facts e proveniencia** | Tipo `Fact` de primeira classe, populado APENAS por ferramentas conectoras deterministas (`FactSource`), nunca pelo LLM. Facts carregam organizacao fonte, URL fonte, momento de coleta e hash SHA-256 do payload. Helper `AllFactsProvenanced` para guardrails. | Um valor errado nunca pode ser apresentado como "um fato que o modelo lembrou". Facts sao deduplicados por hash do payload e carregam proveniencia completa para auditoria. |
+| **Zero dependencias externas** | O framework inteiro usa apenas a biblioteca padrao do Go. Sem pip install, sem conflitos de versao. | Facil de auditar, instalar e testar. `go.mod` tem zero diretivas require. |
+
 ## 4. Arquitetura (pacotes)
 
 ```
