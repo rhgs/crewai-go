@@ -1,6 +1,7 @@
 package crewai
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -66,3 +67,35 @@ func buildTaskPrompt(t *Task, context string) string {
 // noToolFinalInstruction is added when the agent has no tools, to reinforce
 // that it should answer directly.
 const noToolFinalInstruction = "\nAnswer directly with the best possible answer for the task, with no preamble."
+
+// structuredSystemInstruction is appended to the system prompt when the
+// task requires structured (JSON) output.
+const structuredSystemInstruction = "You MUST respond with a single, valid JSON object that satisfies the provided JSON Schema. Do NOT include any explanation, markdown, or surrounding text. Output ONLY the JSON."
+
+// buildStructuredPrompt assembles the user message for a structured-output
+// task, including the task description and the JSON Schema.
+func buildStructuredPrompt(t *Task, context string, schema json.RawMessage) string {
+	var b strings.Builder
+	b.WriteString(buildTaskPrompt(t, context))
+	b.WriteString("\n\nYou must reply ONLY with a JSON object that conforms to the following JSON Schema. No markdown, no prose, no surrounding text.\n\n")
+	b.WriteString("JSON Schema:\n")
+	b.Write(schema)
+	b.WriteString("\n")
+	return strings.TrimSpace(b.String())
+}
+
+// buildRepairPrompt assembles the user message for a repair attempt. It
+// includes the previous (invalid) output, the validation errors, and the
+// schema, then asks the model to fix and return only the corrected JSON.
+func buildRepairPrompt(previousOutput string, valErr error, schema json.RawMessage) string {
+	var b strings.Builder
+	b.WriteString("Your previous response did not validate against the JSON Schema.\n\n")
+	b.WriteString("Your previous response was:\n")
+	b.WriteString(previousOutput)
+	b.WriteString("\n\nValidation errors:\n")
+	b.WriteString(valErr.Error())
+	b.WriteString("\n\nThe JSON Schema is:\n")
+	b.Write(schema)
+	b.WriteString("\n\nFix the issues and reply ONLY with the corrected JSON. No markdown, no prose, no surrounding text.")
+	return b.String()
+}

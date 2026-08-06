@@ -30,6 +30,11 @@ type Task struct {
 	// OutputFile, when set, causes the task output to be written to that file.
 	OutputFile string
 
+	// Structured, when non-nil, requires this task to produce JSON output
+	// validated against the embedded JSON Schema. The executor enters
+	// structured mode and bypasses the ReAct tool-use loop.
+	Structured *StructuredOutput
+
 	mu     sync.RWMutex
 	output string
 	done   bool

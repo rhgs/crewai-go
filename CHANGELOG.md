@@ -3,6 +3,19 @@
 All notable changes to **crewai-go** are documented here. This project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Structured output**: `Task.Structured` (`*StructuredOutput`) requires the
+  model to produce JSON validated against a JSON Schema, with a bounded repair
+  loop (`RepairMax`, default 2). New sentinels `ErrInvalidOutput` and
+  `ErrRepairBudgetExceeded`. Minimal in-house schema validator (type,
+  properties, required, enum, items) — stdlib only, no new dependencies.
+  The `LLM.Call` interface is unchanged; structured output works via prompt
+  engineering and Go-side validation. Constructor `NewStructuredOutput` and
+  functional option `WithRepairMax`.
+
 ## [v0.1.0] — 2026-08-04
 
 First public release: an idiomatic Go port of the CrewAI framework core.

@@ -42,6 +42,7 @@
 - ⚡ **Sem dependências** — só stdlib; builds pequenos e rápidos.
 - 🔌 **Qualquer LLM** — OpenAI (e compatíveis: Ollama, Groq, Azure…), Anthropic (Claude) e qualquer implementação sua da interface `LLM`.
 - 🛠️ **Ferramentas via ReAct** — agentes raciocinam e chamam ferramentas em texto.
+- 📋 **Saída estruturada** — tarefas podem exigir JSON validado contra um JSON Schema, com loop de reparo limitado.
 - 🧠 **Memória** entre tarefas e **contexto** encadeável.
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
@@ -57,6 +58,7 @@
 | **Tool**     | Uma capacidade que o agente pode invocar (cálculo, busca, API…).        |
 | **LLM**      | Abstração do modelo de linguagem. Vários provedores prontos.            |
 | **Memory**   | Armazena saídas de tarefas para dar contexto às seguintes.             |
+| **StructuredOutput** | Configura uma tarefa para exigir JSON validado por um JSON Schema. |
 
 ## Instalação
 
