@@ -64,4 +64,19 @@
 //	        return nil
 //	    },
 //	}
+//
+// # Facts & provenance
+//
+// A Fact is data from a deterministic connector tool, never from the LLM.
+// Use NewFactSourceTool to create a tool that produces facts. Facts are
+// collected by the executor after successful tool calls and attached to
+// CrewOutput.Facts and TaskOutput.Facts. Use AllFactsProvenanced in a
+// guardrail to enforce that every fact has source and payload hash.
+//
+//	tool := crewai.NewFactSourceTool("cnpj_lookup", "...", fn, factsFn)
+//	crew.Guardrails = []crewai.Guardrail{
+//	    func(_ context.Context, out *crewai.CrewOutput) error {
+//	        return crewai.AllFactsProvenanced(out.Facts)
+//	    },
+//	}
 package crewai

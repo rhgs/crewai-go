@@ -7,12 +7,15 @@ import (
 )
 
 // executeTask runs the reasoning loop (ReAct) of an agent for a task.
-func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log Logger) (string, error) {
+// It returns the final answer string, collected facts (from FactSource
+// tools), and an error.
+func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log Logger) (string, []Fact, error) {
 	if a.LLM == nil {
-		return "", ErrNoLLM
+		return "", nil, ErrNoLLM
 	}
 	if t != nil && t.Structured != nil {
-		return executeStructured(ctx, a, t, contextText, log)
+		out, err := executeStructured(ctx, a, t, contextText, log)
+		return out, nil, err
 	}
 
 	tools := effectiveTools(a, t)
@@ -37,34 +40,36 @@ func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log
 	if len(tools) == 0 {
 		out, err := a.LLM.Call(ctx, messages)
 		if err != nil {
-			return "", fmt.Errorf("agent %q: %w", a.Role, err)
+			return "", nil, fmt.Errorf("agent %q: %w", a.Role, err)
 		}
-		return strings.TrimSpace(stripFinalAnswer(out)), nil
+		return strings.TrimSpace(stripFinalAnswer(out)), nil, nil
 	}
+
+	var collectedFacts []Fact
 
 	for i := 0; i < maxIter; i++ {
 		select {
 		case <-ctx.Done():
-			return "", ctx.Err()
+			return "", collectedFacts, ctx.Err()
 		default:
 		}
 
 		out, err := a.LLM.Call(ctx, messages)
 		if err != nil {
-			return "", fmt.Errorf("agent %q: %w", a.Role, err)
+			return "", collectedFacts, fmt.Errorf("agent %q: %w", a.Role, err)
 		}
 		out = strings.TrimSpace(out)
 		log.Debugf("[%s] thought:\n%s", a.Role, out)
 
 		if answer, ok := parseFinalAnswer(out); ok {
-			return strings.TrimSpace(answer), nil
+			return strings.TrimSpace(answer), collectedFacts, nil
 		}
 
 		action, input, ok := parseAction(out)
 		if !ok {
 			// The model did not follow the protocol: we treat the output as
 			// the final answer so execution doesn't stall.
-			return strings.TrimSpace(out), nil
+			return strings.TrimSpace(out), collectedFacts, nil
 		}
 
 		messages = append(messages, AssistantMessage(out))
@@ -81,13 +86,17 @@ func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log
 				observation = fmt.Sprintf("Error running tool %q: %v", action, err)
 			} else {
 				observation = result
+				// Collect facts from FactSource tools after a successful call.
+				if fs, ok := tool.(FactSource); ok {
+					collectedFacts = dedupFacts(collectedFacts, fs.Facts())
+				}
 			}
 		}
 
 		messages = append(messages, UserMessage("Observation: "+observation))
 	}
 
-	return "", fmt.Errorf("agent %q: %w (%d iterations)", a.Role, ErrMaxIterations, maxIter)
+	return "", collectedFacts, fmt.Errorf("agent %q: %w (%d iterations)", a.Role, ErrMaxIterations, maxIter)
 }
 
 // effectiveTools combines the agent's tools with the task-specific ones.

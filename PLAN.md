@@ -93,7 +93,7 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct exec
 | Go LOC (total) | 3.826 |
 | `.go` files | 41 |
 | External dependencies | 0 (stdlib) |
-| Coverage — core (`crewai`) | 93.7% |
+| Coverage — core (`crewai`) | 94.5% |
 | Coverage — `tools` | 92.1% |
 | Coverage — `llm/*` providers | 71.7%–87.5% |
 | Runnable examples | 7 |
@@ -239,6 +239,11 @@ and environment variable names in docs/README. The `.gitignore` protects
   violating business invariants. New sentinel `ErrBlockedByGuardrail`.
   Complements structured-output schema validation (shape vs. meaning).
   Coverage 93.7% in the root package.
+- [x] **Facts & provenance** — first-class `Fact` type populated only by
+  `FactSource` tools, never by the LLM. Facts carry source org, source URL,
+  collection time, and payload hash (SHA-256). `NewFactSourceTool` constructor,
+  `AllFactsProvenanced` helper, `dedupFacts` by PayloadHash. Coverage 94.5%
+  in the root package.
 - [ ] **Structured output extensions** — expand the JSON Schema validator to
   support more keywords (`additionalProperties`, `oneOf`/`anyOf`, `pattern`,
   `minimum`/`maximum`, `minItems`/`maxItems`); allow tool use before

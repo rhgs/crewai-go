@@ -81,7 +81,7 @@ func TestExecuteTaskNoTools(t *testing.T) {
 	agent := NewAgent("Writer", "write", "", &llmStub{responses: []string{"A poem."}})
 	task := NewTask("Write a poem", "a short poem", agent)
 
-	out, err := executeTask(context.Background(), agent, task, "", nopLogger{})
+	out, _, err := executeTask(context.Background(), agent, task, "", nopLogger{})
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestExecuteTaskWithTool(t *testing.T) {
 	}))
 	task := NewTask("What is 2+2?", "the number", agent)
 
-	out, err := executeTask(context.Background(), agent, task, "", nopLogger{})
+	out, _, err := executeTask(context.Background(), agent, task, "", nopLogger{})
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestExecuteTaskUnknownToolRecovers(t *testing.T) {
 	agent.WithTools(NewTool("real", "", func(_ context.Context, _ string) (string, error) { return "", nil }))
 	task := NewTask("do something", "", agent)
 
-	out, err := executeTask(context.Background(), agent, task, "", nopLogger{})
+	out, _, err := executeTask(context.Background(), agent, task, "", nopLogger{})
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestExecuteTaskUnknownToolRecovers(t *testing.T) {
 func TestExecuteTaskNoLLM(t *testing.T) {
 	agent := &Agent{Role: "X"}
 	task := NewTask("t", "", agent)
-	if _, err := executeTask(context.Background(), agent, task, "", nopLogger{}); err != ErrNoLLM {
+	if _, _, err := executeTask(context.Background(), agent, task, "", nopLogger{}); err != ErrNoLLM {
 		t.Errorf("error = %v, want %v", err, ErrNoLLM)
 	}
 }
@@ -143,7 +143,7 @@ func TestExecuteTaskMaxIterations(t *testing.T) {
 	agent.WithTools(NewTool("loop", "", func(_ context.Context, _ string) (string, error) { return "ok", nil }))
 	task := NewTask("loop", "", agent)
 
-	_, err := executeTask(context.Background(), agent, task, "", nopLogger{})
+	_, _, err := executeTask(context.Background(), agent, task, "", nopLogger{})
 	if err == nil || !strings.Contains(err.Error(), "iterations") {
 		t.Errorf("expected a max iterations error, got %v", err)
 	}
@@ -157,7 +157,7 @@ func TestExecuteTaskContextCancel(t *testing.T) {
 	agent.WithTools(NewTool("t", "", func(_ context.Context, _ string) (string, error) { return "", nil }))
 	task := NewTask("t", "", agent)
 
-	if _, err := executeTask(ctx, agent, task, "", nopLogger{}); err != context.Canceled {
+	if _, _, err := executeTask(ctx, agent, task, "", nopLogger{}); err != context.Canceled {
 		t.Errorf("error = %v, want context.Canceled", err)
 	}
 }

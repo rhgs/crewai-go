@@ -97,3 +97,68 @@ Final Answer: O valor final é R$ 1.680,00.
 - Ferramentas devem ser **idempotentes** quando possível — o agente pode
   chamá-las mais de uma vez.
 - Respeite o `context.Context` (timeouts/cancelamento) em chamadas de rede.
+
+## Facts e proveniencia
+
+Um **Fact** (fato) e uma peca de dado produzida por um conector deterministico,
+nao pelo LLM. Sempre carrega proveniencia (organizacao fonte, URL fonte,
+momento de coleta, hash do payload) para que um valor errado nunca possa ser
+apresentado como um "fato que o modelo lembrou".
+
+### O tipo Fact
+
+```go
+type Fact struct {
+    Claim       string    `json:"claim"`
+    SourceOrg   string    `json:"source_org"`
+    SourceURL   string    `json:"source_url"`
+    CollectedAt time.Time `json:"collected_at"`
+    PayloadHash string    `json:"payload_hash"`
+}
+```
+
+### Transformando uma tool em FactSource
+
+Uma tool se declara como fonte de fatos usando `NewFactSourceTool`:
+
+```go
+tool := crewai.NewFactSourceTool(
+    "cnpj_lookup",
+    "Consulta status do CNPJ. Entrada: o numero do CNPJ.",
+    func(_ context.Context, cnpj string) (string, error) {
+        // chame sua API...
+        return "Empresa X esta ATIVA", nil
+    },
+    func(_ context.Context, output string) []crewai.Fact {
+        return []crewai.Fact{
+            crewai.NewFact(output, "Receita Federal",
+                "https://api.receita.gov.br/v1/cnpj/...", []byte(rawPayload)),
+        }
+    },
+)
+```
+
+Apos cada `Call` bem-sucedida, o executor coleta os `Facts()` da tool e os
+anexa em `TaskOutput.Facts` e `CrewOutput.Facts`.
+
+### Regras
+
+- O LLM NUNCA produz um Fact. Facts vem apenas de tools FactSource.
+- Facts sao deduplicados por PayloadHash (primeira ocorrencia mantida).
+- Tools que nao implementam FactSource contribuem com zero facts.
+
+### Guardrails de proveniencia
+
+Use `AllFactsProvenanced` em um guardrail para exigir que todo fato tenha
+SourceURL e PayloadHash:
+
+```go
+crew.Guardrails = []crewai.Guardrail{
+    func(_ context.Context, out *crewai.CrewOutput) error {
+        return crewai.AllFactsProvenanced(out.Facts)
+    },
+}
+```
+
+Se qualquer fato nao tiver proveniencia, `Kickoff` retorna
+`ErrBlockedByGuardrail`.

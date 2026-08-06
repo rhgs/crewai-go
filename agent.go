@@ -53,5 +53,6 @@ func (a *Agent) WithTools(tools ...Tool) *Agent {
 // Execute runs a standalone task with this agent and returns the output. It is
 // useful for using an agent outside a crew or in tests.
 func (a *Agent) Execute(ctx context.Context, t *Task) (string, error) {
-	return executeTask(ctx, a, t, "", nopLogger{})
+	out, _, err := executeTask(ctx, a, t, "", nopLogger{})
+	return out, err
 }
