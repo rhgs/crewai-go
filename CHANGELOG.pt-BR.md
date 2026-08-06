@@ -7,6 +7,13 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 
+- **Guardrails**: guardrails de crew (`Crew.Guardrails`) e de task
+  (`Task.Guardrail`) — hooks de validacao pos-saida que bloqueiam a
+  publicacao de saidas que violam invariantes de negocio. Nova sentinela
+  `ErrBlockedByGuardrail`. Opcoes funcionais `WithGuardrails` (crew) e
+  `WithGuardrail` (task). Complementa a validacao de schema da saida
+  estruturada (forma vs. significado). Sem novas dependencias; backward
+  compatible.
 - **Saida estruturada**: `Task.Structured` (`*StructuredOutput`) exige que o
   modelo produza JSON validado contra um JSON Schema, com um loop de reparo
   limitado (`RepairMax`, padrao 2). Novas sentinelas `ErrInvalidOutput` e

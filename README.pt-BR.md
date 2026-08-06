@@ -28,6 +28,7 @@
 - [Ferramentas](#ferramentas)
 - [Processos: sequencial e hierárquico](#processos-sequencial-e-hierárquico)
 - [Saida estruturada](#saida-estruturada)
+- [Guardrails](#guardrails)
 - [Memória](#memória)
 - [Exemplos](#exemplos)
 - [Documentação](#documentação)
@@ -44,6 +45,7 @@
 - 🔌 **Qualquer LLM** — OpenAI (e compatíveis: Ollama, Groq, Azure…), Anthropic (Claude) e qualquer implementação sua da interface `LLM`.
 - 🛠️ **Ferramentas via ReAct** — agentes raciocinam e chamam ferramentas em texto.
 - 📋 **Saída estruturada** — tarefas podem exigir JSON validado contra um JSON Schema, com loop de reparo limitado.
+- 🛡️ **Guardrails** — validação pós-saída em código que bloqueia publicação de saídas que violam invariantes de negócio.
 - 🧠 **Memória** entre tarefas e **contexto** encadeável.
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
@@ -60,6 +62,7 @@
 | **LLM**      | Abstração do modelo de linguagem. Vários provedores prontos.            |
 | **Memory**   | Armazena saídas de tarefas para dar contexto às seguintes.             |
 | **StructuredOutput** | Configura uma tarefa para exigir JSON validado por um JSON Schema. |
+| **Guardrail** | Hook de validacao pos-saida que bloqueia publicacao de saidas invalidas. |
 
 ## Instalação
 
@@ -263,6 +266,28 @@ executor nunca retorna JSON invalido ou inventa dados.
 O validador embutido suporta um subconjunto do JSON Schema (`type`,
 `properties`, `required`, `enum`, `items`) — apenas stdlib, sem
 dependencias externas. Detalhes em [`docs/pt-BR/tasks.md`](docs/pt-BR/tasks.md).
+
+## Guardrails
+
+Guardrails sao hooks de validacao pos-output aplicados em codigo. Eles rodam
+depois que a crew (ou tarefa) produz a saida e bloqueiam a publicacao se uma
+invariante de negocio for violada. Diferente de instrucoes no prompt,
+guardrails sao uma garantia em codigo.
+
+```go
+crew.Guardrails = []crewai.Guardrail{
+    func(_ context.Context, out *crewai.CrewOutput) error {
+        if !strings.Contains(out.Final, "http") {
+            return fmt.Errorf("faltando URL de origem")
+        }
+        return nil
+    },
+}
+```
+
+Guardrails de task tambem podem ser definidos via `tarefa.WithGuardrail(...)`.
+Em caso de falha, `Kickoff` retorna `crewai.ErrBlockedByGuardrail` — a saida
+nunca e parcialmente retornada. Detalhes em [`docs/pt-BR/crews.md`](docs/pt-BR/crews.md).
 
 ## Memória
 

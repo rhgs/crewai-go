@@ -35,6 +35,13 @@ type Task struct {
 	// structured mode and bypasses the ReAct tool-use loop.
 	Structured *StructuredOutput
 
+	// Guardrail, when set, is run against this task's output as soon as
+	// the task completes (before the next task starts). If it returns a
+	// non-nil error, the crew execution halts and Kickoff returns
+	// ErrBlockedByGuardrail. The guardrail receives a CrewOutput with
+	// Final set to this task's output.
+	Guardrail Guardrail
+
 	mu     sync.RWMutex
 	output string
 	done   bool
@@ -53,6 +60,14 @@ func NewTask(description, expectedOutput string, agent *Agent) *Task {
 // WithContext sets the context tasks (dependencies) of this task.
 func (t *Task) WithContext(tasks ...*Task) *Task {
 	t.Context = append(t.Context, tasks...)
+	return t
+}
+
+// WithGuardrail sets a task-level guardrail and returns the task for
+// fluent chaining. The guardrail runs against this task's output as soon
+// as the task completes.
+func (t *Task) WithGuardrail(g Guardrail) *Task {
+	t.Guardrail = g
 	return t
 }
 

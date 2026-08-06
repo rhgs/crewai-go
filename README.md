@@ -28,6 +28,7 @@
 - [Tools](#tools)
 - [Processes: Sequential and Hierarchical](#processes-sequential-and-hierarchical)
 - [Structured output](#structured-output)
+- [Guardrails](#guardrails)
 - [Memory](#memory)
 - [Examples](#examples)
 - [Documentation](#documentation)
@@ -44,6 +45,7 @@
 - 🔌 **Any LLM** — OpenAI (and compatible: Ollama, Groq, Azure…), Anthropic (Claude), or your own implementation of the `LLM` interface.
 - 🛠️ **Tools via ReAct** — agents reason and call tools in plain text.
 - 📋 **Structured output** — tasks can require JSON validated against a JSON Schema, with a bounded repair loop.
+- 🛡️ **Guardrails** — code-enforced post-output validation that blocks publication of outputs violating business invariants.
 - 🧠 **Memory** between tasks and chainable **context**.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - ✅ **Testable** — mock LLM included; ~90% core coverage.
@@ -60,6 +62,7 @@
 | **LLM**      | Abstraction over the language model. Several providers ready to use.   |
 | **Memory**   | Stores task outputs to give context to following tasks.                |
 | **StructuredOutput** | Configures a task to require JSON validated against a JSON Schema. |
+| **Guardrail** | Post-output validation hook that blocks publication of invalid outputs. |
 
 ## Installation
 
@@ -263,6 +266,28 @@ invalid JSON or invents data.
 The built-in validator supports a subset of JSON Schema (`type`,
 `properties`, `required`, `enum`, `items`) — stdlib only, no external
 dependencies. Details in [`docs/tasks.md`](docs/tasks.md).
+
+## Guardrails
+
+Guardrails are code-enforced post-output validation hooks. They run after a
+crew (or task) produces output and block publication if a business invariant
+is violated. Unlike prompt-level instructions, guardrails are a hard code
+guarantee.
+
+```go
+crew.Guardrails = []crewai.Guardrail{
+    func(_ context.Context, out *crewai.CrewOutput) error {
+        if !strings.Contains(out.Final, "http") {
+            return fmt.Errorf("missing source URL")
+        }
+        return nil
+    },
+}
+```
+
+Task-level guardrails can also be set via `task.WithGuardrail(...)`. On
+failure, `Kickoff` returns `crewai.ErrBlockedByGuardrail` — the output is
+never partially returned. Details in [`docs/crews.md`](docs/crews.md).
 
 ## Memory
 

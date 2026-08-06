@@ -45,4 +45,23 @@
 //
 // The built-in validator supports a subset of JSON Schema (type, properties,
 // required, enum, items) and uses only the standard library.
+//
+// # Guardrails
+//
+// Guardrails are code-enforced post-output validation hooks that block
+// publication of outputs violating business invariants. Set Crew.Guardrails
+// for crew-level checks (run after all tasks) or Task.Guardrail for
+// task-level checks (run at task completion). If a guardrail returns a
+// non-nil error, Kickoff returns ErrBlockedByGuardrail and the output is
+// never partially returned. Guardrails complement structured output:
+// schema checks the shape, guardrails check the meaning.
+//
+//	crew.Guardrails = []crewai.Guardrail{
+//	    func(_ context.Context, out *crewai.CrewOutput) error {
+//	        if len(out.Final) < 10 {
+//	            return fmt.Errorf("output too short")
+//	        }
+//	        return nil
+//	    },
+//	}
 package crewai
