@@ -94,7 +94,7 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor R
 | LOC Go (total) | 3.826 |
 | Arquivos `.go` | 41 |
 | Dependências externas | 0 (stdlib) |
-| Cobertura — núcleo (`crewai`) | 93.7% |
+| Cobertura — núcleo (`crewai`) | 94.5% |
 | Cobertura — `tools` | 92.1% |
 | Cobertura — provedores `llm/*` | 71.7%–87.5% |
 | Exemplos executáveis | 7 |
@@ -229,6 +229,11 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   que violam invariantes de negocio. Nova sentinela `ErrBlockedByGuardrail`.
   Complementa a validacao de schema da saida estruturada (forma vs.
   significado). Cobertura 93.7% no pacote raiz.
+- [x] **Facts e proveniencia** — tipo `Fact` de primeira classe, populado
+  apenas por tools `FactSource`, nunca pelo LLM. Facts carregam organizacao
+  fonte, URL fonte, momento de coleta e hash do payload (SHA-256). Construtor
+  `NewFactSourceTool`, helper `AllFactsProvenanced`, `dedupFacts` por
+  PayloadHash. Cobertura 94.5% no pacote raiz.
   estruturada (`Task.Structured` + `StructuredOutput.RepairMax`). O loop
   reenvia ao modelo os erros de validacao e tenta ate um numero limitado de
   tentativas. Nao transforma a saida (apenas valida).

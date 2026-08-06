@@ -29,6 +29,7 @@
 - [Processes: Sequential and Hierarchical](#processes-sequential-and-hierarchical)
 - [Structured output](#structured-output)
 - [Guardrails](#guardrails)
+- [Facts & provenance](#facts--provenance)
 - [Memory](#memory)
 - [Examples](#examples)
 - [Documentation](#documentation)
@@ -46,6 +47,7 @@
 - 🛠️ **Tools via ReAct** — agents reason and call tools in plain text.
 - 📋 **Structured output** — tasks can require JSON validated against a JSON Schema, with a bounded repair loop.
 - 🛡️ **Guardrails** — code-enforced post-output validation that blocks publication of outputs violating business invariants.
+- 📌 **Facts & provenance** — first-class Fact type populated only by deterministic connector tools, never by the LLM, with full provenance metadata.
 - 🧠 **Memory** between tasks and chainable **context**.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - ✅ **Testable** — mock LLM included; ~90% core coverage.
@@ -63,6 +65,8 @@
 | **Memory**   | Stores task outputs to give context to following tasks.                |
 | **StructuredOutput** | Configures a task to require JSON validated against a JSON Schema. |
 | **Guardrail** | Post-output validation hook that blocks publication of invalid outputs. |
+| **Fact** | Data from a deterministic connector tool with provenance (source, hash). |
+| **FactSource** | Optional interface for tools that produce Facts. |
 
 ## Installation
 
@@ -288,6 +292,30 @@ crew.Guardrails = []crewai.Guardrail{
 Task-level guardrails can also be set via `task.WithGuardrail(...)`. On
 failure, `Kickoff` returns `crewai.ErrBlockedByGuardrail` — the output is
 never partially returned. Details in [`docs/crews.md`](docs/crews.md).
+
+## Facts & provenance
+
+A **Fact** is a piece of data produced by a deterministic connector tool, not
+by the LLM. It carries provenance (source, URL, timestamp, payload hash) so a
+wrong value can never be presented as a "fact the model remembered".
+
+```go
+tool := crewai.NewFactSourceTool(
+    "cnpj_lookup",
+    "Looks up CNPJ status. Input: the CNPJ number.",
+    func(_ context.Context, cnpj string) (string, error) { /* ... */ },
+    func(_ context.Context, output string) []crewai.Fact {
+        return []crewai.Fact{
+            crewai.NewFact(output, "Receita Federal", "https://...", []byte(rawPayload)),
+        }
+    },
+)
+```
+
+Facts flow only from tools, never from the model. They are deduplicated by
+PayloadHash and appear in `CrewOutput.Facts` and `TaskOutput.Facts`. Use
+`crewai.AllFactsProvenanced` in a guardrail to enforce provenance. Details in
+[`docs/tools.md`](docs/tools.md).
 
 ## Memory
 

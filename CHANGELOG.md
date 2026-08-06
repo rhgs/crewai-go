@@ -7,6 +7,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Facts & provenance**: first-class `Fact` type populated only by
+  `FactSource` tools, never by the LLM. Facts carry source org, source URL,
+  collection time, and payload hash (SHA-256). `NewFactSourceTool` constructor,
+  `AllFactsProvenanced` helper for guardrails, `dedupFacts` by PayloadHash.
+  `CrewOutput.Facts` and `TaskOutput.Facts`. `executeTask` returns
+  `(string, []Fact, error)` internally. No new dependencies; backward
+  compatible.
 - **Guardrails**: crew-level (`Crew.Guardrails`) and task-level
   (`Task.Guardrail`) post-output validation hooks that block publication of
   outputs violating business invariants. New sentinel

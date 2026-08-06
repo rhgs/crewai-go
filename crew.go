@@ -46,6 +46,10 @@ type CrewOutput struct {
 	TasksOutput []TaskOutput
 	// Duration is the total execution time.
 	Duration time.Duration
+	// Facts holds all facts collected across all tasks from FactSource
+	// tools, deduplicated by PayloadHash. Populated by the executor,
+	// never by the LLM.
+	Facts []Fact
 }
 
 // TaskOutput is the output of a single task.
@@ -53,6 +57,9 @@ type TaskOutput struct {
 	Task   string
 	Agent  string
 	Output string
+	// Facts holds the facts collected from FactSource tools during this
+	// task's execution. Populated by the executor, never by the LLM.
+	Facts []Fact
 }
 
 // String returns the crew's final output.
@@ -127,7 +134,7 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 			return nil, ErrNoAgent
 		}
 
-		result, err := c.execute(ctx, agent, task)
+		result, facts, err := c.execute(ctx, agent, task)
 		if err != nil {
 			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
@@ -135,7 +142,9 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 			Task:   taskLabel(task, i),
 			Agent:  agent.Role,
 			Output: result,
+			Facts:  facts,
 		})
+		out.Facts = dedupFacts(out.Facts, facts)
 		out.Final = result
 	}
 	return out, nil
@@ -160,7 +169,7 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 		}
 		c.logger.Infof("manager delegated task %d to %q", i+1, agent.Role)
 
-		result, err := c.execute(ctx, agent, task)
+		result, facts, err := c.execute(ctx, agent, task)
 		if err != nil {
 			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
@@ -168,14 +177,17 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 			Task:   taskLabel(task, i),
 			Agent:  agent.Role,
 			Output: result,
+			Facts:  facts,
 		})
+		out.Facts = dedupFacts(out.Facts, facts)
 		out.Final = result
 	}
 	return out, nil
 }
 
 // execute runs a task, assembles the context, and persists the output/memory.
-func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, error) {
+// It returns the task result string, collected facts, and an error.
+func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, []Fact, error) {
 	contextText := task.contextText()
 	if c.mem != nil && contextText == "" {
 		// With no explicit context, inject the accumulated memory.
@@ -184,12 +196,12 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, e
 		}
 	}
 
-	result, err := executeTask(ctx, agent, task, contextText, c.logger)
+	result, facts, err := executeTask(ctx, agent, task, contextText, c.logger)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if err := task.setOutput(result); err != nil {
-		return "", fmt.Errorf("writing task output: %w", err)
+		return "", nil, fmt.Errorf("writing task output: %w", err)
 	}
 	if c.mem != nil {
 		c.mem.Save(MemoryRecord{
@@ -205,10 +217,10 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, e
 		label = "task"
 	}
 	if err := runTaskGuardrail(ctx, task, label, result); err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	return result, nil
+	return result, facts, nil
 }
 
 // resolveManager returns the manager agent for the hierarchical process.

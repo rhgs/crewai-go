@@ -7,6 +7,13 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 
+- **Facts e proveniencia**: tipo `Fact` de primeira classe, populado apenas
+  por tools `FactSource`, nunca pelo LLM. Facts carregam organizacao fonte,
+  URL fonte, momento de coleta e hash do payload (SHA-256). Construtor
+  `NewFactSourceTool`, helper `AllFactsProvenanced` para guardrails,
+  `dedupFacts` por PayloadHash. `CrewOutput.Facts` e `TaskOutput.Facts`.
+  `executeTask` retorna `(string, []Fact, error)` internamente. Sem novas
+  dependencias; backward compatible.
 - **Guardrails**: guardrails de crew (`Crew.Guardrails`) e de task
   (`Task.Guardrail`) — hooks de validacao pos-saida que bloqueiam a
   publicacao de saidas que violam invariantes de negocio. Nova sentinela

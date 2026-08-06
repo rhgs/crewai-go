@@ -381,7 +381,7 @@ func TestExecuteTaskStructuredDispatch(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	out, err := executeTask(context.Background(), agent, task, "", nopLogger{})
+	out, _, err := executeTask(context.Background(), agent, task, "", nopLogger{})
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -403,7 +403,7 @@ func TestExecuteTaskStructuredDispatchWithTools(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	out, err := executeTask(context.Background(), agent, task, "", nopLogger{})
+	out, _, err := executeTask(context.Background(), agent, task, "", nopLogger{})
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -420,7 +420,7 @@ func TestExecuteTaskStructuredNoLLM(t *testing.T) {
 	task := NewTask("t", "", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	if _, err := executeTask(context.Background(), agent, task, "", nopLogger{}); err != ErrNoLLM {
+	if _, _, err := executeTask(context.Background(), agent, task, "", nopLogger{}); err != ErrNoLLM {
 		t.Errorf("error = %v, want %v", err, ErrNoLLM)
 	}
 }
