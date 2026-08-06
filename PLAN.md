@@ -78,6 +78,11 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct exec
 - [x] xAI subscription OAuth: Device Flow (RFC 8628) + PKCE + refresh + persistence.
 - [x] Built-in tools (calculator with its own parser, time, word counter).
 - [x] Hermetic tests (~90% core; providers via httptest) and `Example`s.
+- [x] **Structured output** — `Task.Structured` (`*StructuredOutput`) with JSON
+  Schema validation and a bounded repair loop. Minimal in-house validator (type,
+  properties, required, enum, items); stdlib only, no new dependencies. The
+  `LLM.Call` interface is unchanged. New sentinels `ErrInvalidOutput` and
+  `ErrRepairBudgetExceeded`. Coverage 92.8% in the root package.
 - [x] Documentation: README + 7 guides + godoc; 7 runnable examples.
 - [x] Clean `go build`, `go vet`, and `go test ./...`.
 
@@ -88,7 +93,7 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct exec
 | Go LOC (total) | 3.826 |
 | `.go` files | 41 |
 | External dependencies | 0 (stdlib) |
-| Coverage — core (`crewai`) | 90.0% |
+| Coverage — core (`crewai`) | 92.8% |
 | Coverage — `tools` | 92.1% |
 | Coverage — `llm/*` providers | 71.7%–87.5% |
 | Runnable examples | 7 |
@@ -110,6 +115,16 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct exec
 - **In-process memory only** — no persistence or semantic search.
 - **No native function calling** — all tool usage goes through the text-based
   ReAct loop, which works with any provider but doesn't leverage native tools.
+- **Structured output validator is a subset** — the built-in JSON Schema
+  validator supports only `type`, `properties`, `required`, `enum`, and
+  `items`. It does not support `additionalProperties`, `oneOf`/`anyOf`,
+  `pattern`, `minimum`/`maximum`, `minItems`/`maxItems`, or other keywords.
+  This is sufficient for most LLM-driven tasks and is documented as a
+  limitation.
+- **Structured tasks bypass tools** — when `Task.Structured` is set, the
+  executor goes straight to the structured-output path and does not use the
+  ReAct loop or any configured tools. A future extension could allow tool use
+  before producing structured output.
 
 ## 6. Roadmap — next steps (out of current scope)
 
@@ -215,7 +230,15 @@ and environment variable names in docs/README. The `.gitignore` protects
   (`MemoryStore` interface + file/sqlite implementation as default).
 - [ ] **Callbacks and telemetry** — task and ReAct-iteration start/end hooks,
   exportable (structured logs, metrics).
-- [ ] **Guardrails** — output validation/transformation with retry.
+- [x] **Guardrails** — output validation with retry via the structured-output
+  repair loop (`Task.Structured` + `StructuredOutput.RepairMax`). The repair
+  loop re-prompts the model with validation errors and retries up to a bounded
+  number of attempts. Does not transform output (only validates).
+- [ ] **Structured output extensions** — expand the JSON Schema validator to
+  support more keywords (`additionalProperties`, `oneOf`/`anyOf`, `pattern`,
+  `minimum`/`maximum`, `minItems`/`maxItems`); allow tool use before
+  structured output; optional native function calling for structured output
+  (OpenAI/Anthropic).
 
 ### P3 — Advanced
 
