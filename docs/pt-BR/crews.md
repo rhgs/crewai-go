@@ -88,3 +88,61 @@ ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 defer cancel()
 out, err := crew.Kickoff(ctx, nil)
 ```
+
+## Guardrails
+
+Guardrails sao hooks de validacao pos-output aplicados em codigo. Eles rodam
+depois que a crew (ou tarefa) produz a saida e BLOQUEIAM a publicacao se uma
+invariante de negocio for violada. Diferente de instrucoes no prompt,
+guardrails sao uma garantia em codigo: a saida nunca e retornada se um
+guardrail falhar.
+
+### Guardrails de crew
+
+Defina `Crew.Guardrails` para validar o `CrewOutput` completo apos todas as
+tarefas:
+
+```go
+crew.Guardrails = []crewai.Guardrail{
+    func(_ context.Context, out *crewai.CrewOutput) error {
+        if len(out.Final) < 50 {
+            return fmt.Errorf("saida muito curta: %d chars", len(out.Final))
+        }
+        return nil
+    },
+}
+```
+
+### Guardrails de task
+
+Defina `Task.Guardrail` para validar a saida de uma unica tarefa assim que ela
+termina (antes da proxima):
+
+```go
+tarefa := crewai.NewTask("...", "...", agente).
+    WithGuardrail(func(_ context.Context, out *crewai.CrewOutput) error {
+        if !strings.Contains(out.Final, "http") {
+            return fmt.Errorf("faltando URL de origem")
+        }
+        return nil
+    })
+```
+
+### Semantica de bloqueio
+
+- Se qualquer guardrail retornar um erro nao-nil, `Kickoff` retorna
+  `crewai.ErrBlockedByGuardrail` envolvendo o erro do guardrail.
+- A saida parcialmente validada NAO e retornada.
+- Guardrails de task rodam na conclusao da tarefa; guardrails de crew rodam
+  apos todas as tarefas. Primeira falha interrompe (short-circuit).
+- Guardrails NAO DEVEM mutar a saida.
+
+### Guardrails vs. saida estruturada
+
+| Recurso | O que checa | Quando | Falha |
+|---|---|---|---|
+| Saida estruturada | Forma JSON (schema) | Durante chamada LLM | Loop de reparo, depois `ErrRepairBudgetExceeded` |
+| Guardrails | Significado de negocio (invariantes) | Apos saida | `ErrBlockedByGuardrail` (sem retry) |
+
+A validacao de schema checa a **forma**; guardrails checam o **significado**.
+Use ambos para maxima seguranca.

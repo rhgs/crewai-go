@@ -88,3 +88,60 @@ ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 defer cancel()
 out, err := crew.Kickoff(ctx, nil)
 ```
+
+## Guardrails
+
+Guardrails are code-enforced post-output validation hooks. They run after a
+crew (or task) produces output and BLOCK publication if a business invariant
+is violated. Unlike prompt-level instructions, guardrails are a hard code
+guarantee: the output is never returned if a guardrail fails.
+
+### Crew-level guardrails
+
+Set `Crew.Guardrails` to run validation against the full `CrewOutput` after
+all tasks complete:
+
+```go
+crew.Guardrails = []crewai.Guardrail{
+    func(_ context.Context, out *crewai.CrewOutput) error {
+        if len(out.Final) < 50 {
+            return fmt.Errorf("output too short: %d chars", len(out.Final))
+        }
+        return nil
+    },
+}
+```
+
+### Task-level guardrails
+
+Set `Task.Guardrail` to validate a single task's output as soon as it
+completes (before the next task starts):
+
+```go
+task := crewai.NewTask("...", "...", agent).
+    WithGuardrail(func(_ context.Context, out *crewai.CrewOutput) error {
+        if !strings.Contains(out.Final, "http") {
+            return fmt.Errorf("missing source URL")
+        }
+        return nil
+    })
+```
+
+### Blocking semantics
+
+- If any guardrail returns a non-nil error, `Kickoff` returns
+  `crewai.ErrBlockedByGuardrail` wrapping the guardrail's error.
+- The partially validated output is NOT returned.
+- Task-level guardrails run at task completion; crew-level guardrails run
+  after all tasks. First failure short-circuits.
+- Guardrails MUST NOT mutate the output.
+
+### Guardrails vs. structured output
+
+| Feature | What it checks | When | Failure |
+|---|---|---|---|
+| Structured output | JSON shape (schema) | During LLM call | Repair loop, then `ErrRepairBudgetExceeded` |
+| Guardrails | Business meaning (invariants) | After output | `ErrBlockedByGuardrail` (no retry) |
+
+Schema validation checks the **shape**; guardrails check the **meaning**.
+Use both for maximum safety.

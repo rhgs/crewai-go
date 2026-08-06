@@ -93,7 +93,7 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct exec
 | Go LOC (total) | 3.826 |
 | `.go` files | 41 |
 | External dependencies | 0 (stdlib) |
-| Coverage — core (`crewai`) | 92.8% |
+| Coverage — core (`crewai`) | 93.7% |
 | Coverage — `tools` | 92.1% |
 | Coverage — `llm/*` providers | 71.7%–87.5% |
 | Runnable examples | 7 |
@@ -234,6 +234,11 @@ and environment variable names in docs/README. The `.gitignore` protects
   repair loop (`Task.Structured` + `StructuredOutput.RepairMax`). The repair
   loop re-prompts the model with validation errors and retries up to a bounded
   number of attempts. Does not transform output (only validates).
+- [x] **Post-output guardrails** — code-enforced post-output validation hooks
+  (`Crew.Guardrails` and `Task.Guardrail`) that block publication of outputs
+  violating business invariants. New sentinel `ErrBlockedByGuardrail`.
+  Complements structured-output schema validation (shape vs. meaning).
+  Coverage 93.7% in the root package.
 - [ ] **Structured output extensions** — expand the JSON Schema validator to
   support more keywords (`additionalProperties`, `oneOf`/`anyOf`, `pattern`,
   `minimum`/`maximum`, `minItems`/`maxItems`); allow tool use before

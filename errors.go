@@ -24,4 +24,8 @@ var (
 	// exhausted and the model never produced valid JSON. It wraps the
 	// last validation error.
 	ErrRepairBudgetExceeded = errors.New("crewai: repair budget exceeded, structured output could not be validated")
+	// ErrBlockedByGuardrail is returned when a guardrail rejects an output.
+	// It wraps the guardrail's error so the caller can inspect the violated
+	// invariant via errors.Unwrap.
+	ErrBlockedByGuardrail = errors.New("crewai: output blocked by guardrail")
 )

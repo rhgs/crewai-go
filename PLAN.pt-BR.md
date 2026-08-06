@@ -94,7 +94,7 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor R
 | LOC Go (total) | 3.826 |
 | Arquivos `.go` | 41 |
 | Dependências externas | 0 (stdlib) |
-| Cobertura — núcleo (`crewai`) | 92.8% |
+| Cobertura — núcleo (`crewai`) | 93.7% |
 | Cobertura — `tools` | 92.1% |
 | Cobertura — provedores `llm/*` | 71.7%–87.5% |
 | Exemplos executáveis | 7 |
@@ -221,6 +221,14 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 - [ ] **Callbacks e telemetria** — hooks de início/fim de tarefa e iteração
   ReAct, exportáveis (log estruturado, métricas).
 - [x] **Guardrails** — validacao de saida com retry via loop de reparo da saida
+  estruturada (`Task.Structured` + `StructuredOutput.RepairMax`). O loop
+  reenvia ao modelo os erros de validacao e tenta ate um numero limitado de
+  tentativas. Nao transforma a saida (apenas valida).
+- [x] **Guardrails pos-saida** — hooks de validacao pos-saida em codigo
+  (`Crew.Guardrails` e `Task.Guardrail`) que bloqueiam a publicacao de saidas
+  que violam invariantes de negocio. Nova sentinela `ErrBlockedByGuardrail`.
+  Complementa a validacao de schema da saida estruturada (forma vs.
+  significado). Cobertura 93.7% no pacote raiz.
   estruturada (`Task.Structured` + `StructuredOutput.RepairMax`). O loop
   reenvia ao modelo os erros de validacao e tenta ate um numero limitado de
   tentativas. Nao transforma a saida (apenas valida).

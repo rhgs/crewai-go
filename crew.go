@@ -29,6 +29,11 @@ type Crew struct {
 	// When set, it takes precedence over ManagerLLM.
 	ManagerAgent *Agent
 
+	// Guardrails, when set, are run after all tasks complete successfully,
+	// in order, against the full CrewOutput. If any guardrail returns a
+	// non-nil error, Kickoff returns ErrBlockedByGuardrail.
+	Guardrails []Guardrail
+
 	logger Logger
 	mem    *Memory
 }
@@ -101,6 +106,12 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 		return nil, err
 	}
 	out.Duration = time.Since(start)
+
+	// Run crew-level guardrails after all tasks complete.
+	if err := runCrewGuardrails(ctx, c.Guardrails, out); err != nil {
+		return nil, err
+	}
+
 	return out, nil
 }
 
@@ -187,6 +198,16 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, e
 			Content: result,
 		})
 	}
+
+	// Run task-level guardrail (if any) after the output is stored.
+	label := task.Name
+	if label == "" {
+		label = "task"
+	}
+	if err := runTaskGuardrail(ctx, task, label, result); err != nil {
+		return "", err
+	}
+
 	return result, nil
 }
 

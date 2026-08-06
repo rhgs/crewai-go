@@ -7,6 +7,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Guardrails**: crew-level (`Crew.Guardrails`) and task-level
+  (`Task.Guardrail`) post-output validation hooks that block publication of
+  outputs violating business invariants. New sentinel
+  `ErrBlockedByGuardrail`. Functional options `WithGuardrails` (crew) and
+  `WithGuardrail` (task). Complements structured-output schema validation
+  (shape vs. meaning). No new dependencies; backward compatible.
 - **Structured output**: `Task.Structured` (`*StructuredOutput`) requires the
   model to produce JSON validated against a JSON Schema, with a bounded repair
   loop (`RepairMax`, default 2). New sentinels `ErrInvalidOutput` and
