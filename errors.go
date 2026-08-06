@@ -16,4 +16,12 @@ var (
 	// ErrMaxIterations is returned when the agent reaches the maximum number
 	// of iterations without producing a final answer.
 	ErrMaxIterations = errors.New("crewai: maximum number of iterations reached")
+	// ErrInvalidOutput is returned when the model returns JSON that does
+	// not validate against the required schema. It wraps the underlying
+	// validation error(s).
+	ErrInvalidOutput = errors.New("crewai: structured output failed schema validation")
+	// ErrRepairBudgetExceeded is returned when repair attempts are
+	// exhausted and the model never produced valid JSON. It wraps the
+	// last validation error.
+	ErrRepairBudgetExceeded = errors.New("crewai: repair budget exceeded, structured output could not be validated")
 )

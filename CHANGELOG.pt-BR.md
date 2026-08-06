@@ -1,7 +1,20 @@
 # Changelog
 
-Todas as mudanças relevantes no **crewai-go** são documentadas aqui. Este projeto
-segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+Todas as mudancas relevantes no **crewai-go** sao documentadas aqui. Este projeto
+segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
+
+## [Unreleased]
+
+### Adicionado
+
+- **Saida estruturada**: `Task.Structured` (`*StructuredOutput`) exige que o
+  modelo produza JSON validado contra um JSON Schema, com um loop de reparo
+  limitado (`RepairMax`, padrao 2). Novas sentinelas `ErrInvalidOutput` e
+  `ErrRepairBudgetExceeded`. Validador de schema minimalista embutido (type,
+  properties, required, enum, items) — apenas stdlib, sem novas dependencias.
+  A interface `LLM.Call` nao foi alterada; a saida estruturada funciona via
+  engenharia de prompt e validacao em Go. Construtor `NewStructuredOutput` e
+  opcao funcional `WithRepairMax`.
 
 ## [v0.1.0] — 2026-08-04
 

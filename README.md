@@ -27,6 +27,7 @@
 - [LLM Providers](#llm-providers)
 - [Tools](#tools)
 - [Processes: Sequential and Hierarchical](#processes-sequential-and-hierarchical)
+- [Structured output](#structured-output)
 - [Memory](#memory)
 - [Examples](#examples)
 - [Documentation](#documentation)
@@ -42,6 +43,7 @@
 - ⚡ **No dependencies** — stdlib only; small, fast builds.
 - 🔌 **Any LLM** — OpenAI (and compatible: Ollama, Groq, Azure…), Anthropic (Claude), or your own implementation of the `LLM` interface.
 - 🛠️ **Tools via ReAct** — agents reason and call tools in plain text.
+- 📋 **Structured output** — tasks can require JSON validated against a JSON Schema, with a bounded repair loop.
 - 🧠 **Memory** between tasks and chainable **context**.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - ✅ **Testable** — mock LLM included; ~90% core coverage.
@@ -57,6 +59,7 @@
 | **Tool**     | A capability an agent can invoke (calculation, search, API…).          |
 | **LLM**      | Abstraction over the language model. Several providers ready to use.   |
 | **Memory**   | Stores task outputs to give context to following tasks.                |
+| **StructuredOutput** | Configures a task to require JSON validated against a JSON Schema. |
 
 ## Installation
 
@@ -228,6 +231,38 @@ Chain context explicitly with `WithContext`:
 analysis := crewai.NewTask("Analyze the data", "insights", analyst).
 	WithContext(collection) // receives the output of the 'collection' task
 ```
+
+## Structured output
+
+When a task needs typed, trustworthy data (e.g. for persisting into a
+database), set the `Structured` field with a JSON Schema. The executor
+instructs the model to reply with JSON only, validates the output in Go,
+and retries up to `RepairMax` times if validation fails.
+
+```go
+schema := map[string]any{
+    "type": "object",
+    "properties": map[string]any{
+        "name":  map[string]any{"type": "string"},
+        "count": map[string]any{"type": "integer"},
+    },
+    "required": []string{"name", "count"},
+}
+
+structured, _ := crewai.NewStructuredOutput(schema, crewai.WithRepairMax(3))
+
+task := crewai.NewTask("Extract the product name and count.", "JSON", agent)
+task.Structured = structured
+```
+
+On success, `task.Output()` returns the **canonicalized** JSON string. If
+the model never produces valid JSON within the repair budget, the task
+fails with `crewai.ErrRepairBudgetExceeded`. The executor never returns
+invalid JSON or invents data.
+
+The built-in validator supports a subset of JSON Schema (`type`,
+`properties`, `required`, `enum`, `items`) — stdlib only, no external
+dependencies. Details in [`docs/tasks.md`](docs/tasks.md).
 
 ## Memory
 

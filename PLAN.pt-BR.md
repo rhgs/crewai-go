@@ -78,6 +78,12 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor R
 - [x] OAuth de assinatura do xAI: Device Flow (RFC 8628) + PKCE + refresh + persistência.
 - [x] Ferramentas embutidas (calculadora com parser próprio, hora, contador).
 - [x] Testes herméticos (~90% núcleo; provedores via httptest) e `Example`s.
+- [x] **Saida estruturada** — `Task.Structured` (`*StructuredOutput`) com
+  validacao por JSON Schema e loop de reparo limitado. Validador minimalista
+  embutido (type, properties, required, enum, items); apenas stdlib, sem novas
+  dependencias. A interface `LLM.Call` nao foi alterada. Novas sentinelas
+  `ErrInvalidOutput` e `ErrRepairBudgetExceeded`. Cobertura 92.8% no pacote
+  raiz.
 - [x] Documentação: README + 7 guias + godoc; 7 exemplos executáveis.
 - [x] `go build`, `go vet` e `go test ./...` limpos.
 
@@ -88,7 +94,7 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor R
 | LOC Go (total) | 3.826 |
 | Arquivos `.go` | 41 |
 | Dependências externas | 0 (stdlib) |
-| Cobertura — núcleo (`crewai`) | 90.0% |
+| Cobertura — núcleo (`crewai`) | 92.8% |
 | Cobertura — `tools` | 92.1% |
 | Cobertura — provedores `llm/*` | 71.7%–87.5% |
 | Exemplos executáveis | 7 |
@@ -110,6 +116,16 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor R
 - **Memória apenas em processo** — sem persistência nem busca semântica.
 - **Sem function calling nativo** — todo uso de ferramentas passa pelo ReAct
   textual, que funciona com qualquer provedor mas não aproveita tools nativas.
+- **Validador de saida estruturada e um subconjunto** — o validador embutido de
+  JSON Schema suporta apenas `type`, `properties`, `required`, `enum` e `items`.
+  Nao suporta `additionalProperties`, `oneOf`/`anyOf`, `pattern`,
+  `minimum`/`maximum`, `minItems`/`maxItems` nem outras palavras-chave. Isso e
+  suficiente para a maioria das tarefas dirigidas por LLM e esta documentado
+  como limitacao.
+- **Tarefas estruturadas ignoram ferramentas** — quando `Task.Structured` esta
+  definido, o executor segue direto para o caminho de saida estruturada e nao
+  usa o loop ReAct nem ferramentas configuradas. Uma extensao futura poderia
+  permitir uso de ferramentas antes de produzir a saida estruturada.
 
 ## 6. Roadmap — próximos passos (fora do escopo atual)
 
@@ -204,7 +220,15 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   (interface `MemoryStore` + implementação em arquivo/sqlite como padrão).
 - [ ] **Callbacks e telemetria** — hooks de início/fim de tarefa e iteração
   ReAct, exportáveis (log estruturado, métricas).
-- [ ] **Guardrails** — validação/transformação de saída com retry.
+- [x] **Guardrails** — validacao de saida com retry via loop de reparo da saida
+  estruturada (`Task.Structured` + `StructuredOutput.RepairMax`). O loop
+  reenvia ao modelo os erros de validacao e tenta ate um numero limitado de
+  tentativas. Nao transforma a saida (apenas valida).
+- [ ] **Extensoes da saida estruturada** — expandir o validador de JSON Schema
+  para suportar mais palavras-chave (`additionalProperties`, `oneOf`/`anyOf`,
+  `pattern`, `minimum`/`maximum`, `minItems`/`maxItems`); permitir uso de
+  ferramentas antes da saida estruturada; function calling nativo opcional
+  para saida estruturada (OpenAI/Anthropic).
 
 ### P3 — Avançado
 

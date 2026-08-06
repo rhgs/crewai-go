@@ -22,4 +22,27 @@
 //
 // Orchestration can be sequential (Sequential) or hierarchical
 // (Hierarchical), the latter with a manager that delegates tasks dynamically.
+//
+// # Structured output
+//
+// When a task needs typed, trustworthy data, set Task.Structured to a
+// StructuredOutput configured with a JSON Schema. The executor instructs
+// the model to reply with JSON only, validates the output in Go, and retries
+// up to RepairMax times if validation fails. On success, Task.Output
+// returns the canonicalized JSON string; on failure, it returns
+// ErrRepairBudgetExceeded. The executor never returns invalid JSON or
+// invented data.
+//
+//	schema := map[string]any{
+//	    "type": "object",
+//	    "properties": map[string]any{
+//	        "name": map[string]any{"type": "string"},
+//	    },
+//	    "required": []string{"name"},
+//	}
+//	structured, _ := crewai.NewStructuredOutput(schema, crewai.WithRepairMax(3))
+//	task.Structured = structured
+//
+// The built-in validator supports a subset of JSON Schema (type, properties,
+// required, enum, items) and uses only the standard library.
 package crewai

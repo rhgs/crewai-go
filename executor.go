@@ -11,6 +11,9 @@ func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log
 	if a.LLM == nil {
 		return "", ErrNoLLM
 	}
+	if t != nil && t.Structured != nil {
+		return executeStructured(ctx, a, t, contextText, log)
+	}
 
 	tools := effectiveTools(a, t)
 	maxIter := a.MaxIterations
