@@ -352,6 +352,8 @@ go run ./examples/xai_oauth
 
 > 📖 Toda a documentação está disponível em **Português** (este) e **English** (padrão, `docs/*.md` / `*.md`). Cada arquivo tem um link de troca de idioma no topo.
 
+### Guias principais
+
 | Guia | Português | English |
 |------|-----------|---------|
 | Getting Started | [PT](docs/pt-BR/getting-started.md) | [EN](docs/getting-started.md) |
@@ -362,6 +364,18 @@ go run ./examples/xai_oauth
 | LLMs | [PT](docs/pt-BR/llms.md) | [EN](docs/llms.md) |
 | Memory | [PT](docs/pt-BR/memory.md) | [EN](docs/memory.md) |
 | Plano / Roadmap | [PT](PLAN.pt-BR.md) | [EN](PLAN.md) |
+
+### Novidades da v0.2.0
+
+As três features são **backward compatible** — sem breaking changes.
+
+| Recurso | Descrição | Docs (PT) | Docs (EN) |
+|---------|-----------|-----------|-----------|
+| **Saída estruturada** | Exige JSON validado contra um JSON Schema com loop de reparo limitado. O executor tenta até `RepairMax` vezes e nunca retorna JSON inválido. | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) | [docs/tasks.md](docs/tasks.md) |
+| **Guardrails** | Hooks de validação pós-saída em nível crew e task que bloqueiam publicação de saídas que violam invariantes de negócio. Retorna `ErrBlockedByGuardrail` em caso de falha. | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) | [docs/crews.md](docs/crews.md) |
+| **Facts & proveniência** | Tipo `Fact` de primeira classe, populado apenas por tools `FactSource` — nunca pelo LLM. Carrega organização fonte, URL, timestamp e hash do payload (SHA-256). Deduplicado por `PayloadHash`. | [docs/pt-BR/tools.md](docs/pt-BR/tools.md) | [docs/tools.md](docs/tools.md) |
+
+Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.2.0](https://github.com/rhgs/crewai-go/releases/tag/v0.2.0) para detalhes.
 
 ## Testes
 
