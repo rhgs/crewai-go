@@ -2,6 +2,7 @@ package xai_test
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -57,5 +58,70 @@ func TestOAuthTokenSource(t *testing.T) {
 	}
 	if out != "hello Grok" {
 		t.Errorf("out = %q", out)
+	}
+}
+
+func TestCallWithTools(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// xAI uses the same wire format as OpenAI.
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"choices": [{
+				"message": {
+					"role": "assistant",
+					"content": "",
+					"tool_calls": [{
+						"id": "call_xai_1",
+						"type": "function",
+						"function": {"name": "calculator", "arguments": "{\"expr\": \"3+3\"}"}
+					}]
+				}
+			}]
+		}`))
+	}))
+	defer srv.Close()
+
+	llm := xai.New("grok-4", xai.WithAPIKey("xai-key"), xai.WithBaseURL(srv.URL))
+	tools := []crewai.ToolSpec{
+		{Type: "function", Function: crewai.ToolFunction{Name: "calculator", Description: "calc", Parameters: json.RawMessage(`{"type":"object"}`)}},
+	}
+	resp, err := llm.CallWithTools(context.Background(), []crewai.Message{
+		crewai.UserMessage("calc 3+3"),
+	}, tools)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(resp.ToolCalls) != 1 {
+		t.Fatalf("toolCalls = %d, want 1", len(resp.ToolCalls))
+	}
+	if resp.ToolCalls[0].Function.Name != "calculator" {
+		t.Errorf("name = %q", resp.ToolCalls[0].Function.Name)
+	}
+	// OpenAI wire format: arguments as string, normalized to json.RawMessage.
+	var args map[string]any
+	if err := json.Unmarshal(resp.ToolCalls[0].Function.Arguments, &args); err != nil {
+		t.Errorf("arguments not valid JSON: %v", err)
+	}
+	if args["expr"] != "3+3" {
+		t.Errorf("args expr = %v", args["expr"])
+	}
+}
+
+func TestCallWithTools_NoToolCalls(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"final answer from Grok"}}]}`))
+	}))
+	defer srv.Close()
+
+	llm := xai.New("grok-4", xai.WithAPIKey("xai-key"), xai.WithBaseURL(srv.URL))
+	resp, err := llm.CallWithTools(context.Background(), []crewai.Message{crewai.UserMessage("hi")}, nil)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if resp.Content != "final answer from Grok" {
+		t.Errorf("content = %q", resp.Content)
+	}
+	if len(resp.ToolCalls) != 0 {
+		t.Errorf("toolCalls = %d, want 0", len(resp.ToolCalls))
 	}
 }

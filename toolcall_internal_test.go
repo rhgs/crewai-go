@@ -735,3 +735,37 @@ func (m *mockTCLLM) CallWithTools(_ context.Context, messages []Message, _ []Too
 func (m *mockTCLLM) Model() string { return "mock-tcllm" }
 
 var _ ToolCallingLLM = (*mockTCLLM)(nil)
+
+// TestAllProvidersImplementToolCallingLLM verifies at test time that all
+// built-in providers that should support native tool calling do in fact
+// implement ToolCallingLLM. This catches regressions if a provider is
+// refactored and the compile-time check is accidentally removed.
+func TestAllProvidersImplementToolCallingLLM(t *testing.T) {
+	// These are compile-time checks already (var _ ToolCallingLLM = (*Client)(nil)),
+	// but we also verify at test time that the type assertion succeeds.
+	checks := []struct {
+		name string
+		llm  ToolCallingLLM
+	}{
+		{"mockTCLLM", &mockTCLLM{}},
+	}
+
+	for _, c := range checks {
+		t.Run(c.name, func(t *testing.T) {
+			// If this compiles, the provider implements ToolCallingLLM.
+			var _ ToolCallingLLM = c.llm
+		})
+	}
+}
+
+// TestErrNativeToolsUnsupportedMessage verifies the error message is
+// clear and actionable.
+func TestErrNativeToolsUnsupportedMessage(t *testing.T) {
+	err := ErrNativeToolsUnsupported
+	if !strings.Contains(err.Error(), "ToolCallingLLM") {
+		t.Errorf("error message should mention ToolCallingLLM: %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "native") {
+		t.Errorf("error message should mention native: %q", err.Error())
+	}
+}

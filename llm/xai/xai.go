@@ -96,5 +96,15 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 	return c.inner.Call(ctx, messages)
 }
 
+// CallWithTools implements crewai.ToolCallingLLM by delegating to the
+// underlying OpenAI-compatible client. The xAI API supports the same
+// tool-calling wire format as OpenAI.
+func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, tools []crewai.ToolSpec) (*crewai.ToolCallResponse, error) {
+	return c.inner.CallWithTools(ctx, messages, tools)
+}
+
 // Model implements crewai.LLM.
 func (c *Client) Model() string { return c.inner.Model() }
+
+// Compile-time check.
+var _ crewai.ToolCallingLLM = (*Client)(nil)

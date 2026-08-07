@@ -3,6 +3,7 @@ package crewai_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -137,8 +138,59 @@ func TestCrewNativeErrNativeToolsUnsupported(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
+	if !errors.Is(err, crewai.ErrNativeToolsUnsupported) {
+		t.Errorf("err should be ErrNativeToolsUnsupported: %v", err)
+	}
 	if !strings.Contains(err.Error(), "ToolCallingLLM") {
 		t.Errorf("err should mention ToolCallingLLM: %v", err)
+	}
+}
+
+// TestCrewNativeErrNativeToolsUnsupportedWithTools verifies that the error
+// is clear and actionable when a provider without ToolCallingLLM is used
+// with ToolModeNative AND tools are configured.
+func TestCrewNativeErrNativeToolsUnsupportedWithTools(t *testing.T) {
+	plainLLM := &nonTCLLM{}
+	tool := crewai.NewTool("calc", "calculator", func(_ context.Context, _ string) (string, error) {
+		return "1", nil
+	})
+	a := crewai.NewAgent("Agent", "goal", "backstory", plainLLM)
+	a.ToolMode = crewai.ToolModeNative
+	a.Tools = []crewai.Tool{tool}
+	task := crewai.NewTask("calc 1+1", "text", a)
+	crew := crewai.NewCrew([]*crewai.Agent{a}, []*crewai.Task{task})
+
+	_, err := crew.Kickoff(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, crewai.ErrNativeToolsUnsupported) {
+		t.Errorf("err should be ErrNativeToolsUnsupported: %v", err)
+	}
+	if !strings.Contains(err.Error(), "ToolCallingLLM") {
+		t.Errorf("err should mention ToolCallingLLM: %v", err)
+	}
+}
+
+// TestCrewNativeReActFallbackWhenNoToolMode verifies that the default
+// (empty ToolMode) uses ReAct even for LLMs that DO implement ToolCallingLLM.
+func TestCrewNativeReActFallbackWhenNoToolMode(t *testing.T) {
+	m := mock.New("react answer")
+	a := crewai.NewAgent("Agent", "goal", "backstory", m)
+	// ToolMode is NOT set — should use ReAct, not native.
+	task := crewai.NewTask("task", "text", a)
+	crew := crewai.NewCrew([]*crewai.Agent{a}, []*crewai.Task{task})
+
+	out, err := crew.Kickoff(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if out.Final != "react answer" {
+		t.Errorf("final = %q", out.Final)
+	}
+	// ReAct path should not produce tool traces.
+	if len(out.TasksOutput[0].ToolTraces) != 0 {
+		t.Errorf("traces = %d, want 0 (ReAct)", len(out.TasksOutput[0].ToolTraces))
 	}
 }
 
