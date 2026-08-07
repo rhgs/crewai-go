@@ -5,6 +5,19 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Native tool calling**: `Agent.ToolMode` (`"react"` | `"native"`) seleciona
+  entre o loop ReAct baseado em texto existente e a API de function calling
+  nativa do provedor. Nova interface `ToolCallingLLM` (implementa `LLM`),
+  tipos `ToolSpec`, `ToolCall`, `ToolCallResponse`, `ToolTrace`.
+  `CallWithTools` implementado para Ollama, OpenAI, Anthropic e Mock.
+  `ToolTraces` em `TaskOutput` para observabilidade. Sentinela
+  `ErrNativeToolsUnsupported`. Seguranca: validacao de argumentos (limites de
+  tamanho/profundidade), truncamento de output de tools, limites de tamanho de
+  resposta de provedores (`io.LimitReader`). Backward compatible: padrao e
+  ReAct, sem mudancas em caminhos de codigo existentes.
+
 ## [v0.2.0] — 2026-08-07
 
 ### Adicionado

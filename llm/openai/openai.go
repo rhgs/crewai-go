@@ -161,3 +161,144 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 	}
 	return parsed.Choices[0].Message.Content, nil
 }
+
+// openAIToolCall matches the OpenAI wire format where arguments is a string.
+type openAIToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
+}
+
+// openAIChatRequestWithTools extends chatRequest with tools.
+type openAIChatRequestWithTools struct {
+	Model       string            `json:"model"`
+	Messages    []openAIChatMsg   `json:"messages"`
+	Temperature float64           `json:"temperature"`
+	Tools       []crewai.ToolSpec `json:"tools,omitempty"`
+}
+
+// openAIChatMsg extends chatMessage with tool_calls and tool_name.
+type openAIChatMsg struct {
+	Role      string           `json:"role"`
+	Content   string           `json:"content"`
+	ToolCalls []openAIToolCall `json:"tool_calls,omitempty"`
+	ToolName  string           `json:"tool_name,omitempty"`
+}
+
+// openAIChatResponseWithTools extends chatResponse with tool_calls.
+type openAIChatResponseWithTools struct {
+	Choices []struct {
+		Message struct {
+			Role      string           `json:"role"`
+			Content   string           `json:"content"`
+			ToolCalls []openAIToolCall `json:"tool_calls"`
+		} `json:"message"`
+	} `json:"choices"`
+	Error *struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+	} `json:"error"`
+}
+
+// CallWithTools implements crewai.ToolCallingLLM.
+func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, tools []crewai.ToolSpec) (*crewai.ToolCallResponse, error) {
+	token, err := c.authToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	reqBody := openAIChatRequestWithTools{
+		Model:       c.model,
+		Temperature: c.temperature,
+		Tools:       tools,
+		Messages:    make([]openAIChatMsg, len(messages)),
+	}
+	for i, m := range messages {
+		reqBody.Messages[i] = openAIChatMsg{
+			Role:      string(m.Role),
+			Content:   m.Content,
+			ToolCalls: nil, // openAIToolCall uses string args; will be set below
+			ToolName:  m.ToolName,
+		}
+		// Convert crewai.ToolCall (json.RawMessage args) to openAIToolCall (string args).
+		if len(m.ToolCalls) > 0 {
+			otcs := make([]openAIToolCall, len(m.ToolCalls))
+			for j, tc := range m.ToolCalls {
+				otcs[j] = openAIToolCall{
+					ID:   tc.ID,
+					Type: "function",
+				}
+				otcs[j].Function.Name = tc.Function.Name
+				otcs[j].Function.Arguments = string(tc.Function.Arguments)
+			}
+			reqBody.Messages[i].ToolCalls = otcs
+		}
+	}
+
+	buf, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("openai: encoding request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(buf))
+	if err != nil {
+		return nil, fmt.Errorf("openai: creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("openai: sending request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body := io.LimitReader(resp.Body, crewai.MaxProviderResponseBytes)
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, fmt.Errorf("openai: reading response: %w", err)
+	}
+
+	var parsed openAIChatResponseWithTools
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return nil, fmt.Errorf("openai: decoding response (status %d): %w", resp.StatusCode, err)
+	}
+	if parsed.Error != nil {
+		return nil, fmt.Errorf("openai: API error: %s", parsed.Error.Message)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("openai: unexpected status %d: %s", resp.StatusCode, string(data))
+	}
+	if len(parsed.Choices) == 0 {
+		return &crewai.ToolCallResponse{}, nil
+	}
+
+	choice := parsed.Choices[0]
+	result := &crewai.ToolCallResponse{
+		Content: choice.Message.Content,
+	}
+
+	// Normalize OpenAI string arguments to json.RawMessage.
+	for _, otc := range choice.Message.ToolCalls {
+		var args json.RawMessage
+		if err := json.Unmarshal([]byte(otc.Function.Arguments), &args); err != nil {
+			// Best-effort: keep raw bytes if not valid JSON.
+			args = json.RawMessage(otc.Function.Arguments)
+		}
+		result.ToolCalls = append(result.ToolCalls, crewai.ToolCall{
+			ID: otc.ID,
+			Function: crewai.ToolCallFunction{
+				Name:      otc.Function.Name,
+				Arguments: args,
+			},
+		})
+	}
+
+	return result, nil
+}
+
+// Compile-time check.
+var _ crewai.ToolCallingLLM = (*Client)(nil)

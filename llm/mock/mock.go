@@ -20,10 +20,15 @@ type LLM struct {
 	Handler func(ctx context.Context, messages []crewai.Message) (string, error)
 	// ModelName is the identifier returned by Model().
 	ModelName string
+	// ToolCallResponses queues tool call responses to return in order on
+	// each CallWithTools invocation. When the list runs out, returns an
+	// empty ToolCallResponse (model is done).
+	ToolCallResponses []*crewai.ToolCallResponse
 
-	mu    sync.Mutex
-	calls int
-	log   [][]crewai.Message
+	mu            sync.Mutex
+	calls         int
+	toolCallIndex int
+	log           [][]crewai.Message
 }
 
 // New creates a mock that returns the given responses in sequence.
@@ -75,3 +80,23 @@ func (m *LLM) LastMessages() []crewai.Message {
 	}
 	return m.log[len(m.log)-1]
 }
+
+// CallWithTools implements crewai.ToolCallingLLM.
+func (m *LLM) CallWithTools(ctx context.Context, messages []crewai.Message, tools []crewai.ToolSpec) (*crewai.ToolCallResponse, error) {
+	m.mu.Lock()
+	m.calls++
+	m.log = append(m.log, messages)
+	idx := m.toolCallIndex
+	m.toolCallIndex++
+	m.mu.Unlock()
+
+	if idx >= len(m.ToolCallResponses) {
+		// Default: no tool calls, return empty content (model is done).
+		return &crewai.ToolCallResponse{}, nil
+	}
+	resp := m.ToolCallResponses[idx]
+	return resp, nil
+}
+
+// Compile-time check.
+var _ crewai.ToolCallingLLM = (*LLM)(nil)

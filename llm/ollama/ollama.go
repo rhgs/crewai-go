@@ -161,3 +161,95 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 	}
 	return parsed.Message.Content, nil
 }
+
+// chatRequestWithTools extends chatRequest with a tools field.
+type chatRequestWithTools struct {
+	Model    string            `json:"model"`
+	Messages []chatMessageFull `json:"messages"`
+	Tools    []crewai.ToolSpec `json:"tools,omitempty"`
+	Stream   bool              `json:"stream"`
+	Options  chatOptions       `json:"options"`
+}
+
+// chatMessageFull extends chatMessage with tool_calls and tool_name.
+type chatMessageFull struct {
+	Role      string            `json:"role"`
+	Content   string            `json:"content"`
+	ToolCalls []crewai.ToolCall `json:"tool_calls,omitempty"`
+	ToolName  string            `json:"tool_name,omitempty"`
+}
+
+// chatResponseFull extends chatResponse with tool_calls in the message.
+type chatResponseFull struct {
+	Message chatMessageFull `json:"message"`
+	Done    bool            `json:"done"`
+	Error   string          `json:"error"`
+}
+
+// CallWithTools implements crewai.ToolCallingLLM.
+func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, tools []crewai.ToolSpec) (*crewai.ToolCallResponse, error) {
+	if c.baseURL == CloudBaseURL && c.apiKey == "" {
+		return nil, fmt.Errorf("ollama: Ollama Cloud requires a token (set OLLAMA_API_KEY or use WithAPIKey)")
+	}
+
+	reqBody := chatRequestWithTools{
+		Model:    c.model,
+		Stream:   false,
+		Options:  chatOptions{Temperature: c.temperature},
+		Tools:    tools,
+		Messages: make([]chatMessageFull, len(messages)),
+	}
+	for i, m := range messages {
+		reqBody.Messages[i] = chatMessageFull{
+			Role:      string(m.Role),
+			Content:   m.Content,
+			ToolCalls: m.ToolCalls,
+			ToolName:  m.ToolName,
+		}
+	}
+
+	buf, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("ollama: encoding request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/chat", bytes.NewReader(buf))
+	if err != nil {
+		return nil, fmt.Errorf("ollama: creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("ollama: sending request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body := io.LimitReader(resp.Body, crewai.MaxProviderResponseBytes)
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, fmt.Errorf("ollama: reading response: %w", err)
+	}
+
+	var parsed chatResponseFull
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return nil, fmt.Errorf("ollama: decoding response (status %d): %w", resp.StatusCode, err)
+	}
+	if parsed.Error != "" {
+		return nil, fmt.Errorf("ollama: API error: %s", parsed.Error)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ollama: unexpected status %d: %s", resp.StatusCode, string(data))
+	}
+
+	return &crewai.ToolCallResponse{
+		Content:   parsed.Message.Content,
+		ToolCalls: parsed.Message.ToolCalls,
+	}, nil
+}
+
+// Compile-time check.
+var _ crewai.ToolCallingLLM = (*Client)(nil)

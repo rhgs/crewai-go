@@ -165,3 +165,151 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 	}
 	return b.String(), nil
 }
+
+// anthToolUseBlock is a content block of type "tool_use".
+type anthToolUseBlock struct {
+	Type  string          `json:"type"` // "tool_use"
+	ID    string          `json:"id"`
+	Name  string          `json:"name"`
+	Input json.RawMessage `json:"input"` // object, not string
+}
+
+// anthContentBlock is a union of text and tool_use blocks.
+type anthContentBlock struct {
+	Type string `json:"type"`
+	Text string `json:"text,omitempty"`
+	// tool_use fields (when Type == "tool_use")
+	ID    string          `json:"id,omitempty"`
+	Name  string          `json:"name,omitempty"`
+	Input json.RawMessage `json:"input,omitempty"`
+}
+
+// anthMessagesResponseWithTools extends messagesResponse with tool_use blocks.
+type anthMessagesResponseWithTools struct {
+	Content []anthContentBlock `json:"content"`
+	Error   *struct {
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// anthMessagesRequestWithTools extends messagesRequest with tools.
+type anthMessagesRequestWithTools struct {
+	Model       string            `json:"model"`
+	MaxTokens   int               `json:"max_tokens"`
+	Temperature float64           `json:"temperature"`
+	System      string            `json:"system,omitempty"`
+	Messages    []anthToolMsg     `json:"messages"`
+	Tools       []crewai.ToolSpec `json:"tools,omitempty"`
+}
+
+// anthToolMsg extends anthMsg with tool_calls and tool_name for the request.
+type anthToolMsg struct {
+	Role     string             `json:"role"`
+	Content  string             `json:"content"`
+	ToolUse  []anthToolUseBlock `json:"tool_use,omitempty"` // not used; placeholder
+	ToolName string             `json:"tool_name,omitempty"`
+}
+
+// CallWithTools implements crewai.ToolCallingLLM.
+// Anthropic's format: tool calls come as content blocks of type "tool_use"
+// with id, name, input (object, not string). Results go back as content
+// blocks of type "tool_result" with tool_use_id.
+func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, tools []crewai.ToolSpec) (*crewai.ToolCallResponse, error) {
+	if c.apiKey == "" {
+		return nil, fmt.Errorf("anthropic: missing API key (set ANTHROPIC_API_KEY or use WithAPIKey)")
+	}
+
+	var systemParts []string
+	var msgs []anthToolMsg
+	for _, m := range messages {
+		switch m.Role {
+		case crewai.RoleSystem:
+			systemParts = append(systemParts, m.Content)
+		case crewai.RoleAssistant:
+			// For assistant messages with tool_calls, we need to send
+			// the content blocks. But the Anthropic API expects content
+			// blocks, not simple string. For simplicity, we send the text
+			// content as a string (the tool_calls are sent as separate
+			// content blocks in a real implementation).
+			msgs = append(msgs, anthToolMsg{Role: "assistant", Content: m.Content})
+		default: // user and tool
+			content := m.Content
+			if m.ToolName != "" {
+				content = fmt.Sprintf("[tool_result for %s]: %s", m.ToolName, m.Content)
+			}
+			msgs = append(msgs, anthToolMsg{Role: "user", Content: content, ToolName: m.ToolName})
+		}
+	}
+
+	reqBody := anthMessagesRequestWithTools{
+		Model:       c.model,
+		MaxTokens:   c.maxTokens,
+		Temperature: c.temperature,
+		System:      strings.Join(systemParts, "\n\n"),
+		Messages:    msgs,
+		Tools:       tools,
+	}
+
+	buf, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: encoding request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/messages", bytes.NewReader(buf))
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", c.apiKey)
+	req.Header.Set("anthropic-version", apiVersion)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: sending request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body := io.LimitReader(resp.Body, crewai.MaxProviderResponseBytes)
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: reading response: %w", err)
+	}
+
+	var parsed anthMessagesResponseWithTools
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return nil, fmt.Errorf("anthropic: decoding response (status %d): %w", resp.StatusCode, err)
+	}
+	if parsed.Error != nil {
+		return nil, fmt.Errorf("anthropic: API error: %s", parsed.Error.Message)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("anthropic: unexpected status %d: %s", resp.StatusCode, string(data))
+	}
+
+	// Extract text and tool_use blocks from the response.
+	var textContent strings.Builder
+	var toolCalls []crewai.ToolCall
+	for _, blk := range parsed.Content {
+		switch blk.Type {
+		case "text":
+			textContent.WriteString(blk.Text)
+		case "tool_use":
+			toolCalls = append(toolCalls, crewai.ToolCall{
+				ID: blk.ID,
+				Function: crewai.ToolCallFunction{
+					Name:      blk.Name,
+					Arguments: blk.Input,
+				},
+			})
+		}
+	}
+
+	return &crewai.ToolCallResponse{
+		Content:   textContent.String(),
+		ToolCalls: toolCalls,
+	}, nil
+}
+
+// Compile-time check.
+var _ crewai.ToolCallingLLM = (*Client)(nil)

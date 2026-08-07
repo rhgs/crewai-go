@@ -18,6 +18,19 @@ func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log
 		return out, nil, err
 	}
 
+	// Native tool calling path.
+	if a.ToolMode == ToolModeNative {
+		result, traces, facts, err := executeTaskWithTools(ctx, a, t, contextText, log)
+		if err != nil {
+			return "", nil, err
+		}
+		// Attach traces to the task output via a side channel.
+		if t != nil {
+			t.setToolTraces(traces)
+		}
+		return result, facts, nil
+	}
+
 	tools := effectiveTools(a, t)
 	maxIter := a.MaxIterations
 	if maxIter <= 0 {

@@ -48,6 +48,7 @@
 - 📋 **Saída estruturada** — tarefas podem exigir JSON validado contra um JSON Schema, com loop de reparo limitado.
 - 🛡️ **Guardrails** — validação pós-saída em código que bloqueia publicação de saídas que violam invariantes de negócio.
 - 📌 **Facts e proveniência** — tipo Fact de primeira classe, populado apenas por ferramentas conectoras determinísticas, nunca pelo LLM, com metadados de proveniência completos.
+- 🔧 **Native tool calling** — use function calling nativa do provedor (OpenAI, Anthropic, Ollama) em vez de ReAct baseado em texto, com fallback automático e observabilidade de traces.
 - 🧠 **Memória** entre tarefas e **contexto** encadeável.
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
@@ -67,6 +68,9 @@
 | **Guardrail** | Hook de validacao pos-saida que bloqueia publicacao de saidas invalidas. |
 | **Fact** | Dado de um conector deterministico com proveniencia (fonte, hash). |
 | **FactSource** | Interface opcional para tools que produzem Facts. |
+| **ToolMode** | Estrategia de execucao de tools: `"react"` (padrao) ou `"native"`. |
+| **ToolCallingLLM** | Interface LLM opcional para function calling nativo. |
+| **ToolTrace** | Registra cada chamada nativa de tool (nome, args, output, duracao). |
 
 ## Instalação
 
@@ -215,6 +219,32 @@ agente.WithTools(
 ```
 
 O agente usa ferramentas via o protocolo **ReAct** (`Thought → Action → Action Input → Observation → Final Answer`). Detalhes em [`docs/tools.md`](docs/tools.md).
+
+## Native tool calling
+
+Para provedores que suportam function calling nativo (OpenAI, Anthropic, Ollama), defina `Agent.ToolMode` para usar o tool calling embutido do provedor em vez do ReAct baseado em texto:
+
+```go
+llm := ollama.New("llama3.2")
+
+agent := crewai.NewAgent("Pesquisador", "Encontrar respostas", "Voce e um pesquisador.", llm)
+agent.ToolMode = crewai.ToolModeNative
+agent.WithTools(
+    tools.Calculator(),
+    tools.CurrentTime(""),
+)
+
+task := crewai.NewTask("Quanto e 15% de 200?", "Uma resposta curta.", agent)
+crew := crewai.NewCrew([]*crewai.Agent{agent}, []*crewai.Task{task})
+out, _ := crew.Kickoff(context.Background(), nil)
+
+// ToolTraces registram cada chamada nativa de tool para observabilidade.
+for _, trace := range out.TasksOutput[0].ToolTraces {
+    fmt.Printf("%s(%s) -> %s\n", trace.Tool, string(trace.Args), trace.Output)
+}
+```
+
+Quando `ToolMode` e `"native"` mas o LLM nao implementa `ToolCallingLLM`, o executor retorna `ErrNativeToolsUnsupported`. O padrao (`""` ou `"react"`) usa o loop ReAct existente — sem mudancas no codigo existente. Detalhes em [`docs/tools.md`](docs/tools.md).
 
 ## Processos: sequencial e hierárquico
 

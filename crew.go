@@ -60,6 +60,9 @@ type TaskOutput struct {
 	// Facts holds the facts collected from FactSource tools during this
 	// task's execution. Populated by the executor, never by the LLM.
 	Facts []Fact
+	// ToolTraces holds the native tool call traces (empty when using ReAct).
+	// Each entry is a tool invocation: name, arguments, result, duration.
+	ToolTraces []ToolTrace
 }
 
 // String returns the crew's final output.
@@ -139,10 +142,11 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
 		out.TasksOutput = append(out.TasksOutput, TaskOutput{
-			Task:   taskLabel(task, i),
-			Agent:  agent.Role,
-			Output: result,
-			Facts:  facts,
+			Task:       taskLabel(task, i),
+			Agent:      agent.Role,
+			Output:     result,
+			Facts:      facts,
+			ToolTraces: task.ToolTraces(),
 		})
 		out.Facts = dedupFacts(out.Facts, facts)
 		out.Final = result
@@ -174,10 +178,11 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
 		out.TasksOutput = append(out.TasksOutput, TaskOutput{
-			Task:   taskLabel(task, i),
-			Agent:  agent.Role,
-			Output: result,
-			Facts:  facts,
+			Task:       taskLabel(task, i),
+			Agent:      agent.Role,
+			Output:     result,
+			Facts:      facts,
+			ToolTraces: task.ToolTraces(),
 		})
 		out.Facts = dedupFacts(out.Facts, facts)
 		out.Final = result
