@@ -45,6 +45,8 @@ type Task struct {
 	mu     sync.RWMutex
 	output string
 	done   bool
+	// toolTraces holds native tool call traces (empty when using ReAct).
+	toolTraces []ToolTrace
 }
 
 // NewTask creates a task with a description, an expected output, and the
@@ -91,6 +93,21 @@ func (t *Task) setOutput(out string) error {
 		return os.WriteFile(file, []byte(out), 0o600)
 	}
 	return nil
+}
+
+// setToolTraces records the native tool call traces for this task.
+func (t *Task) setToolTraces(traces []ToolTrace) {
+	t.mu.Lock()
+	t.toolTraces = traces
+	t.mu.Unlock()
+}
+
+// ToolTraces returns the native tool call traces for this task (empty when
+// using ReAct).
+func (t *Task) ToolTraces() []ToolTrace {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.toolTraces
 }
 
 // contextText builds the context text from the task's dependencies.

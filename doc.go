@@ -12,6 +12,25 @@
 // implementations live in the llm/openai, llm/anthropic, and llm/mock
 // subpackages.
 //
+// # Native tool calling
+//
+// When an Agent's ToolMode is set to ToolModeNative and its LLM implements
+// the ToolCallingLLM interface, the executor uses the provider's native
+// function calling API instead of the text-based ReAct protocol. This is
+// more reliable and produces structured tool_calls that the executor
+// executes directly, without text parsing.
+//
+// Providers that support ToolCallingLLM: llm/ollama, llm/openai, llm/anthropic.
+// Providers that do not: llm/mock (uses a queued response mechanism for tests).
+//
+// ToolTraces in TaskOutput record each native tool invocation (name, args,
+// output, duration, failed) for observability. Facts from FactSource tools
+// are collected the same way as in ReAct.
+//
+// An LLM is any type implementing the LLM interface; ready-made
+// implementations live in the llm/openai, llm/anthropic, and llm/mock
+// subpackages.
+//
 // Minimal example:
 //
 //	llm := openai.New("gpt-4o-mini")

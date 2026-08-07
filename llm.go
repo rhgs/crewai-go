@@ -20,6 +20,12 @@ const (
 type Message struct {
 	Role    Role   `json:"role"`
 	Content string `json:"content"`
+	// ToolCalls holds tool calls the model requested (only on assistant
+	// messages). Populated by the provider client from the API response.
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+	// ToolName identifies which tool produced this message (only on
+	// role:"tool" messages that carry a tool result back to the model).
+	ToolName string `json:"tool_name,omitempty"`
 }
 
 // LLM is the minimal abstraction that any language model provider must

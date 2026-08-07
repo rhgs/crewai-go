@@ -31,6 +31,13 @@ type Agent struct {
 	// AllowDelegation enables this agent to be considered as a manager in the
 	// hierarchical process and to delegate work (informational in this version).
 	AllowDelegation bool
+
+	// ToolMode controls how the executor runs tools. Empty or "react" uses
+	// the existing ReAct text-parsing loop. "native" uses the provider's
+	// native function calling via ToolCallingLLM. When "native" is set but
+	// the LLM does not implement ToolCallingLLM, execution returns
+	// ErrNativeToolsUnsupported.
+	ToolMode ToolMode
 }
 
 // NewAgent creates an agent with the essential fields filled in.
