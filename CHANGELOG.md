@@ -5,6 +5,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [v0.2.0] — 2026-08-07
+
 ### Added
 
 - **Facts & provenance**: first-class `Fact` type populated only by

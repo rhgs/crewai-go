@@ -44,7 +44,7 @@ type FactSourceTool struct {
 	fn          func(ctx context.Context, input string) (string, error)
 	factsFn     func(ctx context.Context, output string) []Fact
 
-	mu       sync.Mutex
+	mu        sync.Mutex
 	lastFacts []Fact
 }
 

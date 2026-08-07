@@ -10,7 +10,7 @@ import (
 func TestCheckType_AllTypes(t *testing.T) {
 	cases := []struct {
 		value any
-		typ  string
+		typ   string
 		want  bool
 	}{
 		// object

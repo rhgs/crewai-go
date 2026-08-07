@@ -5,6 +5,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [v0.2.0] — 2026-08-07
+
 ### Adicionado
 
 - **Facts e proveniencia**: tipo `Fact` de primeira classe, populado apenas
