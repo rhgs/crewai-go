@@ -83,7 +83,7 @@ func TestExecuteStructured_ValidJSON(t *testing.T) {
 func TestExecuteStructured_RepairConverges(t *testing.T) {
 	llm := &structuredStub{responses: []string{
 		"Sorry, here is the answer: Alice is 30 years old.", // non-JSON
-		`{"name":"Alice","age":30}`,                       // valid JSON
+		`{"name":"Alice","age":30}`,                         // valid JSON
 	}}
 	agent := NewAgent("Extractor", "extract", "", llm)
 	task := NewTask("Extract name and age.", "JSON", agent)
@@ -127,7 +127,7 @@ func TestExecuteStructured_RepairBudgetExceeded(t *testing.T) {
 
 func TestExecuteStructured_RepairBudgetCustom1(t *testing.T) {
 	llm := &structuredStub{responses: []string{
-		`{"name":"Alice"}`,    // missing age
+		`{"name":"Alice"}`,          // missing age
 		`{"name":"Alice","age":30}`, // valid
 	}}
 	agent := NewAgent("Extractor", "extract", "", llm)
