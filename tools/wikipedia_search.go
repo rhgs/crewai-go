@@ -19,6 +19,7 @@ import (
 type WikipediaSearch struct {
 	httpClient *http.Client
 	language   string // e.g. "en", "pt"
+	baseURL    string
 }
 
 // NewWikipediaSearch creates a Wikipedia search provider (English).
@@ -26,7 +27,13 @@ func NewWikipediaSearch() *WikipediaSearch {
 	return &WikipediaSearch{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 		language:   "en",
+		baseURL:    "https://en.wikipedia.org",
 	}
+}
+
+// WithWikipediaBaseURL sets a custom base URL for testing.
+func WithWikipediaBaseURL(url string) func(*WikipediaSearch) {
+	return func(w *WikipediaSearch) { w.baseURL = url }
 }
 
 // NewWikipediaSearchWithLanguage creates a Wikipedia search provider
@@ -35,6 +42,7 @@ func NewWikipediaSearchWithLanguage(lang string) *WikipediaSearch {
 	return &WikipediaSearch{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 		language:   lang,
+		baseURL:    fmt.Sprintf("https://%s.wikipedia.org", lang),
 	}
 }
 
@@ -48,8 +56,8 @@ func (w *WikipediaSearch) Search(ctx context.Context, query string, maxResults i
 		maxResults = 50
 	}
 
-	searchURL := fmt.Sprintf("https://%s.wikipedia.org/w/api.php?action=query&list=search&srsearch=%s&format=json&srlimit=%d",
-		w.language, url.QueryEscape(query), maxResults)
+	searchURL := fmt.Sprintf("%s/w/api.php?action=query&list=search&srsearch=%s&format=json&srlimit=%d",
+		w.baseURL, url.QueryEscape(query), maxResults)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
 	if err != nil {

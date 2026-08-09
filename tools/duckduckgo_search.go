@@ -21,6 +21,7 @@ import (
 // or BraveSearch/GoogleSearch/LangSearch (require API keys) instead.
 type DuckDuckGoSearch struct {
 	httpClient *http.Client
+	baseURL    string
 }
 
 // NewDuckDuckGoSearch creates a DuckDuckGo search provider.
@@ -29,7 +30,13 @@ type DuckDuckGoSearch struct {
 func NewDuckDuckGoSearch() *DuckDuckGoSearch {
 	return &DuckDuckGoSearch{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
+		baseURL:    "https://duckduckgo.com/html/",
 	}
+}
+
+// WithDuckDuckGoBaseURL sets a custom base URL for testing.
+func WithDuckDuckGoBaseURL(url string) func(*DuckDuckGoSearch) {
+	return func(d *DuckDuckGoSearch) { d.baseURL = url }
 }
 
 func (d *DuckDuckGoSearch) Name() string { return "duckduckgo" }
@@ -39,7 +46,7 @@ func (d *DuckDuckGoSearch) Search(ctx context.Context, query string, maxResults 
 		maxResults = 5
 	}
 
-	searchURL := "https://duckduckgo.com/html/?q=" + url.QueryEscape(query)
+	searchURL := d.baseURL + "?q=" + url.QueryEscape(query)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
 	if err != nil {
 		return nil, err

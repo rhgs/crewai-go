@@ -15,6 +15,7 @@ import (
 type BraveSearch struct {
 	apiKey     string
 	httpClient *http.Client
+	baseURL    string
 }
 
 // NewBraveSearch creates a Brave Search provider.
@@ -26,7 +27,13 @@ func NewBraveSearch(apiKey string) *BraveSearch {
 	return &BraveSearch{
 		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
+		baseURL:    "https://api.search.brave.com/res/v1/web/search",
 	}
+}
+
+// WithBraveBaseURL sets a custom base URL for testing.
+func WithBraveBaseURL(url string) func(*BraveSearch) {
+	return func(b *BraveSearch) { b.baseURL = url }
 }
 
 func (b *BraveSearch) Name() string { return "brave" }
@@ -39,8 +46,8 @@ func (b *BraveSearch) Search(ctx context.Context, query string, maxResults int) 
 		maxResults = 10
 	}
 
-	searchURL := fmt.Sprintf("https://api.search.brave.com/res/v1/web/search?q=%s&count=%d",
-		url.QueryEscape(query), maxResults)
+	searchURL := fmt.Sprintf("%s?q=%s&count=%d",
+		b.baseURL, url.QueryEscape(query), maxResults)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
 	if err != nil {

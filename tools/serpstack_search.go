@@ -20,6 +20,7 @@ import (
 type Serpstack struct {
 	apiKey     string
 	httpClient *http.Client
+	baseURL    string
 }
 
 // NewSerpstack creates a Serpstack provider.
@@ -31,7 +32,13 @@ func NewSerpstack(apiKey string) *Serpstack {
 	return &Serpstack{
 		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
+		baseURL:    "http://api.serpstack.com/search",
 	}
+}
+
+// WithSerpstackBaseURL sets a custom base URL for testing.
+func WithSerpstackBaseURL(url string) func(*Serpstack) {
+	return func(s *Serpstack) { s.baseURL = url }
 }
 
 func (s *Serpstack) Name() string { return "serpstack" }
@@ -45,8 +52,8 @@ func (s *Serpstack) Search(ctx context.Context, query string, maxResults int) ([
 	}
 
 	// Free tier uses HTTP. For HTTPS, a paid plan is required.
-	searchURL := fmt.Sprintf("http://api.serpstack.com/search?access_key=%s&query=%s&num=%d",
-		url.QueryEscape(s.apiKey), url.QueryEscape(query), maxResults)
+	searchURL := fmt.Sprintf("%s?access_key=%s&query=%s&num=%d",
+		s.baseURL, url.QueryEscape(s.apiKey), url.QueryEscape(query), maxResults)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
 	if err != nil {

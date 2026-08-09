@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -149,12 +148,19 @@ func extractHost(rawURL string) string {
 	return u.Hostname()
 }
 
-// isBlockedURL checks whether a URL points to a private/loopback/unspecified
-// address. This prevents SSRF attacks where a malicious search result could
-// direct the agent to internal endpoints (e.g. cloud metadata at 169.254.169.254).
+// isBlockedURL checks whether a URL points to a private, loopback,
+// link-local, or unspecified address. This prevents SSRF attacks where a
+// malicious search result could direct the agent to internal endpoints
+// (e.g. cloud metadata at 169.254.169.254).
 //
-// Checks: localhost, 127.0.0.1, ::1, private IPs (10.x, 172.16-31.x,
-// 192.168.x), link-local (169.254.x), and unspecified (0.0.0.0).
+// Checks:
+//   - Non-http(s) schemes are blocked.
+//   - Hostnames "localhost", "127.0.0.1", "::1" are blocked.
+//   - If the host is an IP literal, it is blocked if it is private,
+//     loopback, link-local unicast, or unspecified (0.0.0.0).
+//   - If the host is a domain name, it is resolved via DNS and all
+//     resolved IPs are checked. This prevents DNS rebinding attacks
+//     where a domain resolves to an internal IP.
 func isBlockedURL(rawURL string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -167,12 +173,21 @@ func isBlockedURL(rawURL string) bool {
 	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
 		return true
 	}
-	ip := net.ParseIP(host)
-	if ip != nil && (ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified()) {
-		return true
+	// If the host is already an IP literal, check it directly.
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified()
+	}
+	// Host is a domain name. Resolve it to prevent DNS rebinding.
+	// If resolution fails, block by default (fail-closed).
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return true // fail-closed: unresolved host is blocked
+	}
+	for _, ip := range ips {
+		if ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() {
+			return true
+		}
 	}
 	return false
 }
 
-// ensure net/http is used (for future provider implementations that need it).
-var _ = http.StatusOK

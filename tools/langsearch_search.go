@@ -20,6 +20,7 @@ import (
 type LangSearch struct {
 	apiKey     string
 	httpClient *http.Client
+	baseURL    string
 }
 
 // NewLangSearch creates a LangSearch provider.
@@ -31,7 +32,13 @@ func NewLangSearch(apiKey string) *LangSearch {
 	return &LangSearch{
 		apiKey:     apiKey,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
+		baseURL:    "https://api.langsearch.com/v1/web-search",
 	}
+}
+
+// WithLangSearchBaseURL sets a custom base URL for testing.
+func WithLangSearchBaseURL(url string) func(*LangSearch) {
+	return func(l *LangSearch) { l.baseURL = url }
 }
 
 func (l *LangSearch) Name() string { return "langsearch" }
@@ -63,7 +70,7 @@ func (l *LangSearch) Search(ctx context.Context, query string, maxResults int) (
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		"https://api.langsearch.com/v1/web-search", bytes.NewReader(buf))
+		l.baseURL, bytes.NewReader(buf))
 	if err != nil {
 		return nil, fmt.Errorf("langsearch: creating request: %w", err)
 	}

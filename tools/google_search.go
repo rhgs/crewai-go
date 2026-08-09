@@ -16,6 +16,7 @@ type GoogleSearch struct {
 	apiKey     string
 	cxID       string
 	httpClient *http.Client
+	baseURL    string
 }
 
 // NewGoogleSearch creates a Google Custom Search provider.
@@ -31,7 +32,13 @@ func NewGoogleSearch(apiKey, cxID string) *GoogleSearch {
 		apiKey:     apiKey,
 		cxID:       cxID,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
+		baseURL:    "https://www.googleapis.com/customsearch/v1",
 	}
+}
+
+// WithGoogleBaseURL sets a custom base URL for testing.
+func WithGoogleBaseURL(url string) func(*GoogleSearch) {
+	return func(g *GoogleSearch) { g.baseURL = url }
 }
 
 func (g *GoogleSearch) Name() string { return "google" }
@@ -47,8 +54,8 @@ func (g *GoogleSearch) Search(ctx context.Context, query string, maxResults int)
 		maxResults = 10
 	}
 
-	searchURL := fmt.Sprintf("https://www.googleapis.com/customsearch/v1?q=%s&key=%s&cx=%s&num=%d",
-		url.QueryEscape(query), g.apiKey, g.cxID, maxResults)
+	searchURL := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d",
+		g.baseURL, url.QueryEscape(query), g.apiKey, g.cxID, maxResults)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
 	if err != nil {
