@@ -26,6 +26,8 @@
 - [Início rápido](#início-rápido)
 - [Provedores de LLM](#provedores-de-llm)
 - [Ferramentas](#ferramentas)
+- [Native tool calling](#native-tool-calling)
+- [Web search](#web-search)
 - [Processos: sequencial e hierárquico](#processos-sequencial-e-hierárquico)
 - [Saida estruturada](#saida-estruturada)
 - [Guardrails](#guardrails)
@@ -246,6 +248,70 @@ for _, trace := range out.TasksOutput[0].ToolTraces {
 ```
 
 Quando `ToolMode` e `"native"` mas o LLM nao implementa `ToolCallingLLM`, o executor retorna `ErrNativeToolsUnsupported`. O padrao (`""` ou `"react"`) usa o loop ReAct existente — sem mudancas no codigo existente. Detalhes em [`docs/tools.md`](docs/tools.md).
+
+## Web search
+
+Web search esta disponivel em dois padroes — agent-driven (codigo Go controla as queries) e model-driven (o LLM decide quando buscar via loop ReAct).
+
+### Agent-driven: interface `WebSearcher`
+
+Para provedores LLM que tem API nativa de web search (Ollama Cloud, OpenAI, Anthropic, xAI), chame `SearchWeb` diretamente do codigo Go:
+
+```go
+import "github.com/rhgs/crewai-go"
+
+// OpenAI requer um modelo de busca (ex: gpt-4o-search-preview).
+llm := openai.New("gpt-4o-search-preview")
+
+hits, err := crewai.SearchWeb(ctx, llm, "Go programming language", 5)
+if err != nil {
+    // Retorna ErrWebSearchUnsupported se o LLM nao implementa WebSearcher.
+    log.Fatal(err)
+}
+for _, hit := range hits {
+    fmt.Printf("%s -- %s\n%s\n\n", hit.Title, hit.URL, hit.Content)
+}
+```
+
+| Provedor | Como funciona |
+|----------|--------------|
+| **Ollama Cloud** | `POST /api/web_search` — endpoint puro de busca, sem invocar o modelo, sem consumir tokens |
+| **OpenAI** | `web_search_options` no Chat Completions (NAO `tools`); requer modelos de busca (`gpt-4o-search-preview`, `gpt-5-search-api`); resultados como annotations `url_citation` aninhadas |
+| **Anthropic** | tool `web_search_20250305` (server tool); resultados como blocos `web_search_tool_result` com `encrypted_content` |
+| **xAI (Grok)** | Delega para o cliente compativel com OpenAI |
+
+### Model-driven: `WebSearchTool`
+
+Para o loop ReAct, use `WebSearchTool` para o LLM decidir quando buscar. Implementa `Tool` e `FactSource`, entao os resultados sao coletados como `Fact`s com proveniencia.
+
+```go
+import "github.com/rhgs/crewai-go/tools"
+
+// Wikipedia (default, gratuito, sem API key) — busca apenas artigos da Wikipedia.
+search := tools.NewWebSearch(nil)
+
+// LangSearch (100% gratuito, summaries semanticos) — web search generalista.
+// Obtenha uma key gratuita em https://langsearch.com
+search := tools.NewWebSearch(tools.NewLangSearch("LANGSEARCH_API_KEY"))
+
+// Serpstack (1000 buscas gratuitas/mes) — dados do Google SERP.
+search := tools.NewWebSearch(tools.NewSerpstack("SERPSTACK_API_KEY"))
+
+// Google Custom Search (requer API key + CSE ID).
+search := tools.NewWebSearch(tools.NewGoogleSearch("GOOGLE_API_KEY", "GOOGLE_CSE_ID"))
+
+// Brave Search (requer API key).
+search := tools.NewWebSearch(tools.NewBraveSearch("BRAVE_API_KEY"))
+
+// DuckDuckGo (sem key, mas pode ser bloqueado por captcha).
+search := tools.NewWebSearch(tools.NewDuckDuckGoSearch())
+
+agente.WithTools(search)
+```
+
+Todos os resultados de busca tem **protecao SSRF**: URLs apontando para localhost, IPs privados, `0.0.0.0`, enderecos link-local (`169.254.x`) e enderecos nao especificados sao filtrados. Nomes de dominio sao resolvidos via DNS para prevenir ataques de DNS rebinding.
+
+Detalhes em [`docs/pt-BR/llms.md`](docs/pt-BR/llms.md) (WebSearcher) e [`docs/pt-BR/tools.md`](docs/pt-BR/tools.md) (WebSearchTool).
 
 ## Processos: sequencial e hierárquico
 
