@@ -313,3 +313,151 @@ func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, t
 
 // Compile-time check.
 var _ crewai.ToolCallingLLM = (*Client)(nil)
+
+// anthWebSearchResult is a single search result inside a
+// web_search_tool_result content block. The Anthropic API returns
+// results as typed objects (type: "web_search_result"), not as JSON
+// text inside a tool_result block.
+type anthWebSearchResult struct {
+	Type             string `json:"type"` // "web_search_result"
+	Title            string `json:"title"`
+	URL              string `json:"url"`
+	EncryptedContent string `json:"encrypted_content"`
+}
+
+// anthWebSearchToolResultBlock is a content block of type
+// "web_search_tool_result" in the response. This is a SERVER tool
+// (not a client tool), so the type is "web_search_tool_result", NOT
+// "tool_result".
+type anthWebSearchToolResultBlock struct {
+	Type      string                `json:"type"` // "web_search_tool_result"
+	ToolUseID string                `json:"tool_use_id"`
+	Content   []anthWebSearchResult `json:"content"`
+}
+
+// anthWebSearchResponse captures the response when web_search is used.
+// The content array may contain text blocks, server_tool_use blocks,
+// and web_search_tool_result blocks. We parse each raw block
+// individually to determine its type.
+type anthWebSearchResponse struct {
+	Content []json.RawMessage `json:"content"`
+	Error   *struct {
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// WebSearch implements crewai.WebSearcher.
+//
+// Anthropic does not have a standalone search API. Instead, this method
+// sends a messages request with the web_search_20250305 tool enabled,
+// using the query as the user message. The model searches and returns
+// results as web_search_tool_result content blocks containing
+// web_search_result objects with title, url, and encrypted_content.
+//
+// Note: this consumes tokens (the model is involved), unlike Ollama's
+// pure search endpoint. For high-volume search, consider using the
+// WebSearchTool with a Brave or Google provider instead.
+func (c *Client) WebSearch(ctx context.Context, query string, max int) ([]crewai.SearchHit, error) {
+	if c.apiKey == "" {
+		return nil, fmt.Errorf("anthropic: missing API key (set ANTHROPIC_API_KEY or use WithAPIKey)")
+	}
+
+	if max <= 0 || max > 10 {
+		max = 5
+	}
+
+	// Build the tool spec as raw JSON to avoid coupling with the
+	// existing ToolSpec type (which is for function tools).
+	toolsRaw := json.RawMessage(`[{"type":"web_search_20250305","name":"web_search","max_uses":` +
+		fmt.Sprintf("%d", max) + `}]`)
+
+	reqBody := struct {
+		Model     string          `json:"model"`
+		MaxTokens int             `json:"max_tokens"`
+		Messages  []anthMsg       `json:"messages"`
+		Tools     json.RawMessage `json:"tools,omitempty"`
+	}{
+		Model:     c.model,
+		MaxTokens: c.maxTokens,
+		Messages:  []anthMsg{{Role: "user", Content: query}},
+		Tools:     toolsRaw,
+	}
+
+	buf, _ := json.Marshal(reqBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/messages", bytes.NewReader(buf))
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: creating web search request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", c.apiKey)
+	req.Header.Set("anthropic-version", apiVersion)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: sending web search request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body := io.LimitReader(resp.Body, crewai.MaxProviderResponseBytes)
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: reading web search response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("anthropic: web search HTTP %d: %s", resp.StatusCode, string(data))
+	}
+
+	var parsed anthWebSearchResponse
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return nil, fmt.Errorf("anthropic: decoding web search response: %w", err)
+	}
+	if parsed.Error != nil {
+		return nil, fmt.Errorf("anthropic: API error: %s", parsed.Error.Message)
+	}
+
+	// The content array has mixed types. We parse each raw block
+	// individually to determine its type, then extract search results
+	// from web_search_tool_result blocks.
+	var hits []crewai.SearchHit
+	for _, raw := range parsed.Content {
+		// Peek at the type field to determine the block type.
+		var typeProbe struct {
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(raw, &typeProbe); err != nil {
+			continue
+		}
+
+		if typeProbe.Type != "web_search_tool_result" {
+			continue
+		}
+
+		var block anthWebSearchToolResultBlock
+		if err := json.Unmarshal(raw, &block); err != nil {
+			continue
+		}
+
+		for _, r := range block.Content {
+			if r.Type != "web_search_result" {
+				continue
+			}
+			hits = append(hits, crewai.SearchHit{
+				Title:   r.Title,
+				URL:     r.URL,
+				Content: r.EncryptedContent,
+			})
+		}
+	}
+
+	// Clamp to max.
+	if len(hits) > max {
+		hits = hits[:max]
+	}
+
+	return hits, nil
+}
+
+// Compile-time check.
+var _ crewai.WebSearcher = (*Client)(nil)
