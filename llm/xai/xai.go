@@ -108,3 +108,17 @@ func (c *Client) Model() string { return c.inner.Model() }
 
 // Compile-time check.
 var _ crewai.ToolCallingLLM = (*Client)(nil)
+
+// WebSearch implements crewai.WebSearcher by delegating to the underlying
+// OpenAI-compatible client. xAI (Grok) supports web search via the chat
+// completions API with search tools, using the same wire format as OpenAI.
+//
+// IMPORTANT: The underlying openai.Client must be configured with a
+// search-capable model. If the configured model does not support web
+// search, the API returns an error.
+func (c *Client) WebSearch(ctx context.Context, query string, max int) ([]crewai.SearchHit, error) {
+	return c.inner.WebSearch(ctx, query, max)
+}
+
+// Compile-time check.
+var _ crewai.WebSearcher = (*Client)(nil)

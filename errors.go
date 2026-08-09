@@ -31,4 +31,7 @@ var (
 	// ErrNativeToolsUnsupported is returned when an agent's ToolMode is
 	// "native" but its LLM does not implement ToolCallingLLM.
 	ErrNativeToolsUnsupported = errors.New("crewai: agent requires native tool calling but LLM does not implement ToolCallingLLM")
+	// ErrWebSearchUnsupported is returned when an agent calls WebSearch but
+	// its LLM does not implement WebSearcher.
+	ErrWebSearchUnsupported = errors.New("crewai: LLM does not implement WebSearcher")
 )

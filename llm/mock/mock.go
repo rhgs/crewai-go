@@ -24,11 +24,17 @@ type LLM struct {
 	// each CallWithTools invocation. When the list runs out, returns an
 	// empty ToolCallResponse (model is done).
 	ToolCallResponses []*crewai.ToolCallResponse
+	// WebSearchResults is returned by WebSearch when set. If nil and
+	// WebSearchHandler is not set, returns ErrWebSearchUnsupported.
+	WebSearchResults []crewai.SearchHit
+	// WebSearchHandler, when set, takes precedence over WebSearchResults.
+	WebSearchHandler func(ctx context.Context, query string, max int) ([]crewai.SearchHit, error)
 
-	mu            sync.Mutex
-	calls         int
-	toolCallIndex int
-	log           [][]crewai.Message
+	mu             sync.Mutex
+	calls          int
+	toolCallIndex  int
+	webSearchCalls int
+	log            [][]crewai.Message
 }
 
 // New creates a mock that returns the given responses in sequence.
@@ -98,5 +104,27 @@ func (m *LLM) CallWithTools(ctx context.Context, messages []crewai.Message, tool
 	return resp, nil
 }
 
+// WebSearch implements crewai.WebSearcher.
+func (m *LLM) WebSearch(ctx context.Context, query string, max int) ([]crewai.SearchHit, error) {
+	m.mu.Lock()
+	m.webSearchCalls++
+	m.mu.Unlock()
+
+	if m.WebSearchHandler != nil {
+		return m.WebSearchHandler(ctx, query, max)
+	}
+	if m.WebSearchResults != nil {
+		return m.WebSearchResults, nil
+	}
+	return nil, crewai.ErrWebSearchUnsupported
+}
+
+// WebSearchCalls returns how many times WebSearch was called.
+func (m *LLM) WebSearchCalls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.webSearchCalls
+}
+
 // Compile-time check.
-var _ crewai.ToolCallingLLM = (*LLM)(nil)
+var _ crewai.WebSearcher = (*LLM)(nil)
