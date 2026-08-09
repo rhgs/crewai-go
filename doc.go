@@ -98,4 +98,62 @@
 //	        return crewai.AllFactsProvenanced(out.Facts)
 //	    },
 //	}
+//
+// # Web search
+//
+// The framework supports web search in two complementary patterns:
+//
+// Agent-driven — the agent's Go code decides what to search, when, and how
+// many results to fetch. Any LLM that implements the optional WebSearcher
+// interface can be searched directly via the SearchWeb helper:
+//
+//	type WebSearcher interface {
+//	    WebSearch(ctx context.Context, query string, max int) ([]SearchHit, error)
+//	}
+//
+//	hits, err := crewai.SearchWeb(ctx, llm, "Go programming", 5)
+//
+// SearchHit is a single result with Title, URL, and Content (a short
+// snippet, not the full page).
+//
+// Providers that implement WebSearcher:
+//
+//   - llm/ollama  — POST /api/web_search (pure search, no model invocation).
+//     Works with both Ollama Cloud and local Ollama (if the endpoint is
+//     available).
+//   - llm/openai  — uses web_search_options (NOT the tools field) with a
+//     search-capable model (gpt-4o-search-preview, gpt-5-search-api, etc.).
+//     The model is invoked, so this consumes tokens.
+//   - llm/anthropic — uses the web_search_20250305 server tool. The model
+//     searches and returns web_search_tool_result content blocks.
+//     Consumes tokens.
+//   - llm/xai     — delegates to the OpenAI-compatible client (same
+//     web_search_options wire format). Requires a search-capable model.
+//
+// If the LLM does not implement WebSearcher, SearchWeb returns
+// ErrWebSearchUnsupported.
+//
+// Model-driven — the WebSearchTool (in the tools package) is a Tool that
+// also implements FactSource. It searches the web via a pluggable
+// SearchProvider and returns formatted results for the ReAct observation.
+// The LLM decides when to search.
+//
+//	import "github.com/rhgs/crewai-go/tools"
+//
+//	tool := tools.NewWebSearch(tools.NewWikipediaSearch())
+//	agent.WithTools(tool)
+//
+// Available SearchProvider implementations:
+//
+//   - Wikipedia (default, free, no API key) — searches Wikipedia articles.
+//   - LangSearch (100% free) — general web search, requires API key.
+//   - Serpstack (1000 requests/month free) — requires API key.
+//   - DuckDuckGo (optional, may be rate-limited or blocked) — no API key.
+//   - Google Custom Search (requires API key + CX ID).
+//   - Brave Search (requires API key).
+//
+// All URLs returned by any provider are filtered through SSRF protection:
+// non-http(s) schemes, loopback/private/link-local/unspecified addresses are
+// blocked, and domain names are resolved via DNS to prevent rebinding attacks.
+// Fail-closed: unresolvable hosts are blocked.
 package crewai

@@ -90,7 +90,138 @@ Final Answer: O valor final é R$ 1.680,00.
   pode reagir a eles.
 - O laço para em `MaxIterations` (padrão 15), retornando `ErrMaxIterations`.
 
-## Boas práticas
+## Web search (WebSearchTool)
+
+O `WebSearchTool` é uma ferramenta que busca na web através de um provedor
+de busca (`SearchProvider`). Ele implementa tanto `crewai.Tool` (para uso
+no loop ReAct) quanto `crewai.FactSource` (para coleta de `Facts` com
+proveniência).
+
+- **Como Tool**: o agente decide quando buscar durante o raciocínio ReAct.
+- **Como FactSource**: após cada `Call` bem-sucedida, os resultados são
+  coletados como `Facts` com `SourceOrg`, `SourceURL` e `PayloadHash`.
+- **SSRF protection**: todas as URLs de resultados são filtradas por
+  `isBlockedURL`, que bloqueia esquemas não-http(s), IPs privados/loopback/
+  link-local, e resolve nomes de domínio via DNS para prevenir _DNS rebinding_.
+
+### Provedores de busca disponíveis
+
+| Provedor       | Construtor                          | Custo                         | Observação                                  |
+|----------------|-------------------------------------|-------------------------------|---------------------------------------------|
+| **Wikipedia**  | `tools.NewWikipediaSearch()`        | Grátis, sem chave de API       | Padrão; busca apenas artigos da Wikipedia    |
+| **LangSearch** | `tools.NewLangSearch(apiKey)`       | 100% grátis (requer chave)     | Busca web geral; `LANGSEARCH_API_KEY`       |
+| **Serpstack**  | `tools.NewSerpstack(apiKey)`        | 1000 buscas/mês grátis         | `SERPSTACK_API_KEY`; tier grátis usa HTTP   |
+| **DuckDuckGo** | `tools.NewDuckDuckGoSearch()`       | Grátis, sem chave              | ⚠️ Pode ser bloqueado (captcha); deprecated  |
+| **Google**     | `tools.NewGoogleSearch(apiKey, cxID)`| Pago (API key + CSE ID)       | `GOOGLE_API_KEY` + `GOOGLE_CSE_ID`          |
+| **Brave**      | `tools.NewBraveSearch(apiKey)`      | Pago (API key)                 | `BRAVE_API_KEY`                             |
+
+### Criando um WebSearchTool
+
+```go
+import "github.com/rhgs/crewai-go/tools"
+
+// Wikipedia (padrão, grátis) — provider nil usa Wikipedia.
+ws := tools.NewWebSearch(nil)
+
+// Ou com um provedor específico:
+ws := tools.NewWebSearch(tools.NewBraveSearch("")) // lê BRAVE_API_KEY
+
+// Opções:
+ws := tools.NewWebSearch(tools.NewGoogleSearch("", ""),
+	tools.WithMaxResults(10),
+	tools.WithSearchTimeout(60*time.Second),
+)
+
+agente.WithTools(ws)
+```
+
+### Exemplos por provedor
+
+#### Wikipedia (padrão, grátis)
+
+```go
+ws := tools.NewWebSearch(tools.NewWikipediaSearch())
+// Ou em português:
+ws := tools.NewWebSearch(tools.NewWikipediaSearchWithLanguage("pt"))
+agente.WithTools(ws)
+```
+
+#### LangSearch (100% grátis)
+
+```go
+ws := tools.NewWebSearch(tools.NewLangSearch("")) // lê LANGSEARCH_API_KEY
+agente.WithTools(ws)
+```
+
+#### Serpstack (1000/mês grátis)
+
+```go
+ws := tools.NewWebSearch(tools.NewSerpstack("")) // lê SERPSTACK_API_KEY
+agente.WithTools(ws)
+```
+
+#### DuckDuckGo (opcional, pode ser bloqueado)
+
+```go
+// ⚠️ Deprecated: DuckDuckGo bloqueia acesso automatizado.
+// Prefira WikipediaSearch (grátis) ou BraveSearch.
+ws := tools.NewWebSearch(tools.NewDuckDuckGoSearch())
+agente.WithTools(ws)
+```
+
+#### Google (API key)
+
+```go
+ws := tools.NewWebSearch(tools.NewGoogleSearch("", "")) // lê GOOGLE_API_KEY + GOOGLE_CSE_ID
+agente.WithTools(ws)
+```
+
+#### Brave (API key)
+
+```go
+ws := tools.NewWebSearch(tools.NewBraveSearch("")) // lê BRAVE_API_KEY
+agente.WithTools(ws)
+```
+
+### FactSource integration
+
+O `WebSearchTool` implementa `crewai.FactSource`. Após cada `Call`
+bem-sucedida, os resultados da busca são transformados em `Fact`s com
+`SourceOrg`, `SourceURL` (a URL do resultado) e `PayloadHash` (SHA-256 do
+payload JSON do resultado). Esses facts são anexados a `TaskOutput.Facts` e
+`CrewOutput.Facts`, como qualquer outra `FactSourceTool`.
+
+```go
+crew.Guardrails = []crewai.Guardrail{
+	func(_ context.Context, out *crewai.CrewOutput) error {
+		return crewai.AllFactsProvenanced(out.Facts)
+	},
+}
+```
+
+### Proteção SSRF
+
+O `WebSearchTool` filtra todas as URLs de resultados com `isBlockedURL`:
+
+- **Esquemas** não-http(s) são bloqueados.
+- **IPs privados** (loopback, link-local, unspecified, `127.0.0.1`, `::1`,
+  `localhost`) são bloqueados.
+- **Nomes de domínio** são resolvidos via DNS; se algum IP resolvido for
+  privado, a URL é bloqueada. Isso previne ataques de **DNS rebinding**.
+- Se a resolução DNS falhar, a URL é bloqueada por padrão (_fail-closed_).
+
+Isso impede que um resultado de busca malicioso direcione o agente para
+endpoints internos (ex.: _cloud metadata_ em `169.254.169.254`).
+
+### WebSearcher vs WebSearchTool
+
+| Característica        | `WebSearcher` (LLM)         | `WebSearchTool` (Tool)              |
+|-----------------------|-----------------------------|-------------------------------------|
+| Quem decide a busca    | Código Go (agent-driven)    | O LLM decide (via ReAct)            |
+| Consome tokens        | Depende do provedor         | Não (apenas a API do provedor)      |
+| Provedores            | Ollama, OpenAI, Anthropic, xAI | Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave |
+| FactSource            | Não                         | Sim                                 |
+| Uso                   | Busca direta em Go          | Ferramenta no loop ReAct             |
 
 - **Nomes curtos** e sem espaços (`busca_web`, não `Busca na Web`).
 - **Descrições claras** dizendo *o que faz* e *qual é a entrada esperada*.

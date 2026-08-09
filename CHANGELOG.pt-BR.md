@@ -7,6 +7,32 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 
+- **Interface WebSearcher e helper SearchWeb**: nova interface opcional
+  `WebSearcher` (implementa `LLM`) permite que provedores com API de busca
+  nativa sejam chamados diretamente do Go. Helper `crewai.SearchWeb(ctx, llm,
+  query, max)` evita _type assertion_ manual. Tipo `SearchHit` com `Title`,
+  `URL` e `Content`. Sentinela `ErrWebSearchUnsupported`.
+- **WebSearchTool com 7 provedores de busca**: `tools.WebSearchTool` implementa
+  `crewai.Tool` e `crewai.FactSource` para uso no loop ReAct. Provedores:
+  Wikipedia (padrão, grátis), LangSearch (100% grátis), Serpstack (1000/mês
+  grátis), DuckDuckGo (opcional, pode ser bloqueado), Google (API key + CSE ID),
+  Brave (API key). Resultados coletados como `Fact`s com proveniência. Opções
+  `WithMaxResults` e `WithSearchTimeout`.
+- **Suporte a web search para Ollama, OpenAI, Anthropic, xAI**: Ollama via
+  `POST /api/web_search` (busca pura, sem invocar modelo); OpenAI via
+  `web_search_options` (não `tools`) com modelos de busca (`gpt-4o-search-preview`,
+  `gpt-5-search-api`); Anthropic via ferramenta `web_search_20250305` (server tool)
+  com resposta `web_search_tool_result`; xAI delega para cliente OpenAI compatível.
+
+### Segurança
+
+- **Proteção SSRF com prevenção de DNS rebinding**: `WebSearchTool` filtra todas
+  as URLs de resultados com `isBlockedURL` — bloqueia esquemas não-http(s), IPs
+  privados/loopback/link-local, resolve nomes de domínio via DNS para prevenir
+  _DNS rebinding_, e adota _fail-closed_ (hosts não resolvidos são bloqueados).
+
+### Adicionado (native tool calling)
+
 - **Native tool calling**: `Agent.ToolMode` (`"react"` | `"native"`) seleciona
   entre o loop ReAct baseado em texto existente e a API de function calling
   nativa do provedor. Nova interface `ToolCallingLLM` (implementa `LLM`),

@@ -176,6 +176,122 @@ llm := &mock.LLM{Handler: func(ctx context.Context, msgs []crewai.Message) (stri
 }}
 ```
 
+## Web search (WebSearcher interface)
+
+Some LLM providers expose a native web search API. The framework defines an
+optional interface that lets agents search the web directly from Go code
+(**agent-driven** pattern), without going through the ReAct loop or tool
+calling:
+
+```go
+type WebSearcher interface {
+	WebSearch(ctx context.Context, query string, max int) ([]SearchHit, error)
+}
+```
+
+`SearchHit` is a single result:
+
+```go
+type SearchHit struct {
+	Title   string `json:"title"`
+	URL     string `json:"url"`
+	Content string `json:"content"` // short snippet, not full page content
+}
+```
+
+Use the `SearchWeb` helper to call it without a manual type assertion:
+
+```go
+hits, err := crewai.SearchWeb(ctx, llm, "Go programming", 5)
+if err != nil {
+	// err == crewai.ErrWebSearchUnsupported if the LLM doesn't implement WebSearcher
+	log.Fatal(err)
+}
+for _, h := range hits {
+	fmt.Printf("%s — %s\n%s\n\n", h.Title, h.URL, h.Content)
+}
+```
+
+If the LLM does not implement `WebSearcher`, `SearchWeb` returns
+`ErrWebSearchUnsupported`.
+
+### Providers that implement WebSearcher
+
+| Provider | How it works |
+|----------|-------------|
+| **Ollama** (`llm/ollama`) | `POST /api/web_search` — a **pure search** endpoint that does NOT invoke the LLM. Works with Ollama Cloud (requires `OLLAMA_API_KEY`) and local Ollama if the endpoint is available. No tokens consumed. |
+| **OpenAI** (`llm/openai`) | Uses the `web_search_options` field (NOT the `tools` field) in the Chat Completions API. Requires a **search-capable model** such as `gpt-4o-search-preview` or `gpt-5-search-api`. The model is invoked, so this **consumes tokens**. Results are extracted from `url_citation` annotations. |
+| **Anthropic** (`llm/anthropic`) | Uses the `web_search_20250305` **server tool** in a messages request. The model searches and returns `web_search_tool_result` content blocks containing `web_search_result` objects. Consumes tokens. |
+| **xAI** (`llm/xai`) | Delegates to the underlying OpenAI-compatible client (same `web_search_options` wire format). Requires a search-capable model. |
+
+> ⚠️ OpenAI and Anthropic web search **consume tokens** because the model is
+> involved in the search. For high-volume search, consider using the
+> `WebSearchTool` (in the `tools` package) with a dedicated provider like
+> Brave or Google instead. See [`tools.md`](tools.md).
+
+### Example: Ollama Cloud (pure search, no tokens)
+
+```go
+import (
+	"github.com/rhgs/crewai-go/llm/ollama"
+)
+
+llm := ollama.NewCloud("gpt-oss:120b") // uses OLLAMA_API_KEY
+
+hits, err := crewai.SearchWeb(ctx, llm, "latest Go release", 5)
+```
+
+### Example: OpenAI (requires a search-capable model)
+
+```go
+import (
+	"github.com/rhgs/crewai-go/llm/openai"
+)
+
+// IMPORTANT: configure with a search-capable model.
+llm := openai.New("gpt-4o-search-preview")
+
+hits, err := crewai.SearchWeb(ctx, llm, "Go programming", 5)
+```
+
+### Example: Anthropic
+
+```go
+import (
+	"github.com/rhgs/crewai-go/llm/anthropic"
+)
+
+llm := anthropic.New("claude-sonnet-5") // uses ANTHROPIC_API_KEY
+
+hits, err := crewai.SearchWeb(ctx, llm, "Go programming", 5)
+```
+
+### Example: xAI (Grok)
+
+```go
+import (
+	"github.com/rhgs/crewai-go/llm/xai"
+)
+
+llm := xai.New("grok-4") // uses XAI_API_KEY; must be a search-capable model
+
+hits, err := crewai.SearchWeb(ctx, llm, "Go programming", 5)
+```
+
+### Mock LLM (for tests)
+
+The `llm/mock` package also implements `WebSearcher` for testing:
+
+```go
+llm := &mock.LLM{
+	WebSearchResults: []crewai.SearchHit{
+		{Title: "Go", URL: "https://go.dev", Content: "Go is a compiled language."},
+	},
+}
+
+hits, err := crewai.SearchWeb(ctx, llm, "Go", 5)
+```
+
 ## Concurrency
 
 A single `LLM` can be shared by multiple agents. The included implementations

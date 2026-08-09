@@ -49,6 +49,7 @@
 - 🛡️ **Guardrails** — validação pós-saída em código que bloqueia publicação de saídas que violam invariantes de negócio.
 - 📌 **Facts e proveniência** — tipo Fact de primeira classe, populado apenas por ferramentas conectoras determinísticas, nunca pelo LLM, com metadados de proveniência completos.
 - 🔧 **Native tool calling** — use function calling nativa do provedor (OpenAI, Anthropic, Ollama) em vez de ReAct baseado em texto, com fallback automático e observabilidade de traces.
+- 🔍 **Web search** — busque a web via `WebSearcher` (Ollama, OpenAI, Anthropic, xAI) com `crewai.SearchWeb`, ou via `WebSearchTool` no loop ReAct com 7 provedores (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave) e proteção SSRF.
 - 🧠 **Memória** entre tarefas e **contexto** encadeável.
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.

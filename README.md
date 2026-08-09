@@ -49,6 +49,7 @@
 - 🛡️ **Guardrails** — code-enforced post-output validation that blocks publication of outputs violating business invariants.
 - 📌 **Facts & provenance** — first-class Fact type populated only by deterministic connector tools, never by the LLM, with full provenance metadata.
 - 🔧 **Native tool calling** — use provider-native function calling (OpenAI, Anthropic, Ollama) instead of text-based ReAct, with automatic fallback and full trace observability.
+- 🔎 **Web search** — agent-driven search via the `WebSearcher` interface (Ollama, OpenAI, Anthropic, xAI) or model-driven search via `WebSearchTool` with 7 providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave). SSRF-protected.
 - 🧠 **Memory** between tasks and chainable **context**.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - ✅ **Testable** — mock LLM included; ~90% core coverage.

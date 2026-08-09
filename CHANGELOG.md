@@ -7,6 +7,21 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Web search (agent-driven)**: `WebSearcher` interface and `SearchWeb`
+  helper function for direct web search from Go code. `SearchHit` struct
+  (Title, URL, Content). Implemented by Ollama (`/api/web_search`, pure
+  search), OpenAI (`web_search_options`, requires search-capable model),
+  Anthropic (`web_search_20250305` server tool), and xAI (delegates to
+  OpenAI-compatible client). `ErrWebSearchUnsupported` sentinel. The `mock`
+  LLM also implements `WebSearcher` for testing. No new dependencies;
+  backward compatible.
+- **Web search (model-driven)**: `WebSearchTool` in the `tools` package — a
+  `Tool` + `FactSource` for the ReAct loop with pluggable `SearchProvider`.
+  7 providers: Wikipedia (default, free), LangSearch (100% free), Serpstack
+  (1000/month free), DuckDuckGo (optional, no key), Google Custom Search
+  (API key + CX ID), Brave Search (API key). Results collected as `Fact`s
+  with provenance. Options: `WithMaxResults`, `WithSearchTimeout`.
+- **Web search support**: Ollama, OpenAI, Anthropic, xAI.
 - **Native tool calling**: `Agent.ToolMode` (`"react"` | `"native"`) selects
   between the existing text-based ReAct loop and the provider's native
   function calling API. New `ToolCallingLLM` interface (implements `LLM`),
@@ -16,6 +31,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   sentinel. Security: argument validation (size/depth limits), tool output
   truncation, provider response size limits (`io.LimitReader`). Backward
   compatible: default is ReAct, no changes to existing code paths.
+
+### Security
+
+- **SSRF protection** for web search: non-http(s) schemes, loopback, private,
+  link-local, and unspecified IP addresses are blocked. Domain names are
+  resolved via DNS and checked to prevent DNS rebinding attacks. Unresolvable
+  hosts are blocked (fail-closed).
 
 ## [v0.2.0] — 2026-08-07
 
