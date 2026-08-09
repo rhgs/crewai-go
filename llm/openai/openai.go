@@ -344,7 +344,7 @@ type webSearchAnnotationURLCitation struct {
 // OpenAI Chat Completions uses a NESTED format:
 // {"type": "url_citation", "url_citation": {"url": "...", "title": "...", ...}}
 type webSearchAnnotation struct {
-	Type        string                        `json:"type"` // always "url_citation"
+	Type        string                         `json:"type"` // always "url_citation"
 	URLCitation webSearchAnnotationURLCitation `json:"url_citation"`
 }
 

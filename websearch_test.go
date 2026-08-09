@@ -48,7 +48,7 @@ func TestSearchWeb_Unsupported(t *testing.T) {
 type bareLLM struct{}
 
 func (b *bareLLM) Call(_ context.Context, _ []crewai.Message) (string, error) { return "", nil }
-func (b *bareLLM) Model() string                                                { return "bare" }
+func (b *bareLLM) Model() string                                              { return "bare" }
 
 func TestSearchWeb_MockUnsupported(t *testing.T) {
 	// Mock without WebSearchResults or WebSearchHandler returns

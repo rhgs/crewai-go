@@ -470,6 +470,7 @@ func TestWebSearchTool_ContextCancellation(t *testing.T) {
 		t.Error("expected context cancellation error")
 	}
 }
+
 // --- Edge case tests for coverage ---
 
 func TestBraveSearch_JSONDecodeError(t *testing.T) {
