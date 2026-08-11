@@ -28,6 +28,7 @@
 - [Tools](#tools)
 - [Native tool calling](#native-tool-calling)
 - [Web search](#web-search)
+- [Logging](#logging)
 - [Processes: Sequential and Hierarchical](#processes-sequential-and-hierarchical)
 - [Structured output](#structured-output)
 - [Guardrails](#guardrails)
@@ -52,6 +53,7 @@
 - 📌 **Facts & provenance** — first-class Fact type populated only by deterministic connector tools, never by the LLM, with full provenance metadata.
 - 🔧 **Native tool calling** — use provider-native function calling (OpenAI, Anthropic, Ollama) instead of text-based ReAct, with automatic fallback and full trace observability.
 - 🔎 **Web search** — agent-driven search via the `WebSearcher` interface (Ollama, OpenAI, Anthropic, xAI) or model-driven search via `WebSearchTool` with 7 providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave). SSRF-protected.
+- 📝 **Structured logging via `log/slog`** — inject a custom `*slog.Logger` on `Crew` and `Agent`, with backward-compatible `Verbose` fallback.
 - 🧠 **Memory** between tasks and chainable **context**.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - ✅ **Testable** — mock LLM included; ~90% core coverage.
@@ -312,6 +314,78 @@ agent.WithTools(search)
 All search results are **SSRF-protected**: URLs pointing to localhost, private IPs, `0.0.0.0`, link-local addresses (`169.254.x`), and unspecified addresses are filtered out. Domain names are resolved via DNS to prevent DNS rebinding attacks.
 
 Details in [`docs/llms.md`](docs/llms.md) (WebSearcher) and [`docs/tools.md`](docs/tools.md) (WebSearchTool).
+
+## Logging
+
+crewai-go uses [`log/slog`](https://pkg.go.dev/log/slog) (structured logging, Go 1.21+) from the standard library. Every log call is structured (key-value pairs), not format strings.
+
+Inject a custom `*slog.Logger` via `WithLogger` on both `Crew` and `Agent`:
+
+```go
+log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+}))
+
+crew := crewai.NewCrew(agents, tasks).WithLogger(log)
+agent := crewai.NewAgent("a", "g", "b", llm).WithLogger(log)
+```
+
+If no logger is injected, `Kickoff` creates a text-format logger on stderr. The default level depends on `Crew.Verbose`:
+
+| `Verbose` | Default level | Effect                                                  |
+|-----------|---------------|---------------------------------------------------------|
+| `false`   | `LevelError`  | Only warnings and errors (matches legacy nop behavior). |
+| `true`    | `LevelDebug`  | Everything: debug, info, warn, error.                   |
+
+When `WithLogger` is used, the injected logger is used as-is — the caller controls the level and handler.
+
+Example log line (JSON handler):
+
+```json
+{"time":"...","level":"INFO","msg":"agent thought","agent":"Poet","output":"Final Answer: ..."}
+```
+
+Subpackages (`llm/*`, `tools/*`) do not log internally — they return errors that the executor logs at the appropriate level.
+
+### Logging safety
+
+> Debug-level logs include full LLM output (`agent thought` → the entire model response) and tool inputs/arguments. If your log destination is shared (e.g. remote log aggregator), the output may contain PII or proprietary model responses. Provider errors (logged at `WARN` on delegation failures, for example) may include API keys in their message.
+>
+> Mitigations:
+>
+> - Pick your destination accordingly (sink to local files, not a shared stream, when handling user data).
+> - Use a level filter (e.g. `LevelError` only) to keep secrets out of logs by default.
+> - Wrap your handler with a redactor. See [`examples/logging/`](examples/logging/) for a drop-in redaction handler that masks likely-secrets (API keys, bearer tokens, long alphanumeric tokens).
+
+### Thread-safety
+
+`WithLogger` is **not concurrent-safe**. Set the logger before calling `Kickoff`/`Execute` and do not mutate it concurrently. Multiple sequential calls to `WithLogger` are idempotent — the last call wins.
+
+```go
+log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+}))
+
+crew := crewai.NewCrew(agents, tasks).WithLogger(log)
+agent := crewai.NewAgent("a", "g", "b", llm).WithLogger(log)
+```
+
+If no logger is injected, `Kickoff` creates a text-format logger on stderr. The default level depends on `Crew.Verbose`:
+
+| `Verbose` | Default level | Effect                                                  |
+|-----------|---------------|---------------------------------------------------------|
+| `false`   | `LevelError`  | Only warnings and errors (matches legacy nop behavior). |
+| `true`    | `LevelDebug`  | Everything: debug, info, warn, error.                   |
+
+When `WithLogger` is used, the injected logger is used as-is — the caller controls the level and handler. `Agent.Execute` (standalone, without a crew) falls back to `slog.Default()` unless `Agent.WithLogger` is set.
+
+Example log line (JSON handler):
+
+```json
+{"time":"...","level":"INFO","msg":"agent thought","agent":"Poet","output":"Final Answer: ..."}
+```
+
+Subpackages (`llm/*`, `tools/*`) do not log internally — they return errors that the executor logs at the appropriate level.
 
 ## Processes: Sequential and Hierarchical
 

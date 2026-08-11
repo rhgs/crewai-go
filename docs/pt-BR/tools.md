@@ -293,3 +293,12 @@ crew.Guardrails = []crewai.Guardrail{
 
 Se qualquer fato nao tiver proveniencia, `Kickoff` retorna
 `ErrBlockedByGuardrail`.
+
+## Logging
+
+Ferramentas logam via `*log/slog`. Dois logs podem vazar conteúdo sensível:
+
+- `agent thought` (Debug) - a resposta inteira do LLM antes da chamada da ferramenta.
+- `tool invoked` (Info) / `native tool call` (Info) - o input/args da ferramenta.
+
+**Recomendação:** em produção, mantenha o nível do log em `LevelError` ou envolva o handler do logger com um redator. O pacote `crewai` fornece `redactError` (usado internamente para warnings de falha de delegação) e `examples/logging/` mostra um handler de redação drop-in que mascara segredos prováveis em todos os atributos antes de chegarem ao destino.

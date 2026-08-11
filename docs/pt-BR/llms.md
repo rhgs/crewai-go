@@ -299,3 +299,64 @@ Se o LLM não implementar `WebSearcher`, `SearchWeb` retorna
 
 Um mesmo `LLM` pode ser compartilhado por vários agentes. As implementações
 incluídas são seguras para uso concorrente.
+
+## Logging
+
+O executor emite logs estruturados via `*log/slog`. Injete um logger em
+`Crew` (e opcionalmente em `Agent`) antes de chamar `Kickoff`:
+
+```go
+import (
+    "log/slog"
+    "os"
+
+    "github.com/rhgs/crewai-go"
+)
+
+log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+}))
+
+crew := crewai.NewCrew(agentes, tarefas).WithLogger(log)
+out, err := crew.Kickoff(ctx, nil)
+```
+
+**Fallback padrão.** Se `WithLogger` não for chamado, `Kickoff` cria um
+logger de texto no stderr em `LevelDebug` quando `Crew.Verbose` é `true`
+e `LevelError` quando `Crew.Verbose` é `false` (correspondendo ao
+comportamento legado de "silencioso a menos que verbose").
+
+**Agent.Execute.** Quando usado fora de uma crew, `Agent.Execute` usa
+`slog.Default()` a menos que `Agent.WithLogger` seja definido.
+
+**Thread-safety.** `WithLogger` **não é concorrente-safe** — defina-o
+antes de chamar `Kickoff`/`Execute` e não o mude concorrentemente. Múltiplas
+chamadas sequenciais são idempotentes (a última vence).
+
+### Eventos logados
+
+| Componente       | Nível   | Mensagem                        | Chaves                            |
+|------------------|---------|---------------------------------|-----------------------------------|
+| `executor.go`    | Debug   | `agent thought`                 | `agent`, `output`                 |
+| `executor.go`    | Info    | `tool invoked`                  | `agent`, `tool`, `input`          |
+| `toolcall.go`    | Info    | `native tool call`              | `agent`, `tool`, `args`           |
+| `toolcall.go`    | Debug   | `native tool loop done`         | `agent`, `iterations`             |
+| `structured.go`  | Debug   | `structured output validated`   | `agent`, `attempt`                |
+| `structured.go`  | Debug   | `structured output validation failed` | `agent`, `attempt`, `error` |
+| `crew.go`        | Info    | `manager resolved`              | `manager`                         |
+| `crew.go`        | Info    | `task delegated`                | `task_index`, `agent`             |
+| `crew.go`        | Warn    | `delegation failed, using first agent` | `error` (redacted)         |
+
+### Segurança
+
+- **Logs em Debug incluem a saída completa do LLM** (`agent thought` →
+  resposta inteira do modelo) e inputs de ferramentas. Direcione para
+  destinos locais quando lidar com dados de usuário.
+- **Erros de providers passam por `redactError`** antes de serem logados
+  (notavelmente em `delegation failed`), que mascara segredos prováveis:
+  tokens alfanuméricos longos (≥20 chars, preservando 4 primeiros/últimos
+  quando ≥24 chars), `Bearer <token>`, e valores de query-string
+  `api_key=`/`token=`/`key=`/`secret=`.
+
+  Veja `redact.go` e `examples/logging/` para as regras completas e um
+  handler de redação drop-in.

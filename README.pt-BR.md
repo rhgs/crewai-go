@@ -28,6 +28,7 @@
 - [Ferramentas](#ferramentas)
 - [Native tool calling](#native-tool-calling)
 - [Web search](#web-search)
+- [Logging](#logging)
 - [Processos: sequencial e hierárquico](#processos-sequencial-e-hierárquico)
 - [Saida estruturada](#saida-estruturada)
 - [Guardrails](#guardrails)
@@ -52,6 +53,7 @@
 - 📌 **Facts e proveniência** — tipo Fact de primeira classe, populado apenas por ferramentas conectoras determinísticas, nunca pelo LLM, com metadados de proveniência completos.
 - 🔧 **Native tool calling** — use function calling nativa do provedor (OpenAI, Anthropic, Ollama) em vez de ReAct baseado em texto, com fallback automático e observabilidade de traces.
 - 🔍 **Web search** — busque a web via `WebSearcher` (Ollama, OpenAI, Anthropic, xAI) com `crewai.SearchWeb`, ou via `WebSearchTool` no loop ReAct com 7 provedores (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave) e proteção SSRF.
+- 📝 **Logging estruturado** via `log/slog` da stdlib — injetar `*slog.Logger` customizado em `Crew` e `Agent`, com fallback para o `Verbose` legado.
 - 🧠 **Memória** entre tarefas e **contexto** encadeável.
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
@@ -312,6 +314,46 @@ agente.WithTools(search)
 Todos os resultados de busca tem **protecao SSRF**: URLs apontando para localhost, IPs privados, `0.0.0.0`, enderecos link-local (`169.254.x`) e enderecos nao especificados sao filtrados. Nomes de dominio sao resolvidos via DNS para prevenir ataques de DNS rebinding.
 
 Detalhes em [`docs/pt-BR/llms.md`](docs/pt-BR/llms.md) (WebSearcher) e [`docs/pt-BR/tools.md`](docs/pt-BR/tools.md) (WebSearchTool).
+
+## Logging
+
+crewai-go usa [`log/slog`](https://pkg.go.dev/log/slog) (logging estruturado, Go 1.21+) da biblioteca padrao. Cada chamada de log e estruturada (pares chave-valor), nao strings de formato.
+
+Injete um `*slog.Logger` customizado via `WithLogger` em `Crew` e `Agent`:
+
+```go
+log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+}))
+
+crew := crewai.NewCrew(agentes, tarefas).WithLogger(log)
+agente := crewai.NewAgent("a", "g", "b", llm).WithLogger(log)
+```
+
+Se nenhum logger for injetado, `Kickoff` cria um logger de texto no stderr. O nivel padrao depende de `Crew.Verbose`:
+
+| `Verbose` | Nivel padrao | Efeito                                                   |
+|-----------|--------------|----------------------------------------------------------|
+| `false`   | `LevelError` | Apenas warnings e erros (equivalente ao nop legado).      |
+| `true`    | `LevelDebug` | Tudo: debug, info, warn, error.                          |
+
+Quando `WithLogger` e usado, o logger injetado e usado como esta — o chamador controla o nivel e o handler. `Agent.Execute` (standalone, sem crew) usa `slog.Default()` a menos que `Agent.WithLogger` seja definido.
+
+Os subpackages (`llm/*`, `tools/*`) nao logam internamente — eles retornam erros que o executor loga no nivel apropriado.
+
+### Seguranca de logging
+
+> Logs em nivel Debug incluem a saida completa do LLM (`agent thought` → resposta inteira do modelo) e inputs de ferramentas. Se o destino do log for compartilhado (agregador remoto, por exemplo), a saida pode conter PII ou respostas proprietarias do modelo. Erros de provedores (logados em `WARN` em falhas de delegacao, por exemplo) podem incluir API keys na mensagem.
+>
+> Mitigacoes:
+>
+> - Escolha o destino adequado (sink em arquivos locais, nao streams compartilhados, quando lidar com dados de usuario).
+> - Use filtro de nivel (ex.: somente `LevelError`) para manter secrets fora dos logs por padrao.
+> - Envolva o seu handler com um redator. Veja [`examples/logging/`](examples/logging/) para um handler redator que mascara secrets provaveis (API keys, bearer tokens, tokens alfanumericos longos).
+
+### Thread-safety
+
+`WithLogger` **nao e concorrente-safe**. Defina o logger antes de chamar `Kickoff`/`Execute` e nao o mude concorrentemente. Multiplas chamadas sequenciais a `WithLogger` sao idempotentes — a ultima vence.
 
 ## Processos: sequencial e hierárquico
 

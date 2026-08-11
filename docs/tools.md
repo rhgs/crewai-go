@@ -268,3 +268,12 @@ Request Forgery) protection before being presented to the agent:
   resolved IPs are checked. If any resolves to a blocked address, the URL
   is blocked.
 - **Fail-closed**: if DNS resolution fails, the URL is blocked by default.
+
+## Logging
+
+Tools log via `*log/slog`. Two logs can leak sensitive content:
+
+- `agent thought` (Debug) - the entire LLM response before tool call.
+- `tool invoked` (Info) / `native tool call` (Info) - the tool input/args.
+
+**Recommendation:** in production, keep the log level at `LevelError` or wrap the logger handler with a redactor. The `crewai` package provides `redactError` (used internally for delegation-failed warnings) and `examples/logging/` shows a drop-in redaction handler that masks likely-secrets in all attributes before they reach the destination.

@@ -434,7 +434,7 @@ func TestFactSource_StructuredTask(t *testing.T) {
 	task := NewTask("Extract name.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: schema}
 
-	out, _, err := executeTask(context.Background(), agent, task, "", nopLogger{})
+	out, _, err := executeTask(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("executeTask error: %v", err)
 	}

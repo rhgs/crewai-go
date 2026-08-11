@@ -5,6 +5,23 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Modificado
+
+- **Logger trocado por `log/slog`**: a interface custom `Logger`
+  (`Infof`/`Debugf` no estilo format-string) baseada em `log.Logger` foi
+  removida em favor de `*slog.Logger` da biblioteca padrão. Todas as
+  funções executoras (`executeTask`, `executeStructured`,
+  `executeTaskWithTools`) agora recebem `*slog.Logger` e emitem logs
+  estruturados em pares chave-valor via `InfoContext`/`DebugContext`/
+  `WarnContext`. Novos métodos fluentes `Crew.WithLogger(*slog.Logger) *Crew`
+  e `Agent.WithLogger(*slog.Logger) *Agent` permitem injetar qualquer
+  `*slog.Logger`. Retrocompatível: `Crew.Verbose` continua funcionando —
+  agora controla o nível do logger fallback (`Verbose=true` → `LevelDebug`,
+  `Verbose=false` → `LevelError`, refletendo o comportamento legado de
+  "silencioso quando off"). `Agent.Execute` standalone usa `slog.Default()`
+  como fallback. Subpacotes (`llm/*`, `tools/*`) continuam sem logging.
+  `logger.go` removido. Sem novas dependências; apenas `log/slog` da stdlib.
+
 ### Adicionado
 
 - **Interface WebSearcher e helper SearchWeb**: nova interface opcional
@@ -30,6 +47,29 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   as URLs de resultados com `isBlockedURL` — bloqueia esquemas não-http(s), IPs
   privados/loopback/link-local, resolve nomes de domínio via DNS para prevenir
   _DNS rebinding_, e adota _fail-closed_ (hosts não resolvidos são bloqueados).
+
+### Segurança (logger → slog)
+
+- **Redação de segredos em logs** (`redact.go`): erros de providers logados
+  via `logger.WarnContext` (notavelmente o caminho de delegação hierárquica)
+  passam agora por `redactError`, que mascara segredos prováveis na mensagem:
+  - Tokens alfanuméricos longos (≥20 chars), preservando 4 caracteres
+    iniciais e 4 finais quando o token tiver ≥24 chars.
+  - `Bearer <token>` em mensagens estilo HTTP.
+  - Valores de query-string `api_key=`, `token=`, `key=`, `secret=`.
+
+  Veja `redact.go` e `redact_test.go` para as regras exatas. Exemplo
+  mostrando o mesmo padrão de redação no nível do handler: `examples/logging/`.
+
+- **Documentos de segurança de logging**: README + doc.go agora alertam que
+  logs em nível Debug contêm a saída completa do LLM e inputs de
+  ferramentas, e que erros de providers podem incluir API keys na mensagem.
+  Recomenda-se envolver handlers com um redator.
+
+- **`WithLogger` não é concorrente-safe**: documentado em `Crew.logger`,
+  `Agent.logger`, `Crew.WithLogger`, e `Agent.WithLogger`. Múltiplas
+  chamadas sequenciais são idempotentes (última vence), testado por
+  `TestWithLogger_Idempotent_Crew` e `TestWithLogger_Idempotent_Agent`.
 
 ### Adicionado (native tool calling)
 

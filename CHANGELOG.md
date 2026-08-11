@@ -5,6 +5,45 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **Secret redaction in logs** (`redact.go`): provider errors logged via
+  `logger.WarnContext` (notably the hierarchical delegation path) are now
+  passed through `redactError`, which masks likely-secrets in the message:
+  - Long alphanumeric tokens (≥20 chars), preserving 4 leading and 4 trailing
+    characters for identifiability when the token is ≥24 chars.
+  - `Bearer <token>` in HTTP-style messages.
+  - `api_key=`, `token=`, `key=`, `secret=` query-string values.
+
+  See `redact.go` and `redact_test.go` for the exact rules. Example program
+  showing the same redaction pattern at the handler level: `examples/logging/`.
+
+- **Logging safety docs**: README + doc.go now warn about Debug-level logs
+  containing full LLM output and tool inputs, and provider errors potentially
+  including API keys. Recommends wrapping handlers with a redactor.
+
+- **`WithLogger` is not concurrent-safe**: documented on `Crew.logger`,
+  `Agent.logger`, `Crew.WithLogger`, and `Agent.WithLogger`. Multiple
+  sequential calls are idempotent (last wins), tested by
+  `TestWithLogger_Idempotent_Crew` and `TestWithLogger_Idempotent_Agent`.
+
+### Changed
+
+- **Logger replaced with `log/slog`**: The custom `Logger` interface
+  (`Infof`/`Debugf` format-string style) backed by `log.Logger` has
+  been removed in favor of `*slog.Logger` from the standard library.
+  All executor functions (`executeTask`, `executeStructured`,
+  `executeTaskWithTools`) now take `*slog.Logger` and emit structured
+  key-value logs via `InfoContext`/`DebugContext`/`WarnContext`. New
+  `Crew.WithLogger(*slog.Logger) *Crew` and `Agent.WithLogger(*slog.Logger) *Agent`
+  fluent setters allow injecting any `*slog.Logger`. Backward compatible:
+  `Crew.Verbose` continues to work — it now controls the level of the
+  fallback logger (`Verbose=true` → `LevelDebug`, `Verbose=false` →
+  `LevelError`, matching the legacy "silent when off" behavior).
+  `Agent.Execute` standalone falls back to `slog.Default()`. Subpackages
+  (`llm/*`, `tools/*`) remain logging-free. `logger.go` deleted. No new
+  dependencies; only `log/slog` from stdlib.
+
 ### Added
 
 - **Web search (agent-driven)**: `WebSearcher` interface and `SearchWeb`

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 )
@@ -174,7 +175,7 @@ func truncateToolOutput(s string) string {
 // This is the native counterpart to the ReAct loop in executor.go. It is
 // only called when Agent.ToolMode == "native" and the LLM implements
 // ToolCallingLLM.
-func executeTaskWithTools(ctx context.Context, a *Agent, t *Task, contextText string, log Logger) (string, []ToolTrace, []Fact, error) {
+func executeTaskWithTools(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (string, []ToolTrace, []Fact, error) {
 	tcll, ok := a.LLM.(ToolCallingLLM)
 	if !ok {
 		return "", nil, nil, ErrNativeToolsUnsupported
@@ -218,7 +219,7 @@ func executeTaskWithTools(ctx context.Context, a *Agent, t *Task, contextText st
 
 		// No tool calls: the model is done, content is the final answer.
 		if len(resp.ToolCalls) == 0 {
-			log.Debugf("[%s] native tool loop done after %d iterations", a.Role, i+1)
+			log.DebugContext(ctx, "native tool loop done", "agent", a.Role, "iterations", i+1)
 			return strings.TrimSpace(resp.Content), traces, collectedFacts, nil
 		}
 
@@ -265,7 +266,7 @@ func executeTaskWithTools(ctx context.Context, a *Agent, t *Task, contextText st
 				continue
 			}
 
-			log.Infof("[%s] native tool call: %s(%s)", a.Role, tc.Function.Name, string(tc.Function.Arguments))
+			log.InfoContext(ctx, "native tool call", "agent", a.Role, "tool", tc.Function.Name, "args", string(tc.Function.Arguments))
 
 			result, err := tool.Call(ctx, string(tc.Function.Arguments))
 			trace.Duration = time.Since(start)

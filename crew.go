@@ -3,6 +3,8 @@ package crewai
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 	"time"
 )
@@ -16,7 +18,11 @@ type Crew struct {
 	// Process defines the orchestration strategy. Default: Sequential.
 	Process Process
 
-	// Verbose enables detailed execution logs.
+	// Verbose enables detailed execution logs. When true and no logger
+	// has been injected via WithLogger, the auto-created logger is set
+	// to LevelDebug; otherwise LevelError (effectively silent for
+	// info/debug). Ignored when a custom logger is provided via
+	// WithLogger.
 	Verbose bool
 
 	// Memory, when enabled, stores task outputs for later reference.
@@ -34,7 +40,10 @@ type Crew struct {
 	// non-nil error, Kickoff returns ErrBlockedByGuardrail.
 	Guardrails []Guardrail
 
-	logger Logger
+	// logger is the structured logger used during Kickoff. Set via
+	// WithLogger before Kickoff. NOT CONCURRENT-SAFE: must be set before
+	// Kickoff starts and not mutated while Kickoff is running.
+	logger *slog.Logger
 	mem    *Memory
 }
 
@@ -77,6 +86,36 @@ func NewCrew(agents []*Agent, tasks []*Task) *Crew {
 	}
 }
 
+// WithLogger injects a structured *slog.Logger used for execution logs
+// during Kickoff. When not called, Kickoff creates a default text logger
+// on stderr whose level depends on Verbose.
+//
+// The injected logger is used as-is — the caller is responsible for
+// configuring its level, handler, and output.
+//
+// NOT CONCURRENT-SAFE: must be called before Kickoff starts and not
+// mutated while Kickoff is running. Multiple calls are idempotent (last
+// wins); passing nil is allowed and equivalent to not calling WithLogger
+// (Kickoff will fall back to the default logger).
+func (c *Crew) WithLogger(l *slog.Logger) *Crew {
+	c.logger = l
+	return c
+}
+
+// defaultLogger returns the fallback logger created by Kickoff when no
+// logger has been injected via WithLogger. The level is LevelError when
+// Verbose is false (matching the legacy stdLogger behavior, which only
+// logged when verbose was true), and LevelDebug when Verbose is true.
+func defaultLogger(verbose bool) *slog.Logger {
+	level := slog.LevelError
+	if verbose {
+		level = slog.LevelDebug
+	}
+	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: level,
+	}))
+}
+
 // Kickoff executes all the crew's tasks and returns the consolidated result.
 //
 // inputs is an optional map of variables interpolated into {key} in the tasks'
@@ -92,7 +131,10 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 		return nil, fmt.Errorf("crewai: invalid process %q", c.Process)
 	}
 
-	c.logger = newStdLogger(c.Verbose)
+	// Initialize logger if not injected.
+	if c.logger == nil {
+		c.logger = defaultLogger(c.Verbose)
+	}
 	if c.Memory {
 		c.mem = NewMemory()
 	}
@@ -160,7 +202,7 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.logger.Infof("manager: %s", manager.Role)
+	c.logger.InfoContext(ctx, "manager resolved", "manager", manager.Role)
 
 	out := &CrewOutput{}
 	for i, task := range c.Tasks {
@@ -171,7 +213,7 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 		if agent == nil {
 			return nil, ErrNoAgent
 		}
-		c.logger.Infof("manager delegated task %d to %q", i+1, agent.Role)
+		c.logger.InfoContext(ctx, "task delegated", "task_index", i+1, "agent", agent.Role)
 
 		result, facts, err := c.execute(ctx, agent, task)
 		if err != nil {
@@ -267,7 +309,7 @@ func (c *Crew) delegate(ctx context.Context, manager *Agent, task *Task) *Agent 
 		UserMessage(b.String()),
 	})
 	if err != nil {
-		c.logger.Infof("delegation failed, using first agent: %v", err)
+		c.logger.WarnContext(ctx, "delegation failed, using first agent", "error", redactError(err))
 		return c.Agents[0]
 	}
 

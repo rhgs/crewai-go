@@ -262,7 +262,7 @@ func TestExecuteTaskWithTools_NoToolCalls(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative}
 	task := NewTask("do something", "text", a)
 
-	result, traces, facts, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	result, traces, facts, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -288,7 +288,7 @@ func TestExecuteTaskWithTools_SingleToolCall(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{calc}}
 	task := NewTask("calculate 2+2", "text", a)
 
-	result, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	result, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -318,7 +318,7 @@ func TestExecuteTaskWithTools_MultipleToolCalls(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{calc, clock}}
 	task := NewTask("calc and time", "text", a)
 
-	result, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	result, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -346,7 +346,7 @@ func TestExecuteTaskWithTools_ToolNotFound(t *testing.T) {
 	}}
 	task := NewTask("task", "text", a)
 
-	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestExecuteTaskWithTools_ToolError(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{tool}}
 	task := NewTask("task", "text", a)
 
-	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -392,7 +392,7 @@ func TestExecuteTaskWithTools_MaxIterations(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{tool}, MaxIterations: 2}
 	task := NewTask("task", "text", a)
 
-	_, _, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, _, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if !errors.Is(err, ErrMaxIterations) {
 		t.Errorf("err = %v, want ErrMaxIterations", err)
 	}
@@ -409,7 +409,7 @@ func TestExecuteTaskWithTools_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	defer cancel()
 	time.Sleep(2 * time.Nanosecond)
-	_, _, _, err := executeTaskWithTools(ctx, a, task, "", nopLogger{})
+	_, _, _, err := executeTaskWithTools(ctx, a, task, "", testLogger())
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("err = %v, want context.DeadlineExceeded", err)
 	}
@@ -420,7 +420,7 @@ func TestExecuteTaskWithTools_NativeModeNotSupported(t *testing.T) {
 	a := &Agent{Role: "A", LLM: plain, ToolMode: ToolModeNative}
 	task := NewTask("task", "text", a)
 
-	_, _, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, _, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if !errors.Is(err, ErrNativeToolsUnsupported) {
 		t.Errorf("err = %v, want ErrNativeToolsUnsupported", err)
 	}
@@ -431,7 +431,7 @@ func TestExecuteTaskWithTools_NoTools(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: nil}
 	task := NewTask("task", "text", a)
 
-	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -455,7 +455,7 @@ func TestExecuteTaskWithTools_FactCollection(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{fsTool}}
 	task := NewTask("task", "text", a)
 
-	_, traces, facts, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, traces, facts, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -481,7 +481,7 @@ func TestExecuteTaskWithTools_ToolOutputTruncated(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{tool}}
 	task := NewTask("task", "text", a)
 
-	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,7 +500,7 @@ func TestExecuteTaskWithTools_ToolArgsOversized(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{tool}}
 	task := NewTask("task", "text", a)
 
-	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,7 +520,7 @@ func TestExecuteTaskWithTools_ToolOutputRoleIsTool(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{tool}}
 	task := NewTask("task", "text", a)
 
-	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -551,7 +551,7 @@ func TestExecuteTaskWithTools_DurationPositive(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{tool}}
 	task := NewTask("t", "o", a)
 
-	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -567,7 +567,7 @@ func TestExecuteTask_ReActPathDefault(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m}
 	task := NewTask("task", "text", a)
 
-	result, _, err := executeTask(context.Background(), a, task, "", nopLogger{})
+	result, _, err := executeTask(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -581,7 +581,7 @@ func TestExecuteTask_ReActPathExplicit(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeReact}
 	task := NewTask("task", "text", a)
 
-	result, _, err := executeTask(context.Background(), a, task, "", nopLogger{})
+	result, _, err := executeTask(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -598,7 +598,7 @@ func TestExecuteTask_NativeDispatch(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative}
 	task := NewTask("task", "text", a)
 
-	result, _, err := executeTask(context.Background(), a, task, "", nopLogger{})
+	result, _, err := executeTask(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -612,7 +612,7 @@ func TestExecuteTask_NativeModeNotSupportedViaExecuteTask(t *testing.T) {
 	a := &Agent{Role: "A", LLM: plain, ToolMode: ToolModeNative}
 	task := NewTask("task", "text", a)
 
-	_, _, err := executeTask(context.Background(), a, task, "", nopLogger{})
+	_, _, err := executeTask(context.Background(), a, task, "", testLogger())
 	if !errors.Is(err, ErrNativeToolsUnsupported) {
 		t.Errorf("err = %v, want ErrNativeToolsUnsupported", err)
 	}
@@ -628,7 +628,7 @@ func TestExecuteTask_StructuredPrecedenceOverNative(t *testing.T) {
 		"required":   []string{"name"},
 	})
 
-	result, _, err := executeTask(context.Background(), a, task, "", nopLogger{})
+	result, _, err := executeTask(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -647,7 +647,7 @@ func TestErrorWrap_ErrMaxIterationsContainsAgent(t *testing.T) {
 	a := &Agent{Role: "TestAgent", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{tool}, MaxIterations: 1}
 	task := NewTask("task", "text", a)
 
-	_, _, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, _, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -667,7 +667,7 @@ func TestErrorWrap_ToolErrorContainsToolName(t *testing.T) {
 	a := &Agent{Role: "A", LLM: m, ToolMode: ToolModeNative, Tools: []Tool{tool}}
 	task := NewTask("task", "text", a)
 
-	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", nopLogger{})
+	_, traces, _, err := executeTaskWithTools(context.Background(), a, task, "", testLogger())
 	if err != nil {
 		t.Fatal(err)
 	}

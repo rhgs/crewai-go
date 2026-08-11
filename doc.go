@@ -156,4 +156,27 @@
 // non-http(s) schemes, loopback/private/link-local/unspecified addresses are
 // blocked, and domain names are resolved via DNS to prevent rebinding attacks.
 // Fail-closed: unresolvable hosts are blocked.
+//
+// # Logging
+//
+// crewai-go uses log/slog (structured logging) from the standard library.
+// Inject a custom *slog.Logger via the WithLogger method on Crew and Agent:
+//
+// NOTE: Debug logs include the full LLM output and tool inputs; warn logs
+// include upstream error messages (which providers may render with request
+// details). Pick your log destination accordingly — avoid shared remote
+// sinks when prompts/outputs may contain sensitive data.
+//
+//	crew := crewai.NewCrew(agents, tasks)
+//	crew.WithLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+//	    Level: slog.LevelDebug,
+//	})))
+//
+// If no logger is provided, Kickoff creates a text-format logger on stderr.
+// The level is LevelDebug when Crew.Verbose is true and LevelError otherwise
+// (matching the legacy behavior, where only Verbose=true emitted any logs).
+// When WithLogger is used, the injected logger is used as-is — the caller
+// controls level, handler, and destination. Agent.Execute, when called
+// standalone (without a crew), falls back to slog.Default() unless
+// Agent.WithLogger is used.
 package crewai
