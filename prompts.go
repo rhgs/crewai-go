@@ -84,6 +84,82 @@ func buildStructuredPrompt(t *Task, context string, schema json.RawMessage) stri
 	return strings.TrimSpace(b.String())
 }
 
+// buildPlanPrompt assembles the user message that asks the agent to produce a
+// numbered plan before acting. The plan is injected as context for the
+// execution phase, keeping the agent focused.
+func buildPlanPrompt(t *Task, context string) string {
+	var b strings.Builder
+	b.WriteString("You are about to work on the following task:\n\n")
+	b.WriteString(t.Description)
+	b.WriteString("\n")
+	if t.ExpectedOutput != "" {
+		b.WriteString("\nExpected output:\n")
+		b.WriteString(t.ExpectedOutput)
+		b.WriteString("\n")
+	}
+	if strings.TrimSpace(context) != "" {
+		b.WriteString("\nContext from previous tasks:\n")
+		b.WriteString(context)
+		b.WriteString("\n")
+	}
+	b.WriteString("\nBefore acting, create a concise, numbered plan of the steps you will take. ")
+	b.WriteString("Consider which tools you have available and how to use them.\n\n")
+	b.WriteString("Respond ONLY with the plan, numbered 1-N. No other text.")
+	return strings.TrimSpace(b.String())
+}
+
+// buildEvaluationPrompt assembles the user message for the evaluation phase.
+// It asks the evaluator to score the actual output against the expected output
+// and return a JSON object with a score and feedback.
+func buildEvaluationPrompt(t *Task, actualOutput string) string {
+	var b strings.Builder
+	b.WriteString("You are an evaluator. Your job is to assess whether the output meets the expected quality and completeness for the task.\n\n")
+	b.WriteString("Task:\n")
+	b.WriteString(t.Description)
+	b.WriteString("\n")
+	if t.ExpectedOutput != "" {
+		b.WriteString("\nExpected output:\n")
+		b.WriteString(t.ExpectedOutput)
+		b.WriteString("\n")
+	}
+	b.WriteString("\nActual output:\n")
+	b.WriteString(actualOutput)
+	b.WriteString("\n\n")
+	b.WriteString("Evaluate the actual output against the expected output. Respond ONLY with a JSON object:\n")
+	b.WriteString("{\n  \"score\": <integer 0-100>,\n  \"feedback\": \"<brief explanation of issues or confirmation of quality>\"\n}\n\n")
+	b.WriteString("Scoring guide:\n")
+	b.WriteString("- 90-100: excellent, fully meets expectations\n")
+	b.WriteString("- 70-89: good, minor issues\n")
+	b.WriteString("- 50-69: partial, significant gaps\n")
+	b.WriteString("- 0-49: poor, major problems")
+	return strings.TrimSpace(b.String())
+}
+
+// buildRefinePrompt assembles the user message for the refine phase. It
+// injects the evaluator's feedback so the agent can revise its output.
+func buildRefinePrompt(feedback string, score, threshold int) string {
+	var b strings.Builder
+	b.WriteString("The evaluator provided the following feedback on your previous output:\n\n")
+	b.WriteString(feedback)
+	b.WriteString("\n\n")
+	fmt.Fprintf(&b, "Score: %d/%d\n\n", score, threshold)
+	b.WriteString("Please revise your output to address the feedback. Re-execute the task with the improvements in mind.")
+	return strings.TrimSpace(b.String())
+}
+
+// buildEvalRepairPrompt assembles the user message for a retry of the
+// evaluation phase after the evaluator returned a non-JSON response.
+func buildEvalRepairPrompt(raw string) string {
+	var b strings.Builder
+	b.WriteString("Your previous evaluation response was not valid JSON with a \"score\" field.\n\n")
+	b.WriteString("Your previous response was:\n")
+	b.WriteString(raw)
+	b.WriteString("\n\n")
+	b.WriteString("Respond ONLY with a JSON object:\n")
+	b.WriteString("{\n  \"score\": <integer 0-100>,\n  \"feedback\": \"<brief explanation>\"\n}")
+	return strings.TrimSpace(b.String())
+}
+
 // buildRepairPrompt assembles the user message for a repair attempt. It
 // includes the previous (invalid) output, the validation errors, and the
 // schema, then asks the model to fix and return only the corrected JSON.

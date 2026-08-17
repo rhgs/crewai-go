@@ -42,6 +42,10 @@ type Agent struct {
 	// ErrNativeToolsUnsupported.
 	ToolMode ToolMode
 
+	// Loop, when set, replaces the default ReAct executor for all tasks
+	// executed by this agent (unless the task overrides it).
+	Loop Loop
+
 	// logger, when set by WithLogger, is used by standalone Execute.
 	// If nil, slog.Default() is used. NOT CONCURRENT-SAFE: must be set
 	// before Execute is called and not mutated while Execute is running.

@@ -37,4 +37,10 @@ var (
 	// ErrWebSearchUnsupported is returned when an agent calls WebSearch but
 	// its LLM does not implement WebSearcher.
 	ErrWebSearchUnsupported = errors.New("crewai: LLM does not implement WebSearcher")
+	// ErrEvaluationFailed is returned when the evaluator scores the output
+	// below the pass threshold and all refinement attempts are exhausted.
+	ErrEvaluationFailed = errors.New("crewai: output did not pass evaluation after all refinements")
+	// ErrInvalidEvaluation is returned when the evaluator produces a response
+	// that cannot be parsed as a valid evaluation result.
+	ErrInvalidEvaluation = errors.New("crewai: evaluator returned an invalid response")
 )

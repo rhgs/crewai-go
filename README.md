@@ -61,6 +61,7 @@
 - 🧠 **Memory** between tasks and chainable **context**.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - 🪜 **Staged process** — stages run in sequence, tasks within a stage run in parallel.
+- 🔁 **Agentic loop** — optional Plan-Execute-Evaluate-Refine cycle with self-evaluation and iterative refinement.
 - ✅ **Testable** — mock LLM included; ~90% core coverage.
 
 ## Concepts
@@ -553,7 +554,7 @@ go run ./examples/xai_oauth
 | Tools | [EN](docs/tools.md) | [PT](docs/pt-BR/tools.md) |
 | LLMs | [EN](docs/llms.md) | [PT](docs/pt-BR/llms.md) |
 | Memory | [EN](docs/memory.md) | [PT](docs/pt-BR/memory.md) |
-| Plan / Roadmap | [EN](PLAN.md) | [PT](PLAN.pt-BR.md) |
+| Plan / Roadmap | [EN](Plan/PLAN.md) | [PT](Plan/PLAN.pt-BR.md) |
 
 ### What's new in v0.3.0
 

@@ -61,6 +61,7 @@
 - 🧠 **Memória** entre tarefas e **contexto** encadeável.
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
 - 🪜 **Processo em estágios (Staged)** — estágios em sequência, tarefas de um estágio em paralelo.
+- 🔁 **Agentic loop** — ciclo opcional Planejar-Executar-Avaliar-Refinar com autoavaliação e refinamento iterativo.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
 
 ## Conceitos
@@ -523,7 +524,7 @@ go run ./examples/xai_oauth
 | Tools | [PT](docs/pt-BR/tools.md) | [EN](docs/tools.md) |
 | LLMs | [PT](docs/pt-BR/llms.md) | [EN](docs/llms.md) |
 | Memory | [PT](docs/pt-BR/memory.md) | [EN](docs/memory.md) |
-| Plano / Roadmap | [PT](PLAN.pt-BR.md) | [EN](PLAN.md) |
+| Plano / Roadmap | [PT](Plan/PLAN.pt-BR.md) | [EN](Plan/PLAN.md) |
 
 ### Novidades da v0.3.0
 

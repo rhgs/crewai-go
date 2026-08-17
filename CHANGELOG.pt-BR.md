@@ -3,6 +3,29 @@
 Todas as mudancas relevantes no **crewai-go** sao documentadas aqui. Este projeto
 segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
+## [Nao liberado]
+
+### Adicionado
+
+- **Processo em estagios (Staged)** (`process.go`, `crew.go`): um terceiro modo
+  de orquestracao (`Staged`) que agrupa tarefas em estagios. Os estagios rodam
+  em sequencia, enquanto as tarefas dentro de um mesmo estagio rodam
+  concorrentemente. A saida de cada estagio alimenta os seguintes via
+  `Task.Context`. Um estagio marcado como `Optional` nao aborta o crew quando
+  uma de suas tarefas falha. Novo tipo `Stage` e sentinela `ErrNoStages`.
+
+- **Agentic loop** (`loop.go`): uma estrategia de execucao opcional
+  Planejar-Executar-Avaliar-Refinar (`AgenticLoop`) que substitui o executor
+  ReAct de passagem unica. Defina `Agent.Loop` ou `Task.Loop` para ativa-lo.
+  Recursos:
+  - Fase de planejamento (omitida quando o agente nao tem ferramentas, ou via
+    `WithSkipPlan`).
+  - Fase de avaliacao com limiar de aprovacao configuravel (`WithPassThreshold`)
+    e um agente avaliador independente opcional (`WithEvaluator`).
+  - Refinamento ate `MaxRefinements` rodadas, com `WithRefineRewriteOnly` para
+    reescrever sem reexecutar ferramentas.
+  - Novas sentinelas de erro `ErrEvaluationFailed` e `ErrInvalidEvaluation`.
+
 ## [v0.3.0] — 2026-08-17
 
 ### Modificado
@@ -146,4 +169,4 @@ Primeira release pública: um port idiomático do núcleo do framework CrewAI pa
 - Licença: MIT.
 - Limitações conhecidas desta versão: delegação hierárquica simplificada (sem
   chamadas entre agentes em tempo de execução), sem streaming, memória apenas em
-  processo, sem function calling nativo. Veja `PLAN.md` para o roadmap completo.
+  processo, sem function calling nativo. Veja `Plan/PLAN.md` para o roadmap completo.

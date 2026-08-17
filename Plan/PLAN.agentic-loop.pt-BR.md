@@ -119,9 +119,13 @@ O AgenticLoop introduz um **meta-nivel** acima do loop ReAct:
 type Loop interface {
     // Run executa a tarefa usando a estrategia de loop e retorna a resposta
     // final, facts coletados e um erro.
-    Run(ctx context.Context, a *Agent, t *Task, contextText string, log Logger) (string, []Fact, error)
+    Run(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (string, []Fact, error)
 }
 ```
+
+> **Nota:** o parametro `log` e `*slog.Logger` (o tipo ja usado por
+> `executeTask`, `executeStructured` e `executeTaskWithTools`). Nao existe um
+> tipo `Logger` no pacote.
 
 ### 3.2 Struct `AgenticLoop`
 
@@ -150,6 +154,11 @@ type AgenticLoop struct {
     // SkipPlan, quando true, omite a fase de planejamento e vai direto para
     // a execucao. Util para tarefas simples com tools.
     SkipPlan bool
+
+    // RefineRewriteOnly, quando true, faz a fase de refinamento reescrever a
+    // saida anterior usando o feedback SEM reexecutar tools. Quando false
+    // (padrao), a fase de refinamento reexecuta a tarefa completa (com tools).
+    RefineRewriteOnly bool
 }
 ```
 
@@ -170,6 +179,9 @@ func WithPassThreshold(score int) func(*AgenticLoop)
 
 // WithSkipPlan omite a fase de planejamento.
 func WithSkipPlan() func(*AgenticLoop)
+
+// WithRefineRewriteOnly faz a fase de refinamento apenas reescrever (sem tools).
+func WithRefineRewriteOnly() func(*AgenticLoop)
 ```
 
 ### 3.4 Novos campos de `Agent` e `Task`
@@ -214,6 +226,15 @@ var (
 func NewAgenticLoop(opts ...func(*AgenticLoop)) *AgenticLoop
 ```
 
+Uso tipico (o `*AgenticLoop` retornado satisfaz a interface `Loop`):
+
+```go
+agent.Loop = crewai.NewAgenticLoop(
+    crewai.WithMaxRefinements(3),
+    crewai.WithPassThreshold(80),
+)
+```
+
 ---
 
 ## 4. Fluxo de Execucao
@@ -226,17 +247,21 @@ func NewAgenticLoop(opts ...func(*AgenticLoop)) *AgenticLoop
    b. Prepend o plano ao contextText
 
 2. Fase de execucao:
-   a. Chamar executeTask(ctx, agent, task, contextText, log)
-      - Reutiliza o executor ReAct existente.
+   a. Chamar executeTaskDefault(ctx, agent, task, contextText, log)
+      - Este e o executor INTERNO ReAct/structured (ver secao 7).
+        NAO deve ser executeTask, para evitar recursao infinita.
       - Se Task.Structured estiver definido, executeStructured roda normalmente.
    b. Coletar saida e facts.
 
 3. Fase de avaliacao:
    a. Construir evaluationPrompt(task, expectedOutput, actualOutput)
-   b. Se Evaluator estiver definido, chamar Evaluator.LLM; senao chamar Agent.LLM
-      com um prompt de sistema dedicado a avaliacao.
+   b. Se Evaluator estiver definido, chamar Evaluator.LLM.Call diretamente;
+      senao chamar Agent.LLM.Call com um prompt de sistema dedicado a avaliacao.
+      O avaliador e uma chamada LLM PURA — nunca passa por executeTask
+      nem por qualquer loop (evita recursao e ReAct).
    c. Parsear a resposta do avaliador como JSON: {"score": int, "feedback": string}
-   d. Se o parse falhar → retornar ErrInvalidEvaluation (ou tentar reparo uma vez)
+   d. Se o parse falhar → tentar a avaliacao novamente UMA vez com um prompt
+      de reparo (buildEvalRepairPrompt). Se ainda falhar → ErrInvalidEvaluation.
 
 4. Decisao:
    a. Se score >= PassThreshold → retornar saida, facts, nil
@@ -247,8 +272,8 @@ func NewAgenticLoop(opts ...func(*AgenticLoop)) *AgenticLoop
 
 5. Integracao com saida estruturada:
    - Se Task.Structured estiver definido, o caminho de saida estruturada roda
-     dentro de executeTask normalmente. A avaliacao verifica o JSON canonizado
-     contra a saida esperada, nao a resposta bruta do modelo.
+     dentro de executeTaskDefault normalmente. A avaliacao verifica o JSON
+     canonizado contra a saida esperada, nao a resposta bruta do modelo.
 ```
 
 ### 4.2 Prompt de planejamento
@@ -308,6 +333,21 @@ Please revise your output to address the feedback. Re-execute the task with
 the improvements in mind.
 ```
 
+### 4.5 Prompt de reparo da avaliacao
+
+```
+Your previous evaluation response was not valid JSON with a "score" field.
+
+Your previous response was:
+{raw}
+
+Respond ONLY with a JSON object:
+{
+  "score": <integer 0-100>,
+  "feedback": "<brief explanation>"
+}
+```
+
 ---
 
 ## 5. Interacao com Features Existentes
@@ -315,8 +355,8 @@ the improvements in mind.
 ### 5.1 Saida estruturada
 
 Quando `Task.Structured` esta definido, a fase de execucao do AgenticLoop chama
-`executeStructured` (via `executeTask`) normalmente. O loop de reparo da saida
-estruturada roda primeiro; depois a fase de avaliacao do AgenticLoop avalia
+`executeStructured` (via `executeTaskDefault`) normalmente. O loop de reparo da
+saida estruturada roda primeiro; depois a fase de avaliacao do AgenticLoop avalia
 o JSON canonizado contra a saida esperada. Isso cria uma validacao em duas camadas:
 
 1. **Validacao de schema** (loop de reparo da saida estruturada): verifica a forma do JSON.
@@ -338,6 +378,11 @@ Facts coletados durante a fase de execucao (de tools `FactSource`) sao retornado
 junto com a saida final. Em rodadas de refinamento, facts de todas as rodadas sao
 acumulados e deduplicados por `PayloadHash` (mesmo mecanismo `dedupFacts`).
 
+**Detalhe de implementacao:** `AgenticLoop.Run` mantem um unico acumulador
+`allFacts []Fact`. Apos cada fase de execucao retornar `(out, facts, err)`, faz
+`allFacts = dedupFacts(allFacts, facts)`. O retorno final usa `allFacts`, nao
+apenas os facts da ultima rodada.
+
 ### 5.4 Processo hierarquico
 
 O AgenticLoop funciona com o processo hierarquico — o gerente delega para um
@@ -356,13 +401,13 @@ mudancas necessarias.
 
 | Arquivo | Mudanca | Descricao |
 |---------|---------|-----------|
-| `loop.go` | **Novo** | Interface `Loop`, struct `AgenticLoop`, metodo `Run`, prompts de planejamento/avaliacao/refinamento. |
+| `loop.go` | **Novo** | Interface `Loop`, struct `AgenticLoop`, metodo `Run`, prompts de planejamento/avaliacao/refinamento/reparo, `parseEvaluation`. |
 | `loop_test.go` | **Novo** | Testes hermeticos usando `llm/mock`: plan→execute→evaluate→pass, plan→execute→evaluate→fail→refine→pass, max refinements esgotado, erro de parse do avaliador, skip plan, sem tools, integracao com saida estruturada, coleta de facts. |
 | `errors.go` | **Modificado** | Adicionar `ErrEvaluationFailed` e `ErrInvalidEvaluation`. |
 | `agent.go` | **Modificado** | Adicionar campo `Loop`. |
 | `task.go` | **Modificado** | Adicionar campo `Loop`. |
-| `executor.go` | **Modificado** | Em `executeTask`, verificar `t.Loop` depois `a.Loop` antes de padronizar para ReAct. |
-| `prompts.go` | **Modificado** | Adicionar `buildPlanPrompt`, `buildEvaluationPrompt`, `buildRefinePrompt`. |
+| `executor.go` | **Modificado** | Dividir `executeTask` em um wrapper de dispatch + `executeTaskDefault` (o corpo ReAct/structured existente). Ver secao 7. |
+| `prompts.go` | **Modificado** | Adicionar `buildPlanPrompt`, `buildEvaluationPrompt`, `buildRefinePrompt`, `buildEvalRepairPrompt`. |
 | `doc.go` | **Modificado** | Documentar o AgenticLoop na visao geral do pacote. |
 | `examples/agentic_loop/main.go` | **Novo** | Exemplo executavel com mock LLM. |
 | `docs/agents.md` | **Modificado** | Adicionar secao AgenticLoop. |
@@ -376,13 +421,17 @@ mudancas necessarias.
 
 ---
 
-## 7. Modificacao do `executeTask`
+## 7. Modificacao do `executeTask` (evitando recursao infinita)
 
 A funcao `executeTask` atual e o ponto de entrada para a execucao de tarefas.
-Sera modificada para verificar um loop configurado:
+Ela deve ser dividida em duas funcoes para evitar recursao infinita entre o
+wrapper de dispatch e `AgenticLoop.Run`:
 
 ```go
-func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log Logger) (string, []Fact, error) {
+// executeTask e o ponto de entrada de dispatch. Resolve o loop (nivel task
+// tem precedencia sobre nivel agent) e delega a ele, ou cai no executor
+// ReAct/structured padrao.
+func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (string, []Fact, error) {
     if a.LLM == nil {
         return "", nil, ErrNoLLM
     }
@@ -395,15 +444,25 @@ func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log
         return a.Loop.Run(ctx, a, t, contextText, log)
     }
 
-    // Padrao: saida estruturada ou loop ReAct (comportamento existente).
-    if t != nil && t.Structured != nil {
-        out, err := executeStructured(ctx, a, t, contextText, log)
-        return out, nil, err
-    }
+    return executeTaskDefault(ctx, a, t, contextText, log)
+}
 
-    // ... codigo existente do loop ReAct inalterado ...
+// executeTaskDefault e o executor ReAct/structured existente, inalterado
+// exceto pela renomeacao. NAO verifica loop.
+func executeTaskDefault(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (string, []Fact, error) {
+    // ... corpo existente de executeTask (saida estruturada + ReAct) ...
 }
 ```
+
+**Regra critica:** `AgenticLoop.Run` chama `executeTaskDefault` (NAO
+`executeTask`) para sua fase de execucao. E isso que quebra a recursao:
+
+```
+executeTask → a.Loop.Run (AgenticLoop) → executeTaskDefault → ReAct/structured
+```
+
+Se `AgenticLoop.Run` chamasse `executeTask`, ele reentraria no dispatch do loop
+e recursaria para sempre.
 
 ---
 
@@ -412,12 +471,12 @@ func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log
 O avaliador deve retornar JSON: `{"score": int, "feedback": string}`.
 O parse usa a mesma abordagem `extractJSON` + `encoding/json` da feature de
 saida estruturada. Se o avaliador retornar nao-JSON, o loop tenta novamente a
-avaliacao uma vez com um prompt de reparo (similar ao reparo da saida estruturada).
-Se o parse ainda falhar, `ErrInvalidEvaluation` e retornado.
+avaliacao **uma vez** com um prompt de reparo (`buildEvalRepairPrompt`). Se o
+parse ainda falhar, `ErrInvalidEvaluation` e retornado.
 
 ```go
 type evaluationResult struct {
-    Score    int    `json:"score"`
+    Score    *int   `json:"score"`
     Feedback string `json:"feedback"`
 }
 
@@ -427,12 +486,20 @@ func parseEvaluation(raw string) (evaluationResult, error) {
     if err := json.Unmarshal([]byte(cleaned), &result); err != nil {
         return evaluationResult{}, fmt.Errorf("%w: %v", ErrInvalidEvaluation, err)
     }
-    if result.Score < 0 || result.Score > 100 {
+    // Um campo "score" ausente deve ser rejeitado, nao tratado como 0.
+    if result.Score == nil {
+        return evaluationResult{}, fmt.Errorf("%w: missing score field", ErrInvalidEvaluation)
+    }
+    if *result.Score < 0 || *result.Score > 100 {
         return evaluationResult{}, fmt.Errorf("%w: score out of range (0-100)", ErrInvalidEvaluation)
     }
     return result, nil
 }
 ```
+
+> **Nota:** `Score` e `*int` (nao `int`) para que um campo `"score"` ausente seja
+> distinguivel de um `"score": 0` legitimo. Um `int` puro trataria silenciosamente
+> um campo ausente como `0` e passaria na checagem de faixa.
 
 ---
 
@@ -448,14 +515,17 @@ Todos os testes usam `llm/mock` — sem rede real.
 | `TestAgenticLoop_RefineThenPass` | Execute → evaluate (score 50) → refine → evaluate (score 85) → pass. Verificar feedback injetado. |
 | `TestAgenticLoop_MaxRefinementsExhausted` | Execute → evaluate (score 40) → refine → evaluate (score 40) → refine → evaluate (score 40) → `ErrEvaluationFailed`. MaxRefinements=2. |
 | `TestAgenticLoop_EvaluatorParseError` | Avaliador retorna nao-JSON → reparo → ainda nao-JSON → `ErrInvalidEvaluation`. |
+| `TestAgenticLoop_MissingScoreField` | Avaliador retorna `{"feedback":"x"}` (sem score) → `ErrInvalidEvaluation`. |
 | `TestAgenticLoop_SkipPlan` | SkipPlan=true → sem chamada de plano, execute direto → evaluate → pass. Verificar apenas 2 chamadas LLM (execute + evaluate). |
 | `TestAgenticLoop_NoTools` | Agente sem tools → plano omitido → chamada direta → evaluate → pass. |
 | `TestAgenticLoop_WithStructuredOutput` | Task com Structured definido → execute roda caminho estruturado → evaluate verifica JSON → pass. |
 | `TestAgenticLoop_FactsCollection` | Agente com tool FactSource → facts coletados entre rodadas de refinamento → deduplicados. |
 | `TestAgenticLoop_SeparateEvaluator` | Agente avaliador definido → avaliacao usa LLM do avaliador, nao do executor. |
 | `TestAgenticLoop_CustomEvaluationPrompt` | Template de prompt customizado → verificar que aparece na mensagem de avaliacao. |
+| `TestAgenticLoop_RefineRewriteOnly` | RefineRewriteOnly=true → fase de refinamento nao reexecuta tools (verificar contagem de chamadas de tool). |
 | `TestAgenticLoop_TaskLoopOverridesAgentLoop` | Agente tem Loop A, Task tem Loop B → Task.Loop e usado. |
 | `TestAgenticLoop_DefaultReActUnchanged` | Agente/Task sem Loop → comportamento ReAct existente, sem caminho de AgenticLoop. |
+| `TestAgenticLoop_NoInfiniteRecursion` | Um loop configurado no agente completa em um numero limitado de chamadas LLM (protege contra o bug de recursao dispatch/execute). |
 
 ### 9.2 Exemplo
 
@@ -469,11 +539,12 @@ com respostas roteirizadas mostrando o ciclo completo Planejar-Executar-Avaliar-
 1. **`errors.go`** — adicionar `ErrEvaluationFailed`, `ErrInvalidEvaluation`.
 2. **`prompts.go`** — adicionar `buildPlanPrompt`, `buildEvaluationPrompt`,
    `buildRefinePrompt`, `buildEvalRepairPrompt`.
-3. **`loop.go`** — interface `Loop`, struct `AgenticLoop`, `NewAgenticLoop`,
+3. **`executor.go`** — dividir `executeTask` em `executeTask` (dispatch) +
+   `executeTaskDefault` (corpo existente). Sem mudanca de comportamento ainda.
+4. **`loop.go`** — interface `Loop`, struct `AgenticLoop`, `NewAgenticLoop`,
    metodo `Run`, helper `parseEvaluation`.
-4. **`agent.go`** — adicionar campo `Loop`.
-5. **`task.go`** — adicionar campo `Loop`.
-6. **`executor.go`** — modificar `executeTask` para verificar `Loop`.
+5. **`agent.go`** — adicionar campo `Loop`.
+6. **`task.go`** — adicionar campo `Loop`.
 7. **`loop_test.go`** — todos os testes unitarios.
 8. **`examples/agentic_loop/main.go`** — exemplo executavel.
 9. **`docs/agents.md`** + **`docs/pt-BR/agents.md`** — documentacao.
@@ -481,6 +552,14 @@ com respostas roteirizadas mostrando o ciclo completo Planejar-Executar-Avaliar-
 11. **`PLAN.md`** + **`PLAN.pt-BR.md`** — atualizar status do roadmap.
 12. **`README.md`** + **`README.pt-BR.md`** — lista de features + "What's new".
 13. **`CHANGELOG.md`** + **`CHANGELOG.pt-BR.md`** — adicionar entrada.
+14. **Portoes de qualidade** — rodar a suite de aceite completa da secao 12:
+    `go test -race ./...`, `go test -cover ./...` (> 90% em `loop.go`),
+    `go build ./...`, `go vet ./...`, code review, security review e
+    revisao da documentacao.
+
+> **Nota:** a divisao do `executor.go` (passo 3) e feita ANTES do `loop.go`
+> (passo 4) para que a estrutura livre de recursao esteja pronta antes de o
+> loop ser introduzido.
 
 ---
 
@@ -490,6 +569,52 @@ com respostas roteirizadas mostrando o ciclo completo Planejar-Executar-Avaliar-
 |---------|--------|-------------|
 | O avaliador deve usar um `LLM` separado (nao um `Agent` completo)? | `Evaluator LLM` vs `Evaluator *Agent` | Usar `*Agent` para flexibilidade (persona/backstory separado para avaliacao). Um `LLM` puro pode ser envolvido em um agente facilmente. |
 | O plano deve ser uma string ou um array JSON estruturado de passos? | String (simples) vs JSON (parseavel) | String — mantem simples e evita modo de falha por parse. O plano e orientacao, nao um programa. |
-| O refinamento deve reexecutar (com tools) ou apenas reescrever? | Reexecutar vs apenas reescrever | Reexecutar por padrao (o agente pode usar tools novamente), com opcao `RefineRewriteOnly bool` para omitir tools no refinamento. |
+| O refinamento deve reexecutar (com tools) ou apenas reescrever? | Reexecutar vs apenas reescrever | Reexecutar por padrao (o agente pode usar tools novamente), com `RefineRewriteOnly bool` para omitir tools no refinamento. |
 | A pontuacao de avaliacao deve ser obrigatoria em JSON ou aceitar texto livre? | Apenas JSON vs texto livre com regex | Apenas JSON — consistente com saida estruturada, parseavel, e o prompt de reparo lida com respostas malformadas. |
 | O `AgenticLoop` deve ser aninhavel (loop dentro de loop)? | Sim vs nao | Nao — um loop por task. Aninhar adiciona complexidade sem beneficio claro. |
+
+---
+
+## 12. Portoes de Qualidade e Criterios de Aceite
+
+Alem dos testes funcionais acima, os seguintes portoes devem passar antes de
+a feature ser considerada completa.
+
+### 12.1 Cobertura de testes
+
+- O codigo novo (`loop.go`) deve ser coberto por testes unitarios com
+  **> 90%** de cobertura de statements, medida com `go test -cover ./...`
+  (ou `go test -coverprofile=coverage.out ./...` no pacote raiz).
+- A cobertura existente nao deve regredir: o pacote raiz hoje mira ~90% de
+  cobertura no nucleo; o AgenticLoop nao deve reduzi-la.
+- Todos os testes devem passar sob o race detector: `go test -race ./...`.
+
+### 12.2 Code review
+
+- A implementacao deve ser revisada contra o estilo existente do pacote:
+  comentarios godoc em ingles explicando o *porque* (nao narrando a linha),
+  sentinel errors, opcoes funcionais e `ctx` propagado em todas as fases.
+- A divisao `executeTask`/`executeTaskDefault` deve ser verificada como
+  preservadora de comportamento no caminho padrao (sem loop) — os testes
+  existentes devem passar inalterados.
+- `go build ./...` e `go vet ./...` devem estar limpos.
+
+### 12.3 Security review
+
+- Nenhuma dependencia externa nova (apenas stdlib); `go.mod` inalterado.
+- Os prompts de avaliacao/refinamento nao devem vazar segredos: qualquer
+  texto de erro upstream injetado em prompts deve passar por `redactError`
+  (como ja feito no executor existente).
+- O loop deve respeitar o cancelamento de `ctx` em todas as fases (plan,
+  execute, evaluate, refine) para que um contexto cancelado interrompa
+  prontamente todas as chamadas LLM.
+- Sem crescimento ilimitado: `MaxRefinements` limita o numero de chamadas
+  LLM por tarefa; o acumulador de facts e limitado pelo numero de rodadas.
+
+### 12.4 Revisao da documentacao
+
+- `doc.go`, `docs/agents.md`, `docs/pt-BR/agents.md`, `README.md`,
+  `README.pt-BR.md`, `CHANGELOG.md` e `CHANGELOG.pt-BR.md` devem ser todos
+  atualizados e revisados quanto a consistencia (espelhos EN e PT-BR).
+- O exemplo executavel (`examples/agentic_loop/main.go`) deve compilar e
+  rodar com `go run ./examples/agentic_loop` usando o mock LLM (sem rede).

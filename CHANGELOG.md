@@ -3,6 +3,27 @@
 All notable changes to **crewai-go** are documented here. This project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Staged process** (`process.go`, `crew.go`): a third orchestration mode
+  (`Staged`) that groups tasks into stages. Stages run in sequence, while the
+  tasks within a single stage run concurrently. The output of each stage feeds
+  the following ones via `Task.Context`. A stage marked `Optional` does not
+  abort the crew when one of its tasks fails. New `Stage` type and
+  `ErrNoStages` sentinel.
+
+- **Agentic loop** (`loop.go`): an optional Plan-Execute-Evaluate-Refine
+  execution strategy (`AgenticLoop`) that replaces the single-pass ReAct
+  executor. Set `Agent.Loop` or `Task.Loop` to enable it. Features:
+  - Planning phase (skipped when the agent has no tools, or via `WithSkipPlan`).
+  - Evaluation phase with a configurable pass threshold (`WithPassThreshold`)
+    and an optional independent evaluator agent (`WithEvaluator`).
+  - Refinement up to `MaxRefinements` rounds, with `WithRefineRewriteOnly` to
+    rewrite without re-running tools.
+  - New sentinel errors `ErrEvaluationFailed` and `ErrInvalidEvaluation`.
+
 ## [v0.3.0] — 2026-08-17
 
 ### Security
@@ -139,4 +160,4 @@ First public release: an idiomatic Go port of the CrewAI framework core.
 - License: MIT.
 - Known limitations of this version: simplified hierarchical delegation (no
   runtime inter-agent calls), no streaming, in-process memory only, no native
-  function calling. See `PLAN.md` for the full roadmap.
+  function calling. See `Plan/PLAN.md` for the full roadmap.

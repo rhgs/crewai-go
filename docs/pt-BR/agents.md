@@ -42,6 +42,7 @@ agente := &crewai.Agent{
 | `MaxIterations`   | `int`         | Máx. de ciclos de raciocínio/ferramenta (padrão 15). |
 | `AllowDelegation` | `bool`        | Marca o agente como apto a gerenciar/delegar. |
 | `ToolMode`         | `ToolMode`    | `"react"` (padrão) ou `"native"` — seleciona entre ReAct baseado em texto ou function calling nativo. |
+| `Loop`             | `crewai.Loop` | Estratégia de execução opcional (ex. `AgenticLoop`) que substitui o executor ReAct padrão. |
 
 ## Logging
 
@@ -85,6 +86,36 @@ saida, err := agente.Execute(context.Background(), tarefa)
 - **Com ferramentas:** o agente entra em um laço ReAct — pensa, escolhe uma
   ferramenta, observa o resultado e repete até chegar a uma `Final Answer` ou
   atingir `MaxIterations`. Veja [tools.md](tools.md).
+
+## Agentic loop
+
+Por padrão, um agente usa o executor ReAct de passagem única. Para tarefas que
+se beneficiam de autoavaliação e refinamento iterativo, defina `Agent.Loop` (ou
+`Task.Loop`) como um `AgenticLoop`, que segue um ciclo
+**Planejar-Executar-Avaliar-Refinar**:
+
+1. **Planejar** — o agente produz um plano numerado (omitido quando o agente
+   não tem ferramentas, ou quando `WithSkipPlan` é definido).
+2. **Executar** — o agente roda o executor ReAct/estruturado com o plano como
+   contexto.
+3. **Avaliar** — um avaliador (o mesmo agente, ou um separado via
+   `WithEvaluator`) pontua a saída (0-100) contra a saída esperada.
+4. **Refinar** — se a pontuação ficar abaixo do limiar, o feedback é injetado
+   e o agente reexecuta, até `MaxRefinements` vezes.
+
+```go
+agente.Loop = crewai.NewAgenticLoop(
+    crewai.WithMaxRefinements(3),
+    crewai.WithPassThreshold(80),
+    crewai.WithEvaluator(agenteAvaliador), // avaliador independente opcional
+)
+```
+
+Se a saída nunca passar na avaliação, `Kickoff` retorna
+`crewai.ErrEvaluationFailed`. Se o avaliador retornar uma resposta não
+parseável, retorna `crewai.ErrInvalidEvaluation`.
+
+Veja [examples/agentic_loop](../examples/agentic_loop) para um exemplo executável.
 
 ## Boas práticas
 
