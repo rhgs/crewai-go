@@ -3,6 +3,22 @@
 Todas as mudancas relevantes no **crewai-go** sao documentadas aqui. Este projeto
 segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
+## [Nao liberado]
+
+### Adicionado
+
+- **Agentic loop** (`loop.go`): uma estrategia de execucao opcional
+  Planejar-Executar-Avaliar-Refinar (`AgenticLoop`) que substitui o executor
+  ReAct de passagem unica. Defina `Agent.Loop` ou `Task.Loop` para ativa-lo.
+  Recursos:
+  - Fase de planejamento (omitida quando o agente nao tem ferramentas, ou via
+    `WithSkipPlan`).
+  - Fase de avaliacao com limiar de aprovacao configuravel (`WithPassThreshold`)
+    e um agente avaliador independente opcional (`WithEvaluator`).
+  - Refinamento ate `MaxRefinements` rodadas, com `WithRefineRewriteOnly` para
+    reescrever sem reexecutar ferramentas.
+  - Novas sentinelas de erro `ErrEvaluationFailed` e `ErrInvalidEvaluation`.
+
 ## [v0.3.0] — 2026-08-17
 
 ### Modificado

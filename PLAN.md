@@ -143,6 +143,10 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct exec
 Advanced features of the original CrewAI **not** yet ported, by suggested
 priority (highest impact / lowest effort first):
 
+- [x] **Agentic loop** (`AgenticLoop`) — Plan-Execute-Evaluate-Refine
+  execution strategy, opt-in via `Agent.Loop`/`Task.Loop`. See
+  `PLAN.agentic-loop.md` for the full design.
+
 ### P0 — Publishing and fundamentals
 
 - [ ] **`git init` + public repository** — version, set up CI (lint, test,

@@ -144,6 +144,10 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor R
 Recursos avançados do CrewAI original ainda **não** portados, por prioridade
 sugerida (maior impacto / menor esforço primeiro):
 
+- [x] **Agentic loop** (`AgenticLoop`) — estratégia de execução
+  Planejar-Executar-Avaliar-Refinar, opt-in via `Agent.Loop`/`Task.Loop`. Veja
+  `PLAN.agentic-loop.md` para o design completo.
+
 ### P0 — Publicação e fundamentos
 
 - [ ] **`git init` + repositório público** — versionar, definir CI (lint, test,

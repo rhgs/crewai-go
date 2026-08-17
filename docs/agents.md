@@ -41,6 +41,7 @@ agent := &crewai.Agent{
 | `MaxIterations`   | `int`          | Max reasoning/tool cycles per task (default 15). |
 | `AllowDelegation` | `bool`         | Marks the agent as eligible to manage/delegate. |
 | `ToolMode`         | `ToolMode`    | `"react"` (default) or `"native"` — selects text-based ReAct or native function calling. |
+| `Loop`             | `crewai.Loop` | Optional execution strategy (e.g. `AgenticLoop`) replacing the default ReAct executor. |
 
 ## Logging
 
@@ -84,6 +85,36 @@ output, err := agent.Execute(context.Background(), task)
 - **With tools:** the agent enters a ReAct loop — thinks, picks a tool, observes
   the result, and repeats until it reaches a `Final Answer` or hits
   `MaxIterations`. See [tools.md](tools.md).
+
+## Agentic loop
+
+By default, an agent uses the single-pass ReAct executor. For tasks that
+benefit from self-assessment and iterative refinement, set `Agent.Loop` (or
+`Task.Loop`) to an `AgenticLoop`, which follows a
+**Plan-Execute-Evaluate-Refine** cycle:
+
+1. **Plan** — the agent produces a numbered plan (skipped when the agent has
+   no tools, or when `WithSkipPlan` is set).
+2. **Execute** — the agent runs the ReAct/structured executor with the plan as
+   context.
+3. **Evaluate** — an evaluator (the same agent, or a separate one via
+   `WithEvaluator`) scores the output (0-100) against the expected output.
+4. **Refine** — if the score is below the pass threshold, the feedback is
+   injected and the agent re-executes, up to `MaxRefinements` times.
+
+```go
+agent.Loop = crewai.NewAgenticLoop(
+    crewai.WithMaxRefinements(3),
+    crewai.WithPassThreshold(80),
+    crewai.WithEvaluator(evaluatorAgent), // optional independent evaluator
+)
+```
+
+If the output never passes evaluation, `Kickoff` returns
+`crewai.ErrEvaluationFailed`. If the evaluator returns an unparseable response,
+it returns `crewai.ErrInvalidEvaluation`.
+
+See [examples/agentic_loop](../examples/agentic_loop) for a runnable example.
 
 ## Best practices
 

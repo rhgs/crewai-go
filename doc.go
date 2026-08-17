@@ -65,6 +65,24 @@
 // The built-in validator supports a subset of JSON Schema (type, properties,
 // required, enum, items) and uses only the standard library.
 //
+// # Agentic loop
+//
+// By default an agent uses a single-pass ReAct executor. For tasks that
+// benefit from self-assessment and iterative refinement, set Agent.Loop (or
+// Task.Loop) to an AgenticLoop, which follows a
+// Plan-Execute-Evaluate-Refine cycle: the agent plans, executes, evaluates its
+// output against the expected output, and refines it up to MaxRefinements
+// times. An optional separate evaluator agent (WithEvaluator) can score the
+// output independently.
+//
+//	agent.Loop = crewai.NewAgenticLoop(
+//	    crewai.WithMaxRefinements(3),
+//	    crewai.WithPassThreshold(80),
+//	)
+//
+// If the output never passes evaluation, Kickoff returns ErrEvaluationFailed;
+// if the evaluator returns an unparseable response, ErrInvalidEvaluation.
+//
 // # Guardrails
 //
 // Guardrails are code-enforced post-output validation hooks that block

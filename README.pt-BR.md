@@ -60,6 +60,7 @@
 - 📝 **Logging estruturado** via `log/slog` da stdlib — injetar `*slog.Logger` customizado em `Crew` e `Agent`, com fallback para o `Verbose` legado.
 - 🧠 **Memória** entre tarefas e **contexto** encadeável.
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
+- 🔁 **Agentic loop** — ciclo opcional Planejar-Executar-Avaliar-Refinar com autoavaliação e refinamento iterativo.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
 
 ## Conceitos
