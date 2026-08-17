@@ -70,9 +70,10 @@ O CI roda os mesmos portoes em todo pull request.
 
 ### Cobertura
 
-O pacote nucleo mira alta cobertura de statements (historicamente ~90%+). Codigo
-novo deve vir com testes. Prefira testes table-driven e o mock LLM para fluxos
-multi-fase de agentes.
+O CI mede cobertura de statements apenas nos pacotes de biblioteca
+(`go list ./...` excluindo `/examples`). O portao do projeto e **≥ 90%** no
+total. Codigo novo deve vir com testes. Prefira testes table-driven e o mock
+LLM para fluxos multi-fase de agentes.
 
 ## Checklist do pull request
 
