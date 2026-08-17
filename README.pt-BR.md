@@ -532,6 +532,8 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 
 ## Comparação com o CrewAI (Python)
 
+### Mapeamento de API
+
 | CrewAI (Python)        | crewai-go                         |
 |------------------------|-----------------------------------|
 | `Agent(role=...)`      | `crewai.NewAgent(role, ...)`      |
@@ -543,7 +545,31 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 | `@tool` / `BaseTool`   | `crewai.NewTool` / `crewai.Tool`  |
 | litellm                | interface `LLM` (openai/anthropic)|
 
-Este port cobre o núcleo do CrewAI (agentes, tarefas, crews, processos, ferramentas, memória). Recursos avançados do projeto original (Flows event-driven, training, telemetria) não fazem parte desta versão.
+### Recursos do crewai-go que o CrewAI original NÃO tem
+
+| Recurso | crewai-go | CrewAI (Python) |
+|---------|-----------|-----------------|
+| **Zero dependências** | ✅ apenas stdlib — nenhum pacote externo | ❌ 50+ pacotes PyPI (litellm, langchain, pydantic, chromadb, etc.) |
+| **Native tool calling com fallback** | ✅ `Agent.ToolMode` cai automaticamente para ReAct se o provedor não suportar `ToolCallingLLM` | ❌ sem fallback automático; exige provedor compatível |
+| **Fatos & proveniência** | ✅ tipo `Fact` first-class com `source_org`, `source_url`, `payload_hash`, `collection_time` — populado apenas por ferramentas determinísticas, nunca pelo LLM | ❌ sem rastreamento de proveniência; o LLM pode alucinar "fatos" |
+| **Guardrails** | ✅ validação pós-output a nível de crew (`Crew.Guardrails`) e de task (`Task.Guardrail`) que bloqueia a publicação de outputs inválidos | ❌ sem hooks de validação pós-output |
+| **Output estruturado com loop de reparo** | ✅ validação JSON Schema com loop de reparo limitado (`RepairMax`, padrão 2) e `ErrRepairBudgetExceeded` | ⚠️ parcial — usa Pydantic, sem loop de reparo |
+| **Web search (agent-driven)** | ✅ interface `WebSearcher` + `SearchWeb(ctx, llm, query, max)` — busca direta do código Go via Ollama, OpenAI, Anthropic, xAI | ❌ sem API de busca direta; exige ferramentas |
+| **Web search (model-driven)** | ✅ `WebSearchTool` com 7 provedores plugáveis (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave) | ⚠️ exige SerperDev ou ferramenta externa similar |
+| **Proteção SSRF** | ✅ bloqueia esquemas não-http(s), loopback, IPs privados, link-local, IPs não-especificados; prevenção de DNS rebinding via `net.LookupIP` (fail-closed) | ❌ sem filtragem de URLs em resultados de busca |
+| **Redação de segredos em logs** | ✅ `redactError`/`redactString` mascara API keys, Bearer tokens, segredos em query-strings antes de logar | ❌ sem redação de logs |
+| **Logging estruturado** | ✅ `log/slog` — injete qualquer `*slog.Logger` com handler, nível e output customizados | ❌ módulo `logging` do Python, injeção de handler menos flexível |
+| **Limites de segurança em tool calls** | ✅ tamanho máximo de args, output, resposta, profundidade JSON, validação de args — todos configuráveis | ❌ sem limites de tamanho/profundidade em tool calls |
+| **Tool traces** | ✅ `ToolTrace` em `TaskOutput` — observabilidade completa de cada chamada (nome, args, resultado, duração) | ❌ sem tipo de trace por chamada |
+| **Propagação de contexto** | ✅ `context.Context` em toda parte — cancelamento, deadlines, tracing propagados para todas as chamadas LLM e tools | ❌ sem contexto/cancelamento nativo; async exige `asyncio` |
+| **Execução thread-safe** | ✅ todos os provedores são seguros para uso concorrente; testado com `-race` | ❌ GIL do Python limita concorrência real |
+| **Verificação em tempo de compilação** | ✅ `var _ crewai.WebSearcher = (*Client)(nil)` — detecta métodos faltantes em tempo de build | ❌ duck-typing em runtime, sem verificações em compilação |
+| **Deploy de binário único** | ✅ compila para um binário estático único — sem runtime, sem VM, sem interpretador | ❌ exige runtime Python + virtualenv + dependências |
+| **Cold start** | ✅ milissegundos (binário nativo) | ❌ segundos (import Python + carregamento de modelo) |
+| **Consumo de memória** | ✅ ~10-20 MB típico | ❌ ~100-300 MB típico (Python + deps) |
+| **Cross-compilation** | ✅ `GOOS=linux GOARCH=arm64 go build` — qualquer alvo a partir de qualquer host | ❌ exige Python da plataforma alvo ou container |
+
+Este port cobre o núcleo do CrewAI (agentes, tarefas, crews, processos, ferramentas, memória) mais vários recursos originais não presentes na versão Python. Recursos avançados do projeto original (Flows event-driven, training, telemetria) não fazem parte desta versão.
 
 ## Licença
 
