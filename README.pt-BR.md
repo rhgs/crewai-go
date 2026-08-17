@@ -508,17 +508,21 @@ go run ./examples/xai_oauth
 | Memory | [PT](docs/pt-BR/memory.md) | [EN](docs/memory.md) |
 | Plano / Roadmap | [PT](PLAN.pt-BR.md) | [EN](PLAN.md) |
 
-### Novidades da v0.2.0
+### Novidades da v0.3.0
 
-As três features são **backward compatible** — sem breaking changes.
+Todas as features são **backward compatible** — sem breaking changes.
 
 | Recurso | Descrição | Docs (PT) | Docs (EN) |
 |---------|-----------|-----------|-----------|
-| **Saída estruturada** | Exige JSON validado contra um JSON Schema com loop de reparo limitado. O executor tenta até `RepairMax` vezes e nunca retorna JSON inválido. | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) | [docs/tasks.md](docs/tasks.md) |
-| **Guardrails** | Hooks de validação pós-saída em nível crew e task que bloqueiam publicação de saídas que violam invariantes de negócio. Retorna `ErrBlockedByGuardrail` em caso de falha. | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) | [docs/crews.md](docs/crews.md) |
-| **Facts & proveniência** | Tipo `Fact` de primeira classe, populado apenas por tools `FactSource` — nunca pelo LLM. Carrega organização fonte, URL, timestamp e hash do payload (SHA-256). Deduplicado por `PayloadHash`. | [docs/pt-BR/tools.md](docs/pt-BR/tools.md) | [docs/tools.md](docs/tools.md) |
+| **Native tool calling** | `Agent.ToolMode` (`"react"` \| `"native"`) alterna para function calling nativo do provedor via `ToolCallingLLM` (Ollama, OpenAI, Anthropic). Limites de segurança em args/output/profundidade JSON. `ToolTrace` em `TaskOutput`. Fallback automático para ReAct quando não suportado. | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) | [docs/agents.md](docs/agents.md) |
+| **Web search (agent-driven)** | Interface `WebSearcher` + `SearchWeb(ctx, llm, query, max)` para busca direta do código Go. Ollama, OpenAI, Anthropic, xAI. | [docs/pt-BR/llms.md](docs/pt-BR/llms.md) | [docs/llms.md](docs/llms.md) |
+| **Web search (model-driven)** | `WebSearchTool` com 7 provedores plugáveis (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave). Proteção SSRF com prevenção de DNS rebinding. | [docs/pt-BR/tools.md](docs/pt-BR/tools.md) | [docs/tools.md](docs/tools.md) |
+| **Logging estruturado** | `Logger` customizado substituído por `log/slog`. `Crew.WithLogger` e `Agent.WithLogger` injetam qualquer `*slog.Logger`. Campo `Verbose` preservado para retrocompatibilidade. | [docs/pt-BR/llms.md](docs/pt-BR/llms.md#logging) | [docs/llms.md](docs/llms.md#logging) |
+| **Redação de segredos** | `redactError`/`redactString` mascara API keys, Bearer tokens e segredos em query-strings antes de logar erros de provedores. | [redact.go](redact.go) | [redact.go](redact.go) |
 
-Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.2.0](https://github.com/rhgs/crewai-go/releases/tag/v0.2.0) para detalhes.
+**Também na v0.2.0** (agora parte da v0.3.0): saída estruturada com loop de reparo JSON Schema, guardrails, facts & proveniência.
+
+Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.3.0](https://github.com/rhgs/crewai-go/releases/tag/v0.3.0) para detalhes.
 
 ## Testes
 
