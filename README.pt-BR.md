@@ -33,7 +33,7 @@
 - [Native tool calling](#native-tool-calling)
 - [Web search](#web-search)
 - [Logging](#logging)
-- [Processos: sequencial e hierárquico](#processos-sequencial-e-hierárquico)
+- [Processos: sequencial, hierárquico e em estágios](#processos-sequencial-hierárquico-e-em-estágios)
 - [Saida estruturada](#saida-estruturada)
 - [Guardrails](#guardrails)
 - [Facts e proveniência](#facts-e-proveniência)
@@ -60,6 +60,7 @@
 - 📝 **Logging estruturado** via `log/slog` da stdlib — injetar `*slog.Logger` customizado em `Crew` e `Agent`, com fallback para o `Verbose` legado.
 - 🧠 **Memória** entre tarefas e **contexto** encadeável.
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
+- 🪜 **Processo em estágios (Staged)** — estágios em sequência, tarefas de um estágio em paralelo.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
 
 ## Conceitos
@@ -69,7 +70,7 @@
 | **Agent**    | Um trabalhador com papel, objetivo, história, um LLM e ferramentas.     |
 | **Task**     | Uma unidade de trabalho com descrição, saída esperada e responsável.    |
 | **Crew**     | A equipe: agrupa agentes e tarefas e as orquestra.                      |
-| **Process**  | Estratégia de execução: `Sequential` ou `Hierarchical`.                 |
+| **Process**  | Estratégia de execução: `Sequential`, `Hierarchical` ou `Staged`.       |
 | **Tool**     | Uma capacidade que o agente pode invocar (cálculo, busca, API…).        |
 | **LLM**      | Abstração do modelo de linguagem. Vários provedores prontos.            |
 | **Memory**   | Armazena saídas de tarefas para dar contexto às seguintes.             |
@@ -359,7 +360,7 @@ Os subpackages (`llm/*`, `tools/*`) nao logam internamente — eles retornam err
 
 `WithLogger` **nao e concorrente-safe**. Defina o logger antes de chamar `Kickoff`/`Execute` e nao o mude concorrentemente. Multiplas chamadas sequenciais a `WithLogger` sao idempotentes — a ultima vence.
 
-## Processos: sequencial e hierárquico
+## Processos: sequencial, hierárquico e em estágios
 
 **Sequencial** — tarefas em ordem, cada saída vira contexto da próxima:
 
@@ -373,6 +374,21 @@ crew.Process = crewai.Sequential
 ```go
 crew.Process = crewai.Hierarchical
 crew.ManagerLLM = llm // ou crew.ManagerAgent = meuGerente
+```
+
+**Em estágios (Staged)** — os estágios rodam em sequência, mas as tarefas
+dentro de um mesmo estágio rodam concorrentemente. A saída de cada estágio
+fica disponível como contexto para as tarefas dos estágios seguintes. Um
+estágio marcado como `Optional` não aborta o crew quando uma de suas tarefas
+falha; caso contrário, a primeira falha aborta o `Kickoff`.
+
+```go
+crew := crewai.NewCrew(agentes, nil)
+crew.Process = crewai.Staged
+crew.Stages = []crewai.Stage{
+    {Name: "coleta", Tasks: []*crewai.Task{pesquisaA, pesquisaB}},
+    {Name: "sintese", Tasks: []*crewai.Task{redacao}},
+}
 ```
 
 Encadeie contexto explicitamente com `WithContext`:
@@ -485,6 +501,7 @@ export OPENAI_API_KEY=sk-...
 go run ./examples/basic
 go run ./examples/sequential
 go run ./examples/hierarchical
+go run ./examples/staged
 go run ./examples/tools
 
 export XAI_API_KEY=xai-...        # ou XAI_OAUTH=1 + XAI_CLIENT_ID
@@ -546,6 +563,7 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 | `crew.kickoff(inputs)` | `crew.Kickoff(ctx, inputs)`       |
 | `Process.sequential`   | `crewai.Sequential`               |
 | `Process.hierarchical` | `crewai.Hierarchical`             |
+| `Process.staged`       | `crewai.Staged`                   |
 | `@tool` / `BaseTool`   | `crewai.NewTool` / `crewai.Tool`  |
 | litellm                | interface `LLM` (openai/anthropic)|
 

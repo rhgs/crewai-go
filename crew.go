@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,6 +16,10 @@ type Crew struct {
 	Agents []*Agent
 	// Tasks are the tasks to execute.
 	Tasks []*Task
+	// Stages groups tasks into stages for the Staged process. Stages run in
+	// sequence; the tasks within a single stage run concurrently. When
+	// Process is Staged, Stages takes precedence over Tasks.
+	Stages []Stage
 	// Process defines the orchestration strategy. Default: Sequential.
 	Process Process
 
@@ -45,6 +50,20 @@ type Crew struct {
 	// Kickoff starts and not mutated while Kickoff is running.
 	logger *slog.Logger
 	mem    *Memory
+}
+
+// Stage is a step of the Staged pipeline. Stages run in sequence, but the
+// tasks within a single stage run concurrently. The output of each stage is
+// available as context to the tasks of the following stages.
+type Stage struct {
+	// Name is a short identifier used in logs and observability.
+	Name string
+	// Tasks are the tasks that run concurrently within this stage.
+	Tasks []*Task
+	// Optional, when true, means a failure in this stage does not abort the
+	// Kickoff: it is logged as a warning and the pipeline continues. When
+	// false (the default), the first failure aborts the Kickoff.
+	Optional bool
 }
 
 // CrewOutput is the result of a crew's execution.
@@ -121,14 +140,22 @@ func defaultLogger(verbose bool) *slog.Logger {
 // inputs is an optional map of variables interpolated into {key} in the tasks'
 // descriptions and expected outputs.
 func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutput, error) {
-	if len(c.Tasks) == 0 {
-		return nil, ErrNoTasks
-	}
 	if c.Process == "" {
 		c.Process = Sequential
 	}
 	if !c.Process.valid() {
 		return nil, fmt.Errorf("crewai: invalid process %q", c.Process)
+	}
+
+	// Validate the task set according to the process. In the staged process
+	// the tasks live in Stages (not Tasks), so the no-tasks check is skipped
+	// and replaced by a no-stages check.
+	if c.Process == Staged {
+		if len(c.Stages) == 0 {
+			return nil, ErrNoStages
+		}
+	} else if len(c.Tasks) == 0 {
+		return nil, ErrNoTasks
 	}
 
 	// Initialize logger if not injected.
@@ -139,9 +166,18 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 		c.mem = NewMemory()
 	}
 
-	// Interpolate inputs into all tasks.
-	for _, t := range c.Tasks {
-		t.interpolate(inputs)
+	// Interpolate inputs into all tasks. In the staged process the tasks
+	// live inside the stages.
+	if c.Process == Staged {
+		for i := range c.Stages {
+			for _, t := range c.Stages[i].Tasks {
+				t.interpolate(inputs)
+			}
+		}
+	} else {
+		for _, t := range c.Tasks {
+			t.interpolate(inputs)
+		}
 	}
 
 	start := time.Now()
@@ -153,6 +189,8 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 		out, err = c.runSequential(ctx)
 	case Hierarchical:
 		out, err = c.runHierarchical(ctx)
+	case Staged:
+		out, err = c.runStaged(ctx)
 	}
 	if err != nil {
 		return nil, err
@@ -230,6 +268,129 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 		out.Final = result
 	}
 	return out, nil
+}
+
+// runStaged executes the crew's stages in order, running the tasks of each
+// stage concurrently. The output of each stage is available as context to the
+// tasks of the following stages (via Task.Context, resolved by contextText).
+func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
+	out := &CrewOutput{}
+
+	for si, stage := range c.Stages {
+		stageName := stage.Name
+		if stageName == "" {
+			stageName = fmt.Sprintf("stage %d", si+1)
+		}
+
+		// A single derived context for the whole stage: cancelling it stops
+		// every sibling goroutine (on parent cancellation or a non-optional
+		// failure).
+		stageCtx, cancel := context.WithCancel(ctx)
+
+		results := make([]stageResult, len(stage.Tasks))
+		var wg sync.WaitGroup
+
+		// firstErr records the chronologically first failure (and its index)
+		// so a non-optional stage reports the real cause, not a sibling's
+		// context.Canceled that was triggered by the cancellation.
+		var (
+			errMu    sync.Mutex
+			firstErr error
+			firstIdx int
+		)
+		recordErr := func(ti int, err error) {
+			errMu.Lock()
+			if firstErr == nil {
+				firstErr = err
+				firstIdx = ti
+			}
+			errMu.Unlock()
+			// Interrupt siblings as soon as a non-optional task fails.
+			if !stage.Optional {
+				cancel()
+			}
+		}
+
+		for ti, task := range stage.Tasks {
+			agent := task.Agent
+			if agent == nil {
+				agent = c.agentForIndex(ti)
+			}
+			if agent == nil {
+				cancel()
+				wg.Wait()
+				return nil, fmt.Errorf("stage %q: task %d: %w", stageName, ti+1, ErrNoAgent)
+			}
+
+			wg.Add(1)
+			go func(ti int, task *Task, agent *Agent) {
+				defer wg.Done()
+				// Recover from a panic in the task goroutine so a single
+				// panicking task cannot crash the whole process.
+				defer func() {
+					if r := recover(); r != nil {
+						err := fmt.Errorf("panic: %v", r)
+						results[ti] = stageResult{err: err}
+						recordErr(ti, err)
+					}
+				}()
+
+				c.logger.InfoContext(stageCtx, "task started",
+					"stage", stageName, "task_index", ti+1, "agent", agent.Role)
+
+				result, facts, err := c.execute(stageCtx, agent, task)
+				results[ti] = stageResult{
+					task:  task,
+					agent: agent,
+					out:   result,
+					facts: facts,
+					err:   err,
+				}
+				if err != nil {
+					recordErr(ti, err)
+				}
+			}(ti, task, agent)
+		}
+		wg.Wait()
+		cancel()
+
+		// A non-optional stage aborts on the first failure.
+		if firstErr != nil && !stage.Optional {
+			return nil, fmt.Errorf("stage %q: task %d: %w", stageName, firstIdx+1, firstErr)
+		}
+
+		// Aggregate results in declaration order (not completion order).
+		for ti, res := range results {
+			if res.err != nil {
+				// Only reachable for optional stages (non-optional already
+				// returned above).
+				c.logger.WarnContext(ctx, "task failed in optional stage",
+					"stage", stageName, "task_index", ti+1, "error", redactError(res.err))
+				continue
+			}
+			out.TasksOutput = append(out.TasksOutput, TaskOutput{
+				Task:       taskLabel(res.task, ti),
+				Agent:      res.agent.Role,
+				Output:     res.out,
+				Facts:      res.facts,
+				ToolTraces: res.task.ToolTraces(),
+			})
+			out.Facts = dedupFacts(out.Facts, res.facts)
+			out.Final = res.out
+		}
+	}
+
+	return out, nil
+}
+
+// stageResult is the outcome of a single task within a stage, collected by
+// index so the final output preserves declaration order.
+type stageResult struct {
+	task  *Task
+	agent *Agent
+	out   string
+	facts []Fact
+	err   error
 }
 
 // execute runs a task, assembles the context, and persists the output/memory.

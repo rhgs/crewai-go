@@ -11,12 +11,17 @@ const (
 	// Hierarchical uses a manager agent (or a ManagerLLM) to coordinate the
 	// execution, deciding which agent runs each task.
 	Hierarchical Process = "hierarchical"
+
+	// Staged groups tasks into stages: stages run in sequence, but the
+	// tasks within a single stage run concurrently. The output of each
+	// stage feeds the following ones.
+	Staged Process = "staged"
 )
 
 // valid reports whether the process is recognized.
 func (p Process) valid() bool {
 	switch p {
-	case Sequential, Hierarchical:
+	case Sequential, Hierarchical, Staged:
 		return true
 	default:
 		return false

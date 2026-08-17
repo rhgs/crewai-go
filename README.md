@@ -33,7 +33,7 @@
 - [Native tool calling](#native-tool-calling)
 - [Web search](#web-search)
 - [Logging](#logging)
-- [Processes: Sequential and Hierarchical](#processes-sequential-and-hierarchical)
+- [Processes: Sequential, Hierarchical, and Staged](#processes-sequential-hierarchical-and-staged)
 - [Structured output](#structured-output)
 - [Guardrails](#guardrails)
 - [Facts & provenance](#facts--provenance)
@@ -60,6 +60,7 @@
 - 📝 **Structured logging via `log/slog`** — inject a custom `*slog.Logger` on `Crew` and `Agent`, with backward-compatible `Verbose` fallback.
 - 🧠 **Memory** between tasks and chainable **context**.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
+- 🪜 **Staged process** — stages run in sequence, tasks within a stage run in parallel.
 - ✅ **Testable** — mock LLM included; ~90% core coverage.
 
 ## Concepts
@@ -69,7 +70,7 @@
 | **Agent**    | A worker with a role, a goal, a backstory, an LLM, and tools.           |
 | **Task**     | A unit of work with a description, expected output, and an assignee.   |
 | **Crew**     | The team: groups agents and tasks and orchestrates them.                |
-| **Process**  | Execution strategy: `Sequential` or `Hierarchical`.                    |
+| **Process**  | Execution strategy: `Sequential`, `Hierarchical`, or `Staged`.        |
 | **Tool**     | A capability an agent can invoke (calculation, search, API…).          |
 | **LLM**      | Abstraction over the language model. Several providers ready to use.   |
 | **Memory**   | Stores task outputs to give context to following tasks.                |
@@ -391,7 +392,7 @@ Example log line (JSON handler):
 
 Subpackages (`llm/*`, `tools/*`) do not log internally — they return errors that the executor logs at the appropriate level.
 
-## Processes: Sequential and Hierarchical
+## Processes: Sequential, Hierarchical, and Staged
 
 **Sequential** — tasks in order, each output becomes context for the next:
 
@@ -405,6 +406,20 @@ crew.Process = crewai.Sequential
 ```go
 crew.Process = crewai.Hierarchical
 crew.ManagerLLM = llm // or crew.ManagerAgent = myManager
+```
+
+**Staged** — stages run in sequence, but the tasks within a single stage run
+concurrently. The output of each stage is available as context to the tasks of
+the following stages. A stage marked `Optional` does not abort the crew when
+one of its tasks fails; otherwise the first failure aborts `Kickoff`.
+
+```go
+crew := crewai.NewCrew(agents, nil)
+crew.Process = crewai.Staged
+crew.Stages = []crewai.Stage{
+    {Name: "collect", Tasks: []*crewai.Task{researchA, researchB}},
+    {Name: "synthesize", Tasks: []*crewai.Task{write}},
+}
 ```
 
 Chain context explicitly with `WithContext`:
@@ -516,6 +531,7 @@ export OPENAI_API_KEY=sk-...
 go run ./examples/basic
 go run ./examples/sequential
 go run ./examples/hierarchical
+go run ./examples/staged
 go run ./examples/tools
 
 export XAI_API_KEY=xai-...        # or XAI_OAUTH=1 + XAI_CLIENT_ID
@@ -577,6 +593,7 @@ Tests are **hermetic**: they use the `mock` LLM and `httptest`, with no real net
 | `crew.kickoff(inputs)` | `crew.Kickoff(ctx, inputs)`       |
 | `Process.sequential`   | `crewai.Sequential`               |
 | `Process.hierarchical` | `crewai.Hierarchical`             |
+| `Process.staged`       | `crewai.Staged`                   |
 | `@tool` / `BaseTool`   | `crewai.NewTool` / `crewai.Tool`  |
 | litellm                | `LLM` interface (openai/anthropic)|
 
