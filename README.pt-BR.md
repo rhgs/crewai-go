@@ -8,6 +8,10 @@
 
 [![Release](https://img.shields.io/github/v/release/rhgs/crewai-go?label=release)](https://github.com/rhgs/crewai-go/releases)
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/rhgs/crewai-go)](https://goreportcard.com/report/github.com/rhgs/crewai-go)
+
+[![codecov](https://codecov.io/gh/rhgs/crewai-go/graph/badge.svg)](https://codecov.io/gh/rhgs/crewai-go)
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/rhgs/crewai-go/blob/main/LICENSE)
 
 <p align="center">
@@ -43,6 +47,7 @@
 - [Documentação](#documentação)
 - [Testes](#testes)
 - [Comparação com o CrewAI (Python)](#comparação-com-o-crewai-python)
+- [Contribuindo](#contribuindo)
 - [Licença](#licença)
 
 ---
@@ -613,6 +618,12 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 | **Cross-compilation** | ✅ `GOOS=linux GOARCH=arm64 go build` — qualquer alvo a partir de qualquer host | ❌ exige Python da plataforma alvo ou container |
 
 Este port cobre o núcleo do CrewAI (agentes, tarefas, crews, processos, ferramentas, memória) mais vários recursos originais não presentes na versão Python. Recursos avançados do projeto original (Flows event-driven, training, telemetria) não fazem parte desta versão.
+
+## Contribuindo
+
+Contribuicoes sao bem-vindas. Veja [CONTRIBUTING.pt-BR.md](CONTRIBUTING.pt-BR.md)
+(PT) / [CONTRIBUTING.md](CONTRIBUTING.md) (EN) para setup, convencoes e o
+checklist do PR. Leia tambem o nosso [Codigo de Conduta](CODE_OF_CONDUCT.md).
 
 ## Licença
 

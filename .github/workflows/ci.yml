@@ -44,3 +44,17 @@ jobs:
 
       - name: go test (with race detector)
         run: go test -race ./...
+
+      - name: go test (coverage)
+        run: |
+          go test -coverprofile=coverage.out -covermode=atomic ./...
+          go tool cover -func=coverage.out | tail -n 1
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.out
+          flags: unittests
+          name: crewai-go
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
