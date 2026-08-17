@@ -36,7 +36,8 @@ See [LLMs > Logging](llms.md#logging) for the full reference.
 |----------------|----------------|-------------|
 | `Agents`       | `[]*Agent`     | Team members. |
 | `Tasks`        | `[]*Task`      | Tasks to execute. |
-| `Process`      | `Process`      | `Sequential` (default) or `Hierarchical`. |
+| `Process`      | `Process`      | `Sequential` (default), `Hierarchical`, or `Staged`. |
+| `Stages`       | `[]Stage`      | Stages for the `Staged` process (takes precedence over `Tasks`). |
 | `Verbose`      | `bool`         | Enables detailed logs (maps to `LevelDebug` when no logger is injected via `WithLogger`). |
 | `logger`       | `*slog.Logger` | Internal — set via `WithLogger`. When nil, `Kickoff` creates a default text logger on stderr. |
 | `Memory`       | `bool`         | Enables shared memory. |
@@ -84,6 +85,36 @@ role. If the task already has an `Agent`, it is respected.
 
 > If there is only one agent, it is chosen automatically. If delegation fails
 > (LLM error), the crew falls back to the first agent.
+
+## Staged process
+
+The `Staged` process groups tasks into **stages**: stages run in sequence, but
+the tasks within a single stage run concurrently. The output of each stage is
+available as context to the tasks of the following stages (via `Task.Context`).
+
+```go
+crew := crewai.NewCrew(agents, nil)
+crew.Process = crewai.Staged
+crew.Stages = []crewai.Stage{
+    {Name: "collect", Tasks: []*crewai.Task{researchA, researchB}},
+    {Name: "synthesize", Tasks: []*crewai.Task{write}},
+}
+```
+
+Each `Stage` has:
+
+| Field      | Type      | Description |
+|------------|-----------|-------------|
+| `Name`     | `string`  | Short identifier used in logs. |
+| `Tasks`    | `[]*Task` | Tasks that run concurrently within this stage. |
+| `Optional` | `bool`    | If `true`, a failure does not abort `Kickoff` (logged as a warning). |
+
+- A stage's output feeds the following ones: a task in stage N may list, in
+  `Context`, tasks from earlier stages (not from the same stage, which run in
+  parallel).
+- `CrewOutput.Final` is the output of the last task of the last stage.
+- If `Process == Staged` and `Stages` is empty, `Kickoff` returns
+  `ErrNoStages`.
 
 ## Input interpolation
 

@@ -39,8 +39,19 @@
 //	crew := crewai.NewCrew([]*crewai.Agent{agent}, []*crewai.Task{task})
 //	out, err := crew.Kickoff(context.Background(), nil)
 //
-// Orchestration can be sequential (Sequential) or hierarchical
-// (Hierarchical), the latter with a manager that delegates tasks dynamically.
+// Orchestration can be sequential (Sequential), hierarchical (Hierarchical),
+// or staged (Staged). The staged process groups tasks into stages: stages run
+// in sequence, but the tasks within a single stage run concurrently. The
+// output of each stage is available as context to the tasks of the following
+// stages (via Task.Context). A stage marked Optional does not abort the crew
+// when one of its tasks fails; otherwise the first failure aborts Kickoff.
+//
+//	crew := crewai.NewCrew(agents, nil)
+//	crew.Process = crewai.Staged
+//	crew.Stages = []crewai.Stage{
+//	    {Name: "collect", Tasks: []*crewai.Task{researchA, researchB}},
+//	    {Name: "synthesize", Tasks: []*crewai.Task{write}},
+//	}
 //
 // # Structured output
 //

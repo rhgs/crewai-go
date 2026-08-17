@@ -10,6 +10,9 @@ var (
 	ErrNoAgent = errors.New("crewai: task without an assigned agent")
 	// ErrNoTasks is returned when a crew is started with no tasks.
 	ErrNoTasks = errors.New("crewai: crew without tasks")
+	// ErrNoStages is returned when the staged process is used without any
+	// stages.
+	ErrNoStages = errors.New("crewai: staged process requires at least one stage")
 	// ErrNoManager is returned when the hierarchical process is used without
 	// a ManagerLLM or a ManagerAgent.
 	ErrNoManager = errors.New("crewai: hierarchical process requires ManagerLLM or ManagerAgent")
