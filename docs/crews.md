@@ -17,6 +17,19 @@ crew.Verbose = true
 out, err := crew.Kickoff(context.Background(), nil)
 ```
 
+For structured logging, inject a `*slog.Logger` instead of using `Verbose`:
+
+```go
+import "log/slog"
+
+log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+}))
+crew := crewai.NewCrew(agents, tasks).WithLogger(log)
+```
+
+See [LLMs > Logging](llms.md#logging) for the full reference.
+
 ## Fields
 
 | Field          | Type           | Description |
@@ -24,7 +37,8 @@ out, err := crew.Kickoff(context.Background(), nil)
 | `Agents`       | `[]*Agent`     | Team members. |
 | `Tasks`        | `[]*Task`      | Tasks to execute. |
 | `Process`      | `Process`      | `Sequential` (default) or `Hierarchical`. |
-| `Verbose`      | `bool`         | Enables detailed logs. |
+| `Verbose`      | `bool`         | Enables detailed logs (maps to `LevelDebug` when no logger is injected via `WithLogger`). |
+| `logger`       | `*slog.Logger` | Internal — set via `WithLogger`. When nil, `Kickoff` creates a default text logger on stderr. |
 | `Memory`       | `bool`         | Enables shared memory. |
 | `ManagerLLM`   | `LLM`          | The manager's LLM (hierarchical process). |
 | `ManagerAgent` | `*Agent`       | Explicit manager (takes precedence over `ManagerLLM`). |

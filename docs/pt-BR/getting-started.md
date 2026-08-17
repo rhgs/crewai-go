@@ -50,7 +50,7 @@ func main() {
 	)
 
 	crew := crewai.NewCrew([]*crewai.Agent{pesquisador}, []*crewai.Task{tarefa})
-	crew.Verbose = true
+	crew.Verbose = true // ou use WithLogger para logging estruturado (veja abaixo)
 
 	out, err := crew.Kickoff(context.Background(), nil)
 	if err != nil {
@@ -59,6 +59,10 @@ func main() {
 	fmt.Println(out.Final)
 }
 ```
+
+> **Dica:** Para logging estruturado via `log/slog`, troque `crew.Verbose = true` por
+> `crew.WithLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))`.
+> Veja [Logging](llms.md#logging) para detalhes.
 
 ## 3. Execute
 

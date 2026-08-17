@@ -41,6 +41,22 @@ agente := &crewai.Agent{
 | `Tools`           | `[]crewai.Tool` | Ferramentas disponíveis em qualquer tarefa. |
 | `MaxIterations`   | `int`         | Máx. de ciclos de raciocínio/ferramenta (padrão 15). |
 | `AllowDelegation` | `bool`        | Marca o agente como apto a gerenciar/delegar. |
+| `ToolMode`         | `ToolMode`    | `"react"` (padrão) ou `"native"` — seleciona entre ReAct baseado em texto ou function calling nativo. |
+
+## Logging
+
+Para `Agent.Execute` isolado (sem crew), injete um `*slog.Logger` via
+`WithLogger`. Se não definido, `slog.Default()` é usado.
+
+```go
+agente := crewai.NewAgent("a", "g", "b", llm).
+    WithLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+        Level: slog.LevelDebug,
+    })))
+```
+
+Quando o agente roda dentro de uma `Crew`, o logger da crew é usado.
+Veja [LLMs > Logging](llms.md#logging) para detalhes.
 
 ## Adicionando ferramentas
 
