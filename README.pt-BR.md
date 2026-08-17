@@ -623,7 +623,8 @@ Este port cobre o núcleo do CrewAI (agentes, tarefas, crews, processos, ferrame
 
 Contribuicoes sao bem-vindas. Veja [CONTRIBUTING.pt-BR.md](CONTRIBUTING.pt-BR.md)
 (PT) / [CONTRIBUTING.md](CONTRIBUTING.md) (EN) para setup, convencoes e o
-checklist do PR. Leia tambem o nosso [Codigo de Conduta](CODE_OF_CONDUCT.md).
+checklist do PR. Leia tambem o nosso
+[Codigo de Conduta](CODE_OF_CONDUCT.pt-BR.md) ([EN](CODE_OF_CONDUCT.md)).
 
 ## Licença
 

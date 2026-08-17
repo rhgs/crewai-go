@@ -8,7 +8,8 @@ workloads.
 
 ## Code of Conduct
 
-By participating, you agree to uphold our [Code of Conduct](CODE_OF_CONDUCT.md).
+By participating, you agree to uphold our [Code of Conduct](CODE_OF_CONDUCT.md)
+([PT](CODE_OF_CONDUCT.pt-BR.md)).
 
 ## Ways to contribute
 

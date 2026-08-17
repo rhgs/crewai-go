@@ -8,7 +8,8 @@ multi-agente reais.
 
 ## Codigo de Conduta
 
-Ao participar, voce concorda em seguir o nosso [Codigo de Conduta](CODE_OF_CONDUCT.md).
+Ao participar, voce concorda em seguir o nosso
+[Codigo de Conduta](CODE_OF_CONDUCT.pt-BR.md) ([EN](CODE_OF_CONDUCT.md)).
 
 ## Formas de contribuir
 

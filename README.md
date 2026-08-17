@@ -652,7 +652,8 @@ This port covers the CrewAI core (agents, tasks, crews, processes, tools, memory
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) (EN) /
 [CONTRIBUTING.pt-BR.md](CONTRIBUTING.pt-BR.md) (PT) for setup, conventions, and
-the PR checklist. Please also read our [Code of Conduct](CODE_OF_CONDUCT.md).
+the PR checklist. Please also read our [Code of Conduct](CODE_OF_CONDUCT.md)
+([PT](CODE_OF_CONDUCT.pt-BR.md)).
 
 ## License
 
