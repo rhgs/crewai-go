@@ -539,17 +539,21 @@ go run ./examples/xai_oauth
 | Memory | [EN](docs/memory.md) | [PT](docs/pt-BR/memory.md) |
 | Plan / Roadmap | [EN](PLAN.md) | [PT](PLAN.pt-BR.md) |
 
-### What's new in v0.2.0
+### What's new in v0.3.0
 
-All three features are **backward compatible** — no breaking changes.
+All features are **backward compatible** — no breaking changes.
 
 | Feature | Description | Docs (EN) | Docs (PT) |
 |---------|-------------|-----------|-----------|
-| **Structured output** | Require JSON validated against a JSON Schema with a bounded repair loop. The executor retries up to `RepairMax` times and never returns invalid JSON. | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
-| **Guardrails** | Crew-level and task-level post-output validation hooks that block publication of outputs violating business invariants. Returns `ErrBlockedByGuardrail` on failure. | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
-| **Facts & provenance** | First-class `Fact` type populated only by `FactSource` tools — never by the LLM. Carries source org, URL, timestamp, and payload hash (SHA-256). Deduplicated by `PayloadHash`. | [docs/tools.md](docs/tools.md) | [docs/pt-BR/tools.md](docs/pt-BR/tools.md) |
+| **Native tool calling** | `Agent.ToolMode` (`"react"` \| `"native"`) switches to provider-native function calling via `ToolCallingLLM` (Ollama, OpenAI, Anthropic). Security limits on args/output/JSON depth. `ToolTrace` in `TaskOutput`. Auto-fallback to ReAct when unsupported. | [docs/agents.md](docs/agents.md) | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) |
+| **Web search (agent-driven)** | `WebSearcher` interface + `SearchWeb(ctx, llm, query, max)` for direct search from Go code. Ollama, OpenAI, Anthropic, xAI. | [docs/llms.md](docs/llms.md) | [docs/pt-BR/llms.md](docs/pt-BR/llms.md) |
+| **Web search (model-driven)** | `WebSearchTool` with 7 pluggable providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave). SSRF-protected with DNS rebinding prevention. | [docs/tools.md](docs/tools.md) | [docs/pt-BR/tools.md](docs/pt-BR/tools.md) |
+| **Structured logging** | Custom `Logger` replaced by `log/slog`. `Crew.WithLogger` and `Agent.WithLogger` inject any `*slog.Logger`. `Verbose` field preserved for backward compat. | [docs/llms.md](docs/llms.md#logging) | [docs/pt-BR/llms.md](docs/pt-BR/llms.md#logging) |
+| **Secret redaction** | `redactError`/`redactString` masks API keys, Bearer tokens, and query-string secrets before logging provider errors. | [redact.go](redact.go) | [redact.go](redact.go) |
 
-See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.2.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.2.0) for details.
+**Also in v0.2.0** (now part of v0.3.0): structured output with JSON Schema repair loop, guardrails, facts & provenance.
+
+See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.3.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.3.0) for details.
 
 ## Tests
 
