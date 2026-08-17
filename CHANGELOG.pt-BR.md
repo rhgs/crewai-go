@@ -3,7 +3,7 @@
 Todas as mudancas relevantes no **crewai-go** sao documentadas aqui. Este projeto
 segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
-## [Unreleased]
+## [v0.3.0] — 2026-08-17
 
 ### Modificado
 
