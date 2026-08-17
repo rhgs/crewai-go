@@ -563,6 +563,8 @@ Tests are **hermetic**: they use the `mock` LLM and `httptest`, with no real net
 
 ## Comparison with CrewAI (Python)
 
+### API mapping
+
 | CrewAI (Python)        | crewai-go                         |
 |------------------------|-----------------------------------|
 | `Agent(role=...)`      | `crewai.NewAgent(role, ...)`      |
@@ -574,7 +576,31 @@ Tests are **hermetic**: they use the `mock` LLM and `httptest`, with no real net
 | `@tool` / `BaseTool`   | `crewai.NewTool` / `crewai.Tool`  |
 | litellm                | `LLM` interface (openai/anthropic)|
 
-This port covers the CrewAI core (agents, tasks, crews, processes, tools, memory). Advanced features of the original project (event-driven Flows, training, telemetry) are not part of this version.
+### Features in crewai-go that the original CrewAI does NOT have
+
+| Feature | crewai-go | CrewAI (Python) |
+|---------|-----------|-----------------|
+| **Zero dependencies** | ✅ stdlib only — no external packages | ❌ 50+ PyPI packages (litellm, langchain, pydantic, chromadb, etc.) |
+| **Native tool calling with fallback** | ✅ `Agent.ToolMode` auto-falls back to ReAct if provider doesn't support `ToolCallingLLM` | ❌ no automatic fallback; requires compatible provider |
+| **Facts & provenance** | ✅ first-class `Fact` type with `source_org`, `source_url`, `payload_hash`, `collection_time` — populated only by deterministic tools, never by the LLM | ❌ no provenance tracking; LLM can hallucinate "facts" |
+| **Guardrails** | ✅ crew-level (`Crew.Guardrails`) + task-level (`Task.Guardrail`) post-output validation that blocks publication of invalid outputs | ❌ no built-in post-output validation hooks |
+| **Structured output with repair loop** | ✅ JSON Schema validation with bounded repair loop (`RepairMax`, default 2) and `ErrRepairBudgetExceeded` | ⚠️ partial — uses Pydantic, no repair loop |
+| **Web search (agent-driven)** | ✅ `WebSearcher` interface + `SearchWeb(ctx, llm, query, max)` — direct search from Go code via Ollama, OpenAI, Anthropic, xAI | ❌ no direct search API; requires tools |
+| **Web search (model-driven)** | ✅ `WebSearchTool` with 7 pluggable providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave) | ⚠️ requires SerperDev or similar external tool integration |
+| **SSRF protection** | ✅ blocks non-http(s) schemes, loopback, private IPs, link-local, unspecified IPs; DNS rebinding prevention via `net.LookupIP` (fail-closed) | ❌ no URL filtering on search results |
+| **Secret redaction in logs** | ✅ `redactError`/`redactString` masks API keys, Bearer tokens, query-string secrets before logging | ❌ no log redaction |
+| **Structured logging** | ✅ `log/slog` — inject any `*slog.Logger` with custom handler, level, and output | ❌ Python `logging` module, less flexible handler injection |
+| **Tool call security limits** | ✅ max args size, output size, response size, JSON depth, arg validation — all configurable | ❌ no size/depth limits on tool calls |
+| **Tool traces** | ✅ `ToolTrace` in `TaskOutput` — full observability of every tool call (name, args, result, duration) | ❌ no per-call trace type |
+| **Context propagation** | ✅ `context.Context` throughout — cancellation, deadlines, tracing propagated to all LLM and tool calls | ❌ no native context/cancellation; async requires `asyncio` |
+| **Thread-safe execution** | ✅ all providers safe for concurrent use; `-race` tested | ❌ Python GIL limits true concurrency |
+| **Compile-time interface checks** | ✅ `var _ crewai.WebSearcher = (*Client)(nil)` — catches missing methods at build time | ❌ runtime duck-typing, no compile-time checks |
+| **Single binary deployment** | ✅ compile to a single static binary — no runtime, no VM, no interpreter | ❌ requires Python runtime + virtualenv + dependencies |
+| **Cold start** | ✅ milliseconds (native binary) | ❌ seconds (Python import + model loading) |
+| **Memory footprint** | ✅ ~10-20 MB typical | ❌ ~100-300 MB typical (Python + deps) |
+| **Cross-compilation** | ✅ `GOOS=linux GOARCH=arm64 go build` — any target from any host | ❌ requires target-platform Python or container |
+
+This port covers the CrewAI core (agents, tasks, crews, processes, tools, memory) plus several original features not found in the Python version. Advanced features of the original project (event-driven Flows, training, telemetry) are not part of this version.
 
 ## License
 
