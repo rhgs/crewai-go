@@ -47,8 +47,13 @@ jobs:
 
       - name: go test (coverage)
         run: |
-          go test -coverprofile=coverage.out -covermode=atomic ./...
+          # Exclude examples/ (demo mains) so Codecov reflects library code.
+          pkgs=$(go list ./... | grep -v '/examples')
+          go test -coverprofile=coverage.out -covermode=atomic $pkgs
           go tool cover -func=coverage.out | tail -n 1
+          # Fail the job if total coverage drops below 90%.
+          total=$(go tool cover -func=coverage.out | awk '/total:/{print $3}' | tr -d '%')
+          awk -v t="$total" 'BEGIN{ if (t+0 < 90.0) { printf("coverage %.1f%% is below 90%%\n", t); exit 1 } }'
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

@@ -70,9 +70,10 @@ CI runs the same gates on every pull request.
 
 ### Coverage
 
-The core package targets high statement coverage (historically ~90%+). New code
-should ship with tests. Prefer table-driven tests and the mock LLM for
-multi-phase agent flows.
+CI measures statement coverage across library packages only (`go list ./...`
+excluding `/examples`). The project gate is **≥ 90%** total. New code should
+ship with tests. Prefer table-driven tests and the mock LLM for multi-phase
+agent flows.
 
 ## Pull request checklist
 
