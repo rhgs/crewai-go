@@ -1,0 +1,27 @@
+# Codecov configuration for crewai-go.
+# Library coverage is measured without examples/; ignore demo mains so they
+# are not counted as 0% uncovered production code.
+coverage:
+  precision: 1
+  round: down
+  range: 70...100
+  status:
+    project:
+      default:
+        target: 90%
+        threshold: 1%
+    patch:
+      default:
+        target: 80%
+
+ignore:
+  - "examples/**/*"
+  - "**/*_test.go"
+  - "**/testdata/**/*"
+  - "gopher.jpg"
+  - "**/*.md"
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false
