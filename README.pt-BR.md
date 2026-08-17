@@ -507,7 +507,7 @@ go run ./examples/xai_oauth
 | Tools | [PT](docs/pt-BR/tools.md) | [EN](docs/tools.md) |
 | LLMs | [PT](docs/pt-BR/llms.md) | [EN](docs/llms.md) |
 | Memory | [PT](docs/pt-BR/memory.md) | [EN](docs/memory.md) |
-| Plano / Roadmap | [PT](PLAN.pt-BR.md) | [EN](PLAN.md) |
+| Plano / Roadmap | [PT](Plan/PLAN.pt-BR.md) | [EN](Plan/PLAN.md) |
 
 ### Novidades da v0.3.0
 

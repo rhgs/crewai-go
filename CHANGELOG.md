@@ -153,4 +153,4 @@ First public release: an idiomatic Go port of the CrewAI framework core.
 - License: MIT.
 - Known limitations of this version: simplified hierarchical delegation (no
   runtime inter-agent calls), no streaming, in-process memory only, no native
-  function calling. See `PLAN.md` for the full roadmap.
+  function calling. See `Plan/PLAN.md` for the full roadmap.

@@ -162,4 +162,4 @@ Primeira release pública: um port idiomático do núcleo do framework CrewAI pa
 - Licença: MIT.
 - Limitações conhecidas desta versão: delegação hierárquica simplificada (sem
   chamadas entre agentes em tempo de execução), sem streaming, memória apenas em
-  processo, sem function calling nativo. Veja `PLAN.md` para o roadmap completo.
+  processo, sem function calling nativo. Veja `Plan/PLAN.md` para o roadmap completo.
