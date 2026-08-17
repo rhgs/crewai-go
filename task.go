@@ -42,6 +42,9 @@ type Task struct {
 	// Final set to this task's output.
 	Guardrail Guardrail
 
+	// Loop, when set, overrides the agent's loop for this specific task.
+	Loop Loop
+
 	mu     sync.RWMutex
 	output string
 	done   bool

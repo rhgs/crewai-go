@@ -7,10 +7,30 @@ import (
 	"strings"
 )
 
-// executeTask runs the reasoning loop (ReAct) of an agent for a task.
-// It returns the final answer string, collected facts (from FactSource
-// tools), and an error.
+// executeTask is the dispatch entry point for task execution. It resolves the
+// loop (task-level takes precedence over agent-level) and delegates to it, or
+// falls back to the default ReAct/structured executor.
 func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (string, []Fact, error) {
+	if a.LLM == nil {
+		return "", nil, ErrNoLLM
+	}
+
+	// Check for a loop: task-level takes precedence over agent-level.
+	if t != nil && t.Loop != nil {
+		return t.Loop.Run(ctx, a, t, contextText, log)
+	}
+	if a.Loop != nil {
+		return a.Loop.Run(ctx, a, t, contextText, log)
+	}
+
+	return executeTaskDefault(ctx, a, t, contextText, log)
+}
+
+// executeTaskDefault runs the reasoning loop (ReAct) of an agent for a task.
+// It returns the final answer string, collected facts (from FactSource
+// tools), and an error. It does NOT check for a configured loop; that is the
+// responsibility of executeTask.
+func executeTaskDefault(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (string, []Fact, error) {
 	if a.LLM == nil {
 		return "", nil, ErrNoLLM
 	}

@@ -35,7 +35,8 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 |----------------|----------------|-----------|
 | `Agents`       | `[]*Agent`     | Membros da equipe. |
 | `Tasks`        | `[]*Task`      | Tarefas a executar. |
-| `Process`      | `Process`      | `Sequential` (padrão) ou `Hierarchical`. |
+| `Process`      | `Process`      | `Sequential` (padrão), `Hierarchical` ou `Staged`. |
+| `Stages`       | `[]Stage`      | Estágios do processo `Staged` (têm prioridade sobre `Tasks`). |
 | `Verbose`      | `bool`         | Ativa logs detalhados (mapeia para `LevelDebug` quando nenhum logger é injetado via `WithLogger`). |
 | `logger`       | `*slog.Logger` | Interno — definido via `WithLogger`. Quando nil, `Kickoff` cria um logger de texto padrão no stderr. |
 | `Memory`       | `bool`         | Ativa a memória compartilhada. |
@@ -83,6 +84,37 @@ Se a tarefa já tem `Agent`, ele é respeitado.
 
 > Se houver apenas um agente, ele é escolhido automaticamente. Se a delegação
 > falhar (erro do LLM), a crew usa o primeiro agente como _fallback_.
+
+## Processo em estágios (Staged)
+
+O processo `Staged` agrupa tarefas em **estágios**: os estágios rodam em
+sequência, mas as tarefas dentro de um mesmo estágio rodam concorrentemente.
+A saída de cada estágio fica disponível como contexto para as tarefas dos
+estágios seguintes (via `Task.Context`).
+
+```go
+crew := crewai.NewCrew(agentes, nil)
+crew.Process = crewai.Staged
+crew.Stages = []crewai.Stage{
+    {Name: "coleta", Tasks: []*crewai.Task{pesquisaA, pesquisaB}},
+    {Name: "sintese", Tasks: []*crewai.Task{redacao}},
+}
+```
+
+Cada `Stage` tem:
+
+| Campo      | Tipo      | Descrição |
+|------------|-----------|-----------|
+| `Name`     | `string`  | Identificador curto usado em logs. |
+| `Tasks`    | `[]*Task` | Tarefas que rodam concorrentemente neste estágio. |
+| `Optional` | `bool`    | Se `true`, uma falha não aborta o `Kickoff` (vira aviso). |
+
+- A saída de um estágio alimenta os seguintes: uma tarefa do estágio N pode
+  listar, em `Context`, tarefas de estágios anteriores (não do mesmo estágio,
+  que rodam em paralelo).
+- `CrewOutput.Final` é a saída da última tarefa do último estágio.
+- Se `Process == Staged` e `Stages` estiver vazio, `Kickoff` retorna
+  `ErrNoStages`.
 
 ## Interpolação de inputs
 

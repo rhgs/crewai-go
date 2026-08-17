@@ -10,6 +10,9 @@ var (
 	ErrNoAgent = errors.New("crewai: task without an assigned agent")
 	// ErrNoTasks is returned when a crew is started with no tasks.
 	ErrNoTasks = errors.New("crewai: crew without tasks")
+	// ErrNoStages is returned when the staged process is used without any
+	// stages.
+	ErrNoStages = errors.New("crewai: staged process requires at least one stage")
 	// ErrNoManager is returned when the hierarchical process is used without
 	// a ManagerLLM or a ManagerAgent.
 	ErrNoManager = errors.New("crewai: hierarchical process requires ManagerLLM or ManagerAgent")
@@ -34,4 +37,10 @@ var (
 	// ErrWebSearchUnsupported is returned when an agent calls WebSearch but
 	// its LLM does not implement WebSearcher.
 	ErrWebSearchUnsupported = errors.New("crewai: LLM does not implement WebSearcher")
+	// ErrEvaluationFailed is returned when the evaluator scores the output
+	// below the pass threshold and all refinement attempts are exhausted.
+	ErrEvaluationFailed = errors.New("crewai: output did not pass evaluation after all refinements")
+	// ErrInvalidEvaluation is returned when the evaluator produces a response
+	// that cannot be parsed as a valid evaluation result.
+	ErrInvalidEvaluation = errors.New("crewai: evaluator returned an invalid response")
 )

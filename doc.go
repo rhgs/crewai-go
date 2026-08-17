@@ -39,8 +39,19 @@
 //	crew := crewai.NewCrew([]*crewai.Agent{agent}, []*crewai.Task{task})
 //	out, err := crew.Kickoff(context.Background(), nil)
 //
-// Orchestration can be sequential (Sequential) or hierarchical
-// (Hierarchical), the latter with a manager that delegates tasks dynamically.
+// Orchestration can be sequential (Sequential), hierarchical (Hierarchical),
+// or staged (Staged). The staged process groups tasks into stages: stages run
+// in sequence, but the tasks within a single stage run concurrently. The
+// output of each stage is available as context to the tasks of the following
+// stages (via Task.Context). A stage marked Optional does not abort the crew
+// when one of its tasks fails; otherwise the first failure aborts Kickoff.
+//
+//	crew := crewai.NewCrew(agents, nil)
+//	crew.Process = crewai.Staged
+//	crew.Stages = []crewai.Stage{
+//	    {Name: "collect", Tasks: []*crewai.Task{researchA, researchB}},
+//	    {Name: "synthesize", Tasks: []*crewai.Task{write}},
+//	}
 //
 // # Structured output
 //
@@ -64,6 +75,24 @@
 //
 // The built-in validator supports a subset of JSON Schema (type, properties,
 // required, enum, items) and uses only the standard library.
+//
+// # Agentic loop
+//
+// By default an agent uses a single-pass ReAct executor. For tasks that
+// benefit from self-assessment and iterative refinement, set Agent.Loop (or
+// Task.Loop) to an AgenticLoop, which follows a
+// Plan-Execute-Evaluate-Refine cycle: the agent plans, executes, evaluates its
+// output against the expected output, and refines it up to MaxRefinements
+// times. An optional separate evaluator agent (WithEvaluator) can score the
+// output independently.
+//
+//	agent.Loop = crewai.NewAgenticLoop(
+//	    crewai.WithMaxRefinements(3),
+//	    crewai.WithPassThreshold(80),
+//	)
+//
+// If the output never passes evaluation, Kickoff returns ErrEvaluationFailed;
+// if the evaluator returns an unparseable response, ErrInvalidEvaluation.
 //
 // # Guardrails
 //
