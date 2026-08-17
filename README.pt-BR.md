@@ -34,6 +34,7 @@
 - [Web search](#web-search)
 - [Logging](#logging)
 - [Processos: sequencial, hierárquico e em estágios](#processos-sequencial-hierárquico-e-em-estágios)
+- [Agentic loop](#agentic-loop)
 - [Saida estruturada](#saida-estruturada)
 - [Guardrails](#guardrails)
 - [Facts e proveniência](#facts-e-proveniência)
@@ -399,6 +400,25 @@ analise := crewai.NewTask("Analise os dados", "insights", analista).
 	WithContext(coleta) // recebe a saída da tarefa 'coleta'
 ```
 
+## Agentic loop
+
+Por padrao um agente usa o executor ReAct de passagem unica. Para tarefas que
+se beneficiam de autoavaliacao e refinamento iterativo, defina `Agent.Loop`
+(ou `Task.Loop`) com um `AgenticLoop`:
+
+```go
+agent.Loop = crewai.NewAgenticLoop(
+    crewai.WithMaxRefinements(3),
+    crewai.WithPassThreshold(80),
+    crewai.WithEvaluator(avaliador), // avaliador independente opcional
+)
+```
+
+O loop segue o ciclo **Planejar → Executar → Avaliar → Refinar**. Se a saida
+nunca passar na avaliacao, `Kickoff` retorna `ErrEvaluationFailed`. Veja
+[docs/pt-BR/agents.md](docs/pt-BR/agents.md) e
+[examples/agentic_loop](examples/agentic_loop).
+
 ## Saida estruturada
 
 Quando uma tarefa precisa de dados tipados e confiaveis (ex. para
@@ -503,6 +523,7 @@ go run ./examples/basic
 go run ./examples/sequential
 go run ./examples/hierarchical
 go run ./examples/staged
+go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
 
 export XAI_API_KEY=xai-...        # ou XAI_OAUTH=1 + XAI_CLIENT_ID
@@ -526,21 +547,18 @@ go run ./examples/xai_oauth
 | Memory | [PT](docs/pt-BR/memory.md) | [EN](docs/memory.md) |
 | Plano / Roadmap | [PT](Plan/PLAN.pt-BR.md) | [EN](Plan/PLAN.md) |
 
-### Novidades da v0.3.0
+### Novidades da v0.4.0
 
 Todas as features são **backward compatible** — sem breaking changes.
 
 | Recurso | Descrição | Docs (PT) | Docs (EN) |
 |---------|-----------|-----------|-----------|
-| **Native tool calling** | `Agent.ToolMode` (`"react"` \| `"native"`) alterna para function calling nativo do provedor via `ToolCallingLLM` (Ollama, OpenAI, Anthropic). Limites de segurança em args/output/profundidade JSON. `ToolTrace` em `TaskOutput`. Fallback automático para ReAct quando não suportado. | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) | [docs/agents.md](docs/agents.md) |
-| **Web search (agent-driven)** | Interface `WebSearcher` + `SearchWeb(ctx, llm, query, max)` para busca direta do código Go. Ollama, OpenAI, Anthropic, xAI. | [docs/pt-BR/llms.md](docs/pt-BR/llms.md) | [docs/llms.md](docs/llms.md) |
-| **Web search (model-driven)** | `WebSearchTool` com 7 provedores plugáveis (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave). Proteção SSRF com prevenção de DNS rebinding. | [docs/pt-BR/tools.md](docs/pt-BR/tools.md) | [docs/tools.md](docs/tools.md) |
-| **Logging estruturado** | `Logger` customizado substituído por `log/slog`. `Crew.WithLogger` e `Agent.WithLogger` injetam qualquer `*slog.Logger`. Campo `Verbose` preservado para retrocompatibilidade. | [docs/pt-BR/llms.md](docs/pt-BR/llms.md#logging) | [docs/llms.md](docs/llms.md#logging) |
-| **Redação de segredos** | `redactError`/`redactString` mascara API keys, Bearer tokens e segredos em query-strings antes de logar erros de provedores. | [redact.go](redact.go) | [redact.go](redact.go) |
+| **Processo Staged** | Terceiro modo de orquestracao: estagios em sequencia, tarefas de um estagio em paralelo. Estagios opcionais continuam em caso de falha. | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) | [docs/crews.md](docs/crews.md) |
+| **Agentic loop** | Ciclo opcional Planejar-Executar-Avaliar-Refinar (`Agent.Loop` / `Task.Loop`). Autoavaliacao, avaliador independente, refinamentos limitados. | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) | [docs/agents.md](docs/agents.md) |
 
-**Também na v0.2.0** (agora parte da v0.3.0): saída estruturada com loop de reparo JSON Schema, guardrails, facts & proveniência.
+**Também na v0.3.0**: native tool calling, web search (agent-driven + model-driven), logging estruturado via `log/slog`, redacao de segredos.
 
-Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.3.0](https://github.com/rhgs/crewai-go/releases/tag/v0.3.0) para detalhes.
+Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.4.0](https://github.com/rhgs/crewai-go/releases/tag/v0.4.0) para detalhes.
 
 ## Testes
 
@@ -573,6 +591,8 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 | Recurso | crewai-go | CrewAI (Python) |
 |---------|-----------|-----------------|
 | **Zero dependências** | ✅ apenas stdlib — nenhum pacote externo | ❌ 50+ pacotes PyPI (litellm, langchain, pydantic, chromadb, etc.) |
+| **Processo Staged** | ✅ estágios em sequência, tarefas de um estágio em paralelo; estágios opcionais continuam em falha | ❌ sem processo staged/paralelo-dentro-do-estágio |
+| **Agentic loop** | ✅ ciclo opt-in Planejar-Executar-Avaliar-Refinar com avaliador independente e refinamentos limitados | ⚠️ workflows agenticos existem, mas não como loop first-class Plan-Execute-Evaluate-Refine com limiar de score |
 | **Native tool calling com fallback** | ✅ `Agent.ToolMode` cai automaticamente para ReAct se o provedor não suportar `ToolCallingLLM` | ❌ sem fallback automático; exige provedor compatível |
 | **Fatos & proveniência** | ✅ tipo `Fact` first-class com `source_org`, `source_url`, `payload_hash`, `collection_time` — populado apenas por ferramentas determinísticas, nunca pelo LLM | ❌ sem rastreamento de proveniência; o LLM pode alucinar "fatos" |
 | **Guardrails** | ✅ validação pós-output a nível de crew (`Crew.Guardrails`) e de task (`Task.Guardrail`) que bloqueia a publicação de outputs inválidos | ❌ sem hooks de validação pós-output |

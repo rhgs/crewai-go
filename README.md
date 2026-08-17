@@ -34,6 +34,7 @@
 - [Web search](#web-search)
 - [Logging](#logging)
 - [Processes: Sequential, Hierarchical, and Staged](#processes-sequential-hierarchical-and-staged)
+- [Agentic loop](#agentic-loop)
 - [Structured output](#structured-output)
 - [Guardrails](#guardrails)
 - [Facts & provenance](#facts--provenance)
@@ -430,6 +431,24 @@ analysis := crewai.NewTask("Analyze the data", "insights", analyst).
 	WithContext(collection) // receives the output of the 'collection' task
 ```
 
+## Agentic loop
+
+By default an agent uses a single-pass ReAct executor. For tasks that benefit
+from self-assessment and iterative refinement, set `Agent.Loop` (or
+`Task.Loop`) to an `AgenticLoop`:
+
+```go
+agent.Loop = crewai.NewAgenticLoop(
+    crewai.WithMaxRefinements(3),
+    crewai.WithPassThreshold(80),
+    crewai.WithEvaluator(evaluatorAgent), // optional independent evaluator
+)
+```
+
+The loop follows a **Plan → Execute → Evaluate → Refine** cycle. If the output
+never passes evaluation, `Kickoff` returns `ErrEvaluationFailed`. See
+[docs/agents.md](docs/agents.md) and [examples/agentic_loop](examples/agentic_loop).
+
 ## Structured output
 
 When a task needs typed, trustworthy data (e.g. for persisting into a
@@ -533,6 +552,7 @@ go run ./examples/basic
 go run ./examples/sequential
 go run ./examples/hierarchical
 go run ./examples/staged
+go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
 
 export XAI_API_KEY=xai-...        # or XAI_OAUTH=1 + XAI_CLIENT_ID
@@ -556,21 +576,18 @@ go run ./examples/xai_oauth
 | Memory | [EN](docs/memory.md) | [PT](docs/pt-BR/memory.md) |
 | Plan / Roadmap | [EN](Plan/PLAN.md) | [PT](Plan/PLAN.pt-BR.md) |
 
-### What's new in v0.3.0
+### What's new in v0.4.0
 
 All features are **backward compatible** — no breaking changes.
 
 | Feature | Description | Docs (EN) | Docs (PT) |
 |---------|-------------|-----------|-----------|
-| **Native tool calling** | `Agent.ToolMode` (`"react"` \| `"native"`) switches to provider-native function calling via `ToolCallingLLM` (Ollama, OpenAI, Anthropic). Security limits on args/output/JSON depth. `ToolTrace` in `TaskOutput`. Auto-fallback to ReAct when unsupported. | [docs/agents.md](docs/agents.md) | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) |
-| **Web search (agent-driven)** | `WebSearcher` interface + `SearchWeb(ctx, llm, query, max)` for direct search from Go code. Ollama, OpenAI, Anthropic, xAI. | [docs/llms.md](docs/llms.md) | [docs/pt-BR/llms.md](docs/pt-BR/llms.md) |
-| **Web search (model-driven)** | `WebSearchTool` with 7 pluggable providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave). SSRF-protected with DNS rebinding prevention. | [docs/tools.md](docs/tools.md) | [docs/pt-BR/tools.md](docs/pt-BR/tools.md) |
-| **Structured logging** | Custom `Logger` replaced by `log/slog`. `Crew.WithLogger` and `Agent.WithLogger` inject any `*slog.Logger`. `Verbose` field preserved for backward compat. | [docs/llms.md](docs/llms.md#logging) | [docs/pt-BR/llms.md](docs/pt-BR/llms.md#logging) |
-| **Secret redaction** | `redactError`/`redactString` masks API keys, Bearer tokens, and query-string secrets before logging provider errors. | [redact.go](redact.go) | [redact.go](redact.go) |
+| **Staged process** | Third orchestration mode: stages run in sequence, tasks within a stage run concurrently. Optional stages continue on failure. | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
+| **Agentic loop** | Optional Plan-Execute-Evaluate-Refine cycle (`Agent.Loop` / `Task.Loop`). Self-evaluation, independent evaluator, bounded refinements. | [docs/agents.md](docs/agents.md) | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) |
 
-**Also in v0.2.0** (now part of v0.3.0): structured output with JSON Schema repair loop, guardrails, facts & provenance.
+**Also in v0.3.0**: native tool calling, web search (agent-driven + model-driven), structured logging via `log/slog`, secret redaction.
 
-See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.3.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.3.0) for details.
+See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.4.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.4.0) for details.
 
 ## Tests
 
@@ -603,6 +620,8 @@ Tests are **hermetic**: they use the `mock` LLM and `httptest`, with no real net
 | Feature | crewai-go | CrewAI (Python) |
 |---------|-----------|-----------------|
 | **Zero dependencies** | ✅ stdlib only — no external packages | ❌ 50+ PyPI packages (litellm, langchain, pydantic, chromadb, etc.) |
+| **Staged process** | ✅ stages in sequence, tasks within a stage concurrent; optional stages continue on failure | ❌ no staged/parallel-within-stage process |
+| **Agentic loop** | ✅ opt-in Plan-Execute-Evaluate-Refine with independent evaluator and bounded refinements | ⚠️ agentic workflows exist, but not as a first-class Plan-Execute-Evaluate-Refine loop with score threshold |
 | **Native tool calling with fallback** | ✅ `Agent.ToolMode` auto-falls back to ReAct if provider doesn't support `ToolCallingLLM` | ❌ no automatic fallback; requires compatible provider |
 | **Facts & provenance** | ✅ first-class `Fact` type with `source_org`, `source_url`, `payload_hash`, `collection_time` — populated only by deterministic tools, never by the LLM | ❌ no provenance tracking; LLM can hallucinate "facts" |
 | **Guardrails** | ✅ crew-level (`Crew.Guardrails`) + task-level (`Task.Guardrail`) post-output validation that blocks publication of invalid outputs | ❌ no built-in post-output validation hooks |

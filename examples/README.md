@@ -11,6 +11,8 @@ Each subfolder is a standalone executable program.
 | `basic`         | One agent, one task                                | ✅ OpenAI               |
 | `sequential`    | Agent pipeline + context + memory                 | ✅ OpenAI               |
 | `hierarchical`  | A manager delegating tasks dynamically             | ✅ OpenAI               |
+| `staged`        | Stages in sequence, tasks within a stage in parallel | ✅ OpenAI            |
+| `agentic_loop`  | Plan-Execute-Evaluate-Refine cycle (mock LLM)      | ❌ No                   |
 | `tools`         | An agent using tools via ReAct                     | ✅ OpenAI               |
 | `xai_oauth`     | Grok via API key or subscription OAuth             | ✅ xAI                  |
 | `logging`       | Custom `*slog.Logger` with redaction wrapper       | ❌ No                   |
@@ -26,6 +28,8 @@ export OPENAI_API_KEY=sk-...
 go run ./examples/basic
 go run ./examples/sequential
 go run ./examples/hierarchical
+go run ./examples/staged
+go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
 ```
 
