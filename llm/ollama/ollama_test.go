@@ -2,8 +2,11 @@ package ollama_test
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/rhgs/crewai-go"
@@ -76,5 +79,89 @@ func TestAPIError(t *testing.T) {
 	llm := ollama.New("x", ollama.WithBaseURL(srv.URL))
 	if _, err := llm.Call(context.Background(), []crewai.Message{crewai.UserMessage("hi")}); err == nil {
 		t.Error("expected an API error")
+	}
+}
+
+func TestCallWithTools(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req map[string]any
+		_ = json.Unmarshal(body, &req)
+		if _, ok := req["tools"]; !ok {
+			t.Error("request should include tools field")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"message": {
+				"role": "assistant",
+				"content": "",
+				"tool_calls": [
+					{"function": {"name": "calculator", "arguments": {"expr": "2+2"}}}
+				]
+			},
+			"done": true
+		}`))
+	}))
+	defer srv.Close()
+
+	llm := ollama.New("llama3.2", ollama.WithBaseURL(srv.URL))
+	tools := []crewai.ToolSpec{
+		{Type: "function", Function: crewai.ToolFunction{Name: "calculator", Description: "calc", Parameters: json.RawMessage(`{"type":"object"}`)}},
+	}
+	resp, err := llm.CallWithTools(context.Background(), []crewai.Message{
+		crewai.UserMessage("calc 2+2"),
+	}, tools)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if len(resp.ToolCalls) != 1 {
+		t.Fatalf("toolCalls = %d, want 1", len(resp.ToolCalls))
+	}
+	if resp.ToolCalls[0].Function.Name != "calculator" {
+		t.Errorf("name = %q", resp.ToolCalls[0].Function.Name)
+	}
+	// Ollama returns arguments as object JSON, so it should be valid json.RawMessage.
+	var args map[string]any
+	if err := json.Unmarshal(resp.ToolCalls[0].Function.Arguments, &args); err != nil {
+		t.Errorf("arguments not valid JSON: %v", err)
+	}
+}
+
+func TestCallWithTools_NoToolCalls(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"message":{"role":"assistant","content":"final answer"},"done":true}`))
+	}))
+	defer srv.Close()
+
+	llm := ollama.New("llama3.2", ollama.WithBaseURL(srv.URL))
+	resp, err := llm.CallWithTools(context.Background(), []crewai.Message{
+		crewai.UserMessage("hi"),
+	}, nil)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if resp.Content != "final answer" {
+		t.Errorf("content = %q", resp.Content)
+	}
+	if len(resp.ToolCalls) != 0 {
+		t.Errorf("toolCalls = %d, want 0", len(resp.ToolCalls))
+	}
+}
+
+func TestCallWithTools_ResponseTooLarge(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Write more than MaxProviderResponseBytes (10 MiB).
+		w.Header().Set("Content-Type", "application/json")
+		chunk := strings.Repeat("x", 4096)
+		for i := 0; i < 3000; i++ { // ~12 MiB
+			_, _ = w.Write([]byte(chunk))
+		}
+	}))
+	defer srv.Close()
+
+	llm := ollama.New("llama3.2", ollama.WithBaseURL(srv.URL))
+	_, err := llm.CallWithTools(context.Background(), nil, nil)
+	if err == nil {
+		t.Error("expected error for oversized response")
 	}
 }

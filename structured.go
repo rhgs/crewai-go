@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 )
 
@@ -49,7 +50,7 @@ const defaultRepairMax = 2
 // only, validates the output against the schema, and retries up to
 // RepairMax times if validation fails. It returns the canonicalized
 // JSON string on success or a sentinel error on failure.
-func executeStructured(ctx context.Context, a *Agent, t *Task, contextText string, log Logger) (string, error) {
+func executeStructured(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (string, error) {
 	if a.LLM == nil {
 		return "", ErrNoLLM
 	}
@@ -94,11 +95,11 @@ func executeStructured(ctx context.Context, a *Agent, t *Task, contextText strin
 		cleaned := extractJSON(out)
 		canonical, valErr := validateAndCanonicalize(cleaned, schema)
 		if valErr == nil {
-			log.Debugf("[%s] structured output validated on attempt %d", a.Role, attempt)
+			log.DebugContext(ctx, "structured output validated", "agent", a.Role, "attempt", attempt)
 			return canonical, nil
 		}
 
-		log.Debugf("[%s] structured output attempt %d failed: %v", a.Role, attempt, valErr)
+		log.DebugContext(ctx, "structured output validation failed", "agent", a.Role, "attempt", attempt, "error", valErr)
 
 		if attempt >= repairMax {
 			return "", fmt.Errorf("agent %q: %w (last error: %v)", a.Role, ErrRepairBudgetExceeded, valErr)

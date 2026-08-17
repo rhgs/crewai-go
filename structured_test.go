@@ -57,7 +57,7 @@ func TestExecuteStructured_ValidJSON(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	out, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestExecuteStructured_RepairConverges(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), RepairMax: 2}
 
-	out, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestExecuteStructured_RepairBudgetExceeded(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), RepairMax: 2}
 
-	_, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrRepairBudgetExceeded) {
 		t.Fatalf("expected ErrRepairBudgetExceeded, got %v", err)
 	}
@@ -134,7 +134,7 @@ func TestExecuteStructured_RepairBudgetCustom1(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), RepairMax: 1}
 
-	out, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestExecuteStructured_RepairBudgetExceededCustom1(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), RepairMax: 1}
 
-	_, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrRepairBudgetExceeded) {
 		t.Fatalf("expected ErrRepairBudgetExceeded, got %v", err)
 	}
@@ -181,7 +181,7 @@ func TestExecuteStructured_MissingRequiredRepair(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), RepairMax: 2}
 
-	out, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestExecuteStructured_Canonicalization(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	out, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestExecuteStructured_CodeFenceStripped(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	out, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -254,7 +254,7 @@ func TestExecuteStructured_NoLLM(t *testing.T) {
 	task := NewTask("t", "", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	if _, err := executeStructured(context.Background(), agent, task, "", nopLogger{}); err != ErrNoLLM {
+	if _, err := executeStructured(context.Background(), agent, task, "", testLogger()); err != ErrNoLLM {
 		t.Errorf("error = %v, want %v", err, ErrNoLLM)
 	}
 }
@@ -267,7 +267,7 @@ func TestExecuteStructured_ContextCancel(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	if _, err := executeStructured(ctx, agent, task, "", nopLogger{}); err != context.Canceled {
+	if _, err := executeStructured(ctx, agent, task, "", testLogger()); err != context.Canceled {
 		t.Errorf("error = %v, want context.Canceled", err)
 	}
 }
@@ -278,7 +278,7 @@ func TestExecuteStructured_InvalidSchema(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: json.RawMessage(`not valid json`)}
 
-	_, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrInvalidOutput) {
 		t.Errorf("expected ErrInvalidOutput, got %v", err)
 	}
@@ -290,7 +290,7 @@ func TestExecuteStructured_EmptySchema(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{}
 
-	_, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrInvalidOutput) {
 		t.Errorf("expected ErrInvalidOutput, got %v", err)
 	}
@@ -307,7 +307,7 @@ func TestExecuteStructured_DefaultRepairMax(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)} // RepairMax=0 -> default 2
 
-	_, err := executeStructured(context.Background(), agent, task, "", nopLogger{})
+	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrRepairBudgetExceeded) {
 		t.Fatalf("expected ErrRepairBudgetExceeded, got %v", err)
 	}
@@ -381,7 +381,7 @@ func TestExecuteTaskStructuredDispatch(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	out, _, err := executeTask(context.Background(), agent, task, "", nopLogger{})
+	out, _, err := executeTask(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -403,7 +403,7 @@ func TestExecuteTaskStructuredDispatchWithTools(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	out, _, err := executeTask(context.Background(), agent, task, "", nopLogger{})
+	out, _, err := executeTask(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -420,7 +420,7 @@ func TestExecuteTaskStructuredNoLLM(t *testing.T) {
 	task := NewTask("t", "", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	if _, _, err := executeTask(context.Background(), agent, task, "", nopLogger{}); err != ErrNoLLM {
+	if _, _, err := executeTask(context.Background(), agent, task, "", testLogger()); err != ErrNoLLM {
 		t.Errorf("error = %v, want %v", err, ErrNoLLM)
 	}
 }

@@ -5,6 +5,79 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **Secret redaction in logs** (`redact.go`): provider errors logged via
+  `logger.WarnContext` (notably the hierarchical delegation path) are now
+  passed through `redactError`, which masks likely-secrets in the message:
+  - Long alphanumeric tokens (≥20 chars), preserving 4 leading and 4 trailing
+    characters for identifiability when the token is ≥24 chars.
+  - `Bearer <token>` in HTTP-style messages.
+  - `api_key=`, `token=`, `key=`, `secret=` query-string values.
+
+  See `redact.go` and `redact_test.go` for the exact rules. Example program
+  showing the same redaction pattern at the handler level: `examples/logging/`.
+
+- **Logging safety docs**: README + doc.go now warn about Debug-level logs
+  containing full LLM output and tool inputs, and provider errors potentially
+  including API keys. Recommends wrapping handlers with a redactor.
+
+- **`WithLogger` is not concurrent-safe**: documented on `Crew.logger`,
+  `Agent.logger`, `Crew.WithLogger`, and `Agent.WithLogger`. Multiple
+  sequential calls are idempotent (last wins), tested by
+  `TestWithLogger_Idempotent_Crew` and `TestWithLogger_Idempotent_Agent`.
+
+### Changed
+
+- **Logger replaced with `log/slog`**: The custom `Logger` interface
+  (`Infof`/`Debugf` format-string style) backed by `log.Logger` has
+  been removed in favor of `*slog.Logger` from the standard library.
+  All executor functions (`executeTask`, `executeStructured`,
+  `executeTaskWithTools`) now take `*slog.Logger` and emit structured
+  key-value logs via `InfoContext`/`DebugContext`/`WarnContext`. New
+  `Crew.WithLogger(*slog.Logger) *Crew` and `Agent.WithLogger(*slog.Logger) *Agent`
+  fluent setters allow injecting any `*slog.Logger`. Backward compatible:
+  `Crew.Verbose` continues to work — it now controls the level of the
+  fallback logger (`Verbose=true` → `LevelDebug`, `Verbose=false` →
+  `LevelError`, matching the legacy "silent when off" behavior).
+  `Agent.Execute` standalone falls back to `slog.Default()`. Subpackages
+  (`llm/*`, `tools/*`) remain logging-free. `logger.go` deleted. No new
+  dependencies; only `log/slog` from stdlib.
+
+### Added
+
+- **Web search (agent-driven)**: `WebSearcher` interface and `SearchWeb`
+  helper function for direct web search from Go code. `SearchHit` struct
+  (Title, URL, Content). Implemented by Ollama (`/api/web_search`, pure
+  search), OpenAI (`web_search_options`, requires search-capable model),
+  Anthropic (`web_search_20250305` server tool), and xAI (delegates to
+  OpenAI-compatible client). `ErrWebSearchUnsupported` sentinel. The `mock`
+  LLM also implements `WebSearcher` for testing. No new dependencies;
+  backward compatible.
+- **Web search (model-driven)**: `WebSearchTool` in the `tools` package — a
+  `Tool` + `FactSource` for the ReAct loop with pluggable `SearchProvider`.
+  7 providers: Wikipedia (default, free), LangSearch (100% free), Serpstack
+  (1000/month free), DuckDuckGo (optional, no key), Google Custom Search
+  (API key + CX ID), Brave Search (API key). Results collected as `Fact`s
+  with provenance. Options: `WithMaxResults`, `WithSearchTimeout`.
+- **Web search support**: Ollama, OpenAI, Anthropic, xAI.
+- **Native tool calling**: `Agent.ToolMode` (`"react"` | `"native"`) selects
+  between the existing text-based ReAct loop and the provider's native
+  function calling API. New `ToolCallingLLM` interface (implements `LLM`),
+  `ToolSpec`, `ToolCall`, `ToolCallResponse`, `ToolTrace` types.
+  `CallWithTools` implemented for Ollama, OpenAI, Anthropic, and Mock.
+  `ToolTraces` in `TaskOutput` for observability. `ErrNativeToolsUnsupported`
+  sentinel. Security: argument validation (size/depth limits), tool output
+  truncation, provider response size limits (`io.LimitReader`). Backward
+  compatible: default is ReAct, no changes to existing code paths.
+
+### Security
+
+- **SSRF protection** for web search: non-http(s) schemes, loopback, private,
+  link-local, and unspecified IP addresses are blocked. Domain names are
+  resolved via DNS and checked to prevent DNS rebinding attacks. Unresolvable
+  hosts are blocked (fail-closed).
+
 ## [v0.2.0] — 2026-08-07
 
 ### Added

@@ -28,4 +28,10 @@ var (
 	// It wraps the guardrail's error so the caller can inspect the violated
 	// invariant via errors.Unwrap.
 	ErrBlockedByGuardrail = errors.New("crewai: output blocked by guardrail")
+	// ErrNativeToolsUnsupported is returned when an agent's ToolMode is
+	// "native" but its LLM does not implement ToolCallingLLM.
+	ErrNativeToolsUnsupported = errors.New("crewai: agent requires native tool calling but LLM does not implement ToolCallingLLM")
+	// ErrWebSearchUnsupported is returned when an agent calls WebSearch but
+	// its LLM does not implement WebSearcher.
+	ErrWebSearchUnsupported = errors.New("crewai: LLM does not implement WebSearcher")
 )

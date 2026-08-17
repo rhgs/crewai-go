@@ -161,3 +161,119 @@ crew.Guardrails = []crewai.Guardrail{
 ```
 
 If any fact lacks provenance, `Kickoff` returns `ErrBlockedByGuardrail`.
+
+## Web search (WebSearchTool)
+
+The `WebSearchTool` is a `Tool` that searches the web via a pluggable
+`SearchProvider` and also implements `FactSource`, so results are collected
+as `Fact`s with provenance. Use this in the ReAct loop when you want the
+**LLM to decide** when to search (model-driven pattern).
+
+```go
+import "github.com/rhgs/crewai-go/tools"
+
+// Default: Wikipedia (free, no API key).
+tool := tools.NewWebSearch(tools.NewWikipediaSearch())
+agent.WithTools(tool)
+```
+
+### SearchProvider implementations
+
+| Provider | Constructor | API key | Notes |
+|----------|------------|--------|-------|
+| **Wikipedia** (default) | `NewWikipediaSearch()` | Free, none | Searches Wikipedia articles only. `NewWikipediaSearchWithLanguage("pt")` to set language. |
+| **LangSearch** | `NewLangSearch(apiKey)` | Free tier | 100% free. General web search. |
+| **Serpstack** | `NewSerpstack(apiKey)` | Free 1000/month | Google SERP results. |
+| **DuckDuckGo** | `NewDuckDuckGoSearch()` | Free, none | Optional provider. May be rate-limited or blocked by DuckDuckGo. |
+| **Google** | `NewGoogleSearch(apiKey, cxID)` | Required | Google Custom Search. Needs API key + CX ID. |
+| **Brave** | `NewBraveSearch(apiKey)` | Required | Brave Search API. |
+
+### Provider examples
+
+**Wikipedia** (default, free):
+
+```go
+tool := tools.NewWebSearch(tools.NewWikipediaSearch())
+// or with a specific language:
+tool := tools.NewWebSearch(tools.NewWikipediaSearchWithLanguage("en"))
+```
+
+**LangSearch** (100% free):
+
+```go
+tool := tools.NewWebSearch(tools.NewLangSearch(os.Getenv("LANGSEARCH_API_KEY")))
+```
+
+**Serpstack** (1000 requests/month free):
+
+```go
+tool := tools.NewWebSearch(tools.NewSerpstack(os.Getenv("SERPSTACK_API_KEY")))
+```
+
+**DuckDuckGo** (optional, no API key):
+
+```go
+tool := tools.NewWebSearch(tools.NewDuckDuckGoSearch())
+```
+
+**Google Custom Search** (requires API key + CX ID):
+
+```go
+tool := tools.NewWebSearch(
+	tools.NewGoogleSearch(os.Getenv("GOOGLE_API_KEY"), os.Getenv("GOOGLE_CX_ID")),
+)
+```
+
+**Brave Search** (requires API key):
+
+```go
+tool := tools.NewWebSearch(tools.NewBraveSearch(os.Getenv("BRAVE_API_KEY")))
+```
+
+### Options
+
+```go
+tool := tools.NewWebSearch(
+	tools.NewWikipediaSearch(),
+	tools.WithMaxResults(10),             // default 5
+	tools.WithSearchTimeout(60*time.Second), // default 30s
+)
+```
+
+### FactSource integration
+
+`WebSearchTool` implements `crewai.FactSource`. After each successful
+`Call`, results are collected as `Fact`s with source URL and payload hash,
+then attached to `TaskOutput.Facts` and `CrewOutput.Facts`:
+
+```go
+crew.Guardrails = []crewai.Guardrail{
+	func(_ context.Context, out *crewai.CrewOutput) error {
+		return crewai.AllFactsProvenanced(out.Facts)
+	},
+}
+```
+
+### SSRF protection
+
+All URLs returned by any provider are filtered through SSRF (Server-Side
+Request Forgery) protection before being presented to the agent:
+
+- **Non-http(s) schemes** are blocked (`file://`, `ftp://`, etc.).
+- **Loopback** addresses (`localhost`, `127.0.0.1`, `::1`) are blocked.
+- **Private, link-local, and unspecified** IP addresses are blocked
+  (e.g. `10.x`, `192.168.x`, `169.254.x` — this covers cloud metadata
+  endpoints like `169.254.169.254`).
+- **DNS rebinding prevention**: domain names are resolved via DNS and all
+  resolved IPs are checked. If any resolves to a blocked address, the URL
+  is blocked.
+- **Fail-closed**: if DNS resolution fails, the URL is blocked by default.
+
+## Logging
+
+Tools log via `*log/slog`. Two logs can leak sensitive content:
+
+- `agent thought` (Debug) - the entire LLM response before tool call.
+- `tool invoked` (Info) / `native tool call` (Info) - the tool input/args.
+
+**Recommendation:** in production, keep the log level at `LevelError` or wrap the logger handler with a redactor. The `crewai` package provides `redactError` (used internally for delegation-failed warnings) and `examples/logging/` shows a drop-in redaction handler that masks likely-secrets in all attributes before they reach the destination.

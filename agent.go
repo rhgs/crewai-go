@@ -1,6 +1,9 @@
 package crewai
 
-import "context"
+import (
+	"context"
+	"log/slog"
+)
 
 const defaultMaxIterations = 15
 
@@ -31,6 +34,18 @@ type Agent struct {
 	// AllowDelegation enables this agent to be considered as a manager in the
 	// hierarchical process and to delegate work (informational in this version).
 	AllowDelegation bool
+
+	// ToolMode controls how the executor runs tools. Empty or "react" uses
+	// the existing ReAct text-parsing loop. "native" uses the provider's
+	// native function calling via ToolCallingLLM. When "native" is set but
+	// the LLM does not implement ToolCallingLLM, execution returns
+	// ErrNativeToolsUnsupported.
+	ToolMode ToolMode
+
+	// logger, when set by WithLogger, is used by standalone Execute.
+	// If nil, slog.Default() is used. NOT CONCURRENT-SAFE: must be set
+	// before Execute is called and not mutated while Execute is running.
+	logger *slog.Logger
 }
 
 // NewAgent creates an agent with the essential fields filled in.
@@ -50,9 +65,23 @@ func (a *Agent) WithTools(tools ...Tool) *Agent {
 	return a
 }
 
+// WithLogger injects a *slog.Logger used by standalone Execute. When not
+// called, Execute falls back to slog.Default(). NOT CONCURRENT-SAFE:
+// must be called before Execute starts and not mutated while Execute is
+// running. Passing nil is allowed and equivalent to not calling
+// WithLogger.
+func (a *Agent) WithLogger(l *slog.Logger) *Agent {
+	a.logger = l
+	return a
+}
+
 // Execute runs a standalone task with this agent and returns the output. It is
 // useful for using an agent outside a crew or in tests.
 func (a *Agent) Execute(ctx context.Context, t *Task) (string, error) {
-	out, _, err := executeTask(ctx, a, t, "", nopLogger{})
+	log := a.logger
+	if log == nil {
+		log = slog.Default()
+	}
+	out, _, err := executeTask(ctx, a, t, "", log)
 	return out, err
 }

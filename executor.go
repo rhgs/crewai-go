@@ -3,19 +3,33 @@ package crewai
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 )
 
 // executeTask runs the reasoning loop (ReAct) of an agent for a task.
 // It returns the final answer string, collected facts (from FactSource
 // tools), and an error.
-func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log Logger) (string, []Fact, error) {
+func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (string, []Fact, error) {
 	if a.LLM == nil {
 		return "", nil, ErrNoLLM
 	}
 	if t != nil && t.Structured != nil {
 		out, err := executeStructured(ctx, a, t, contextText, log)
 		return out, nil, err
+	}
+
+	// Native tool calling path.
+	if a.ToolMode == ToolModeNative {
+		result, traces, facts, err := executeTaskWithTools(ctx, a, t, contextText, log)
+		if err != nil {
+			return "", nil, err
+		}
+		// Attach traces to the task output via a side channel.
+		if t != nil {
+			t.setToolTraces(traces)
+		}
+		return result, facts, nil
 	}
 
 	tools := effectiveTools(a, t)
@@ -59,7 +73,7 @@ func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log
 			return "", collectedFacts, fmt.Errorf("agent %q: %w", a.Role, err)
 		}
 		out = strings.TrimSpace(out)
-		log.Debugf("[%s] thought:\n%s", a.Role, out)
+		log.DebugContext(ctx, "agent thought", "agent", a.Role, "output", out)
 
 		if answer, ok := parseFinalAnswer(out); ok {
 			return strings.TrimSpace(answer), collectedFacts, nil
@@ -80,7 +94,7 @@ func executeTask(ctx context.Context, a *Agent, t *Task, contextText string, log
 			observation = fmt.Sprintf("Error: tool %q does not exist. Available tools: %s.",
 				action, strings.Join(toolNames(tools), ", "))
 		} else {
-			log.Infof("[%s] usando ferramenta %q com entrada: %s", a.Role, action, input)
+			log.InfoContext(ctx, "tool invoked", "agent", a.Role, "tool", action, "input", input)
 			result, err := tool.Call(ctx, input)
 			if err != nil {
 				observation = fmt.Sprintf("Error running tool %q: %v", action, err)

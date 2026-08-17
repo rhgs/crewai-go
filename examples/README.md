@@ -13,6 +13,7 @@ Each subfolder is a standalone executable program.
 | `hierarchical`  | A manager delegating tasks dynamically             | ✅ OpenAI               |
 | `tools`         | An agent using tools via ReAct                     | ✅ OpenAI               |
 | `xai_oauth`     | Grok via API key or subscription OAuth             | ✅ xAI                  |
+| `logging`       | Custom `*slog.Logger` with redaction wrapper       | ❌ No                   |
 
 ## Running
 

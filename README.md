@@ -26,6 +26,9 @@
 - [Quick Start](#quick-start)
 - [LLM Providers](#llm-providers)
 - [Tools](#tools)
+- [Native tool calling](#native-tool-calling)
+- [Web search](#web-search)
+- [Logging](#logging)
 - [Processes: Sequential and Hierarchical](#processes-sequential-and-hierarchical)
 - [Structured output](#structured-output)
 - [Guardrails](#guardrails)
@@ -48,6 +51,9 @@
 - 📋 **Structured output** — tasks can require JSON validated against a JSON Schema, with a bounded repair loop.
 - 🛡️ **Guardrails** — code-enforced post-output validation that blocks publication of outputs violating business invariants.
 - 📌 **Facts & provenance** — first-class Fact type populated only by deterministic connector tools, never by the LLM, with full provenance metadata.
+- 🔧 **Native tool calling** — use provider-native function calling (OpenAI, Anthropic, Ollama) instead of text-based ReAct, with automatic fallback and full trace observability.
+- 🔎 **Web search** — agent-driven search via the `WebSearcher` interface (Ollama, OpenAI, Anthropic, xAI) or model-driven search via `WebSearchTool` with 7 providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave). SSRF-protected.
+- 📝 **Structured logging via `log/slog`** — inject a custom `*slog.Logger` on `Crew` and `Agent`, with backward-compatible `Verbose` fallback.
 - 🧠 **Memory** between tasks and chainable **context**.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - ✅ **Testable** — mock LLM included; ~90% core coverage.
@@ -67,6 +73,9 @@
 | **Guardrail** | Post-output validation hook that blocks publication of invalid outputs. |
 | **Fact** | Data from a deterministic connector tool with provenance (source, hash). |
 | **FactSource** | Optional interface for tools that produce Facts. |
+| **ToolMode** | Tool execution strategy: `"react"` (default) or `"native"`. |
+| **ToolCallingLLM** | Optional LLM interface for native function calling. |
+| **ToolTrace** | Records each native tool invocation (name, args, output, duration). |
 
 ## Installation
 
@@ -215,6 +224,168 @@ agent.WithTools(
 ```
 
 The agent uses tools via the **ReAct** protocol (`Thought → Action → Action Input → Observation → Final Answer`). Details in [`docs/tools.md`](docs/tools.md).
+
+## Native tool calling
+
+For providers that support native function calling (OpenAI, Anthropic, Ollama), set `Agent.ToolMode` to use the provider's built-in tool calling instead of text-based ReAct:
+
+```go
+llm := ollama.New("llama3.2")
+
+agent := crewai.NewAgent("Researcher", "Find answers", "You are a researcher.", llm)
+agent.ToolMode = crewai.ToolModeNative
+agent.WithTools(
+    tools.Calculator(),
+    tools.CurrentTime(""),
+)
+
+task := crewai.NewTask("What is 15% of 200?", "A short answer.", agent)
+crew := crewai.NewCrew([]*crewai.Agent{agent}, []*crewai.Task{task})
+out, _ := crew.Kickoff(context.Background(), nil)
+
+// ToolTraces record each native tool call for observability.
+for _, trace := range out.TasksOutput[0].ToolTraces {
+    fmt.Printf("%s(%s) -> %s\n", trace.Tool, string(trace.Args), trace.Output)
+}
+```
+
+When `ToolMode` is `"native"` but the LLM does not implement `ToolCallingLLM`, the executor returns `ErrNativeToolsUnsupported`. The default (`""` or `"react"`) uses the existing ReAct loop — no changes to existing code. Details in [`docs/tools.md`](docs/tools.md).
+
+## Web search
+
+Web search is available in two patterns — agent-driven (Go code controls queries) and model-driven (the LLM decides when to search via the ReAct loop).
+
+### Agent-driven: `WebSearcher` interface
+
+For LLM providers that have a native web search API (Ollama Cloud, OpenAI, Anthropic, xAI), call `SearchWeb` directly from Go code:
+
+```go
+import "github.com/rhgs/crewai-go"
+
+// OpenAI requires a search-capable model (e.g. gpt-4o-search-preview).
+llm := openai.New("gpt-4o-search-preview")
+
+hits, err := crewai.SearchWeb(ctx, llm, "Go programming language", 5)
+if err != nil {
+    // Returns ErrWebSearchUnsupported if the LLM doesn't implement WebSearcher.
+    log.Fatal(err)
+}
+for _, hit := range hits {
+    fmt.Printf("%s -- %s\n%s\n\n", hit.Title, hit.URL, hit.Content)
+}
+```
+
+| Provider | How it works |
+|----------|-------------|
+| **Ollama Cloud** | `POST /api/web_search` — pure search endpoint, no model invocation, no tokens consumed |
+| **OpenAI** | `web_search_options` in Chat Completions (NOT `tools`); requires search models (`gpt-4o-search-preview`, `gpt-5-search-api`); results as nested `url_citation` annotations |
+| **Anthropic** | `web_search_20250305` server tool; results as `web_search_tool_result` blocks with `encrypted_content` |
+| **xAI (Grok)** | Delegates to the OpenAI-compatible client |
+
+### Model-driven: `WebSearchTool`
+
+For the ReAct loop, use `WebSearchTool` so the LLM decides when to search. It implements both `Tool` and `FactSource`, so results are collected as `Fact`s with provenance.
+
+```go
+import "github.com/rhgs/crewai-go/tools"
+
+// Wikipedia (default, free, no API key) — searches Wikipedia articles only.
+search := tools.NewWebSearch(nil)
+
+// LangSearch (100% free, semantic summaries) — general web search.
+// Get a free key at https://langsearch.com
+search := tools.NewWebSearch(tools.NewLangSearch("LANGSEARCH_API_KEY"))
+
+// Serpstack (1000 free searches/month) — Google SERP data.
+search := tools.NewWebSearch(tools.NewSerpstack("SERPSTACK_API_KEY"))
+
+// Google Custom Search (requires API key + CSE ID).
+search := tools.NewWebSearch(tools.NewGoogleSearch("GOOGLE_API_KEY", "GOOGLE_CSE_ID"))
+
+// Brave Search (requires API key).
+search := tools.NewWebSearch(tools.NewBraveSearch("BRAVE_API_KEY"))
+
+// DuckDuckGo (no key, but may be blocked by captcha).
+search := tools.NewWebSearch(tools.NewDuckDuckGoSearch())
+
+agent.WithTools(search)
+```
+
+All search results are **SSRF-protected**: URLs pointing to localhost, private IPs, `0.0.0.0`, link-local addresses (`169.254.x`), and unspecified addresses are filtered out. Domain names are resolved via DNS to prevent DNS rebinding attacks.
+
+Details in [`docs/llms.md`](docs/llms.md) (WebSearcher) and [`docs/tools.md`](docs/tools.md) (WebSearchTool).
+
+## Logging
+
+crewai-go uses [`log/slog`](https://pkg.go.dev/log/slog) (structured logging, Go 1.21+) from the standard library. Every log call is structured (key-value pairs), not format strings.
+
+Inject a custom `*slog.Logger` via `WithLogger` on both `Crew` and `Agent`:
+
+```go
+log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+}))
+
+crew := crewai.NewCrew(agents, tasks).WithLogger(log)
+agent := crewai.NewAgent("a", "g", "b", llm).WithLogger(log)
+```
+
+If no logger is injected, `Kickoff` creates a text-format logger on stderr. The default level depends on `Crew.Verbose`:
+
+| `Verbose` | Default level | Effect                                                  |
+|-----------|---------------|---------------------------------------------------------|
+| `false`   | `LevelError`  | Only warnings and errors (matches legacy nop behavior). |
+| `true`    | `LevelDebug`  | Everything: debug, info, warn, error.                   |
+
+When `WithLogger` is used, the injected logger is used as-is — the caller controls the level and handler.
+
+Example log line (JSON handler):
+
+```json
+{"time":"...","level":"INFO","msg":"agent thought","agent":"Poet","output":"Final Answer: ..."}
+```
+
+Subpackages (`llm/*`, `tools/*`) do not log internally — they return errors that the executor logs at the appropriate level.
+
+### Logging safety
+
+> Debug-level logs include full LLM output (`agent thought` → the entire model response) and tool inputs/arguments. If your log destination is shared (e.g. remote log aggregator), the output may contain PII or proprietary model responses. Provider errors (logged at `WARN` on delegation failures, for example) may include API keys in their message.
+>
+> Mitigations:
+>
+> - Pick your destination accordingly (sink to local files, not a shared stream, when handling user data).
+> - Use a level filter (e.g. `LevelError` only) to keep secrets out of logs by default.
+> - Wrap your handler with a redactor. See [`examples/logging/`](examples/logging/) for a drop-in redaction handler that masks likely-secrets (API keys, bearer tokens, long alphanumeric tokens).
+
+### Thread-safety
+
+`WithLogger` is **not concurrent-safe**. Set the logger before calling `Kickoff`/`Execute` and do not mutate it concurrently. Multiple sequential calls to `WithLogger` are idempotent — the last call wins.
+
+```go
+log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelDebug,
+}))
+
+crew := crewai.NewCrew(agents, tasks).WithLogger(log)
+agent := crewai.NewAgent("a", "g", "b", llm).WithLogger(log)
+```
+
+If no logger is injected, `Kickoff` creates a text-format logger on stderr. The default level depends on `Crew.Verbose`:
+
+| `Verbose` | Default level | Effect                                                  |
+|-----------|---------------|---------------------------------------------------------|
+| `false`   | `LevelError`  | Only warnings and errors (matches legacy nop behavior). |
+| `true`    | `LevelDebug`  | Everything: debug, info, warn, error.                   |
+
+When `WithLogger` is used, the injected logger is used as-is — the caller controls the level and handler. `Agent.Execute` (standalone, without a crew) falls back to `slog.Default()` unless `Agent.WithLogger` is set.
+
+Example log line (JSON handler):
+
+```json
+{"time":"...","level":"INFO","msg":"agent thought","agent":"Poet","output":"Final Answer: ..."}
+```
+
+Subpackages (`llm/*`, `tools/*`) do not log internally — they return errors that the executor logs at the appropriate level.
 
 ## Processes: Sequential and Hierarchical
 

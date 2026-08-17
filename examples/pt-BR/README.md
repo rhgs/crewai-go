@@ -13,6 +13,7 @@ Cada subpasta é um programa executável independente.
 | `hierarchical`  | Gerente delegando tarefas dinamicamente           | ✅ OpenAI               |
 | `tools`         | Agente usando ferramentas via ReAct               | ✅ OpenAI               |
 | `xai_oauth`     | Grok por chave de API ou OAuth de assinatura      | ✅ xAI                  |
+| `logging`       | `*slog.Logger` customizado com wrapper de redação  | ❌ Não                  |
 
 ## Rodando
 

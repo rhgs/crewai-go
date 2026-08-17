@@ -161,3 +161,320 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 	}
 	return parsed.Choices[0].Message.Content, nil
 }
+
+// openAIToolCall matches the OpenAI wire format where arguments is a string.
+type openAIToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
+}
+
+// openAIChatRequestWithTools extends chatRequest with tools.
+type openAIChatRequestWithTools struct {
+	Model       string            `json:"model"`
+	Messages    []openAIChatMsg   `json:"messages"`
+	Temperature float64           `json:"temperature"`
+	Tools       []crewai.ToolSpec `json:"tools,omitempty"`
+}
+
+// openAIChatMsg extends chatMessage with tool_calls and tool_name.
+type openAIChatMsg struct {
+	Role      string           `json:"role"`
+	Content   string           `json:"content"`
+	ToolCalls []openAIToolCall `json:"tool_calls,omitempty"`
+	ToolName  string           `json:"tool_name,omitempty"`
+}
+
+// openAIChatResponseWithTools extends chatResponse with tool_calls.
+type openAIChatResponseWithTools struct {
+	Choices []struct {
+		Message struct {
+			Role      string           `json:"role"`
+			Content   string           `json:"content"`
+			ToolCalls []openAIToolCall `json:"tool_calls"`
+		} `json:"message"`
+	} `json:"choices"`
+	Error *struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+	} `json:"error"`
+}
+
+// CallWithTools implements crewai.ToolCallingLLM.
+func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, tools []crewai.ToolSpec) (*crewai.ToolCallResponse, error) {
+	token, err := c.authToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	reqBody := openAIChatRequestWithTools{
+		Model:       c.model,
+		Temperature: c.temperature,
+		Tools:       tools,
+		Messages:    make([]openAIChatMsg, len(messages)),
+	}
+	for i, m := range messages {
+		reqBody.Messages[i] = openAIChatMsg{
+			Role:      string(m.Role),
+			Content:   m.Content,
+			ToolCalls: nil, // openAIToolCall uses string args; will be set below
+			ToolName:  m.ToolName,
+		}
+		// Convert crewai.ToolCall (json.RawMessage args) to openAIToolCall (string args).
+		if len(m.ToolCalls) > 0 {
+			otcs := make([]openAIToolCall, len(m.ToolCalls))
+			for j, tc := range m.ToolCalls {
+				otcs[j] = openAIToolCall{
+					ID:   tc.ID,
+					Type: "function",
+				}
+				otcs[j].Function.Name = tc.Function.Name
+				otcs[j].Function.Arguments = string(tc.Function.Arguments)
+			}
+			reqBody.Messages[i].ToolCalls = otcs
+		}
+	}
+
+	buf, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("openai: encoding request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(buf))
+	if err != nil {
+		return nil, fmt.Errorf("openai: creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("openai: sending request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body := io.LimitReader(resp.Body, crewai.MaxProviderResponseBytes)
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, fmt.Errorf("openai: reading response: %w", err)
+	}
+
+	var parsed openAIChatResponseWithTools
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return nil, fmt.Errorf("openai: decoding response (status %d): %w", resp.StatusCode, err)
+	}
+	if parsed.Error != nil {
+		return nil, fmt.Errorf("openai: API error: %s", parsed.Error.Message)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("openai: unexpected status %d: %s", resp.StatusCode, string(data))
+	}
+	if len(parsed.Choices) == 0 {
+		return &crewai.ToolCallResponse{}, nil
+	}
+
+	choice := parsed.Choices[0]
+	result := &crewai.ToolCallResponse{
+		Content: choice.Message.Content,
+	}
+
+	// Normalize OpenAI string arguments to json.RawMessage.
+	for _, otc := range choice.Message.ToolCalls {
+		var args json.RawMessage
+		if err := json.Unmarshal([]byte(otc.Function.Arguments), &args); err != nil {
+			// Best-effort: keep raw bytes if not valid JSON.
+			args = json.RawMessage(otc.Function.Arguments)
+		}
+		result.ToolCalls = append(result.ToolCalls, crewai.ToolCall{
+			ID: otc.ID,
+			Function: crewai.ToolCallFunction{
+				Name:      otc.Function.Name,
+				Arguments: args,
+			},
+		})
+	}
+
+	return result, nil
+}
+
+// webSearchUserLocationApproximate holds the approximate location for
+// local search results.
+type webSearchUserLocationApproximate struct {
+	Country string `json:"country,omitempty"`
+	City    string `json:"city,omitempty"`
+	Region  string `json:"region,omitempty"`
+}
+
+// webSearchUserLocation provides user location to improve local search.
+type webSearchUserLocation struct {
+	Type        string                           `json:"type"` // "approximate"
+	Approximate webSearchUserLocationApproximate `json:"approximate"`
+}
+
+// webSearchOptions is the value of the web_search_options field.
+// Can optionally include user_location. Note: search_context_size is
+// NOT supported in Chat Completions (it is a Responses API feature only).
+type webSearchOptions struct {
+	UserLocation *webSearchUserLocation `json:"user_location,omitempty"`
+}
+
+// webSearchChatRequest is the body for a chat completion with web search.
+// OpenAI uses the web_search_options field (NOT tools) to enable web search
+// in the Chat Completions API. This requires a search-capable model such as
+// gpt-4o-search-preview or gpt-5-search-api.
+type webSearchChatRequest struct {
+	Model            string            `json:"model"`
+	Messages         []chatMessage     `json:"messages"`
+	WebSearchOptions *webSearchOptions `json:"web_search_options,omitempty"`
+	Temperature      float64           `json:"temperature"`
+}
+
+// webSearchAnnotationURLCitation holds the URL citation metadata.
+type webSearchAnnotationURLCitation struct {
+	URL        string `json:"url"`
+	Title      string `json:"title"`
+	StartIndex int    `json:"start_index"`
+	EndIndex   int    `json:"end_index"`
+}
+
+// webSearchAnnotation is a single annotation on the response message.
+// OpenAI Chat Completions uses a NESTED format:
+// {"type": "url_citation", "url_citation": {"url": "...", "title": "...", ...}}
+type webSearchAnnotation struct {
+	Type        string                         `json:"type"` // always "url_citation"
+	URLCitation webSearchAnnotationURLCitation `json:"url_citation"`
+}
+
+// webSearchChatResponse captures the response when web_search_options is used.
+type webSearchChatResponse struct {
+	Choices []struct {
+		Message struct {
+			Content     string                `json:"content"`
+			Annotations []webSearchAnnotation `json:"annotations"`
+		} `json:"message"`
+	} `json:"choices"`
+	Error *struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+	} `json:"error"`
+}
+
+// WebSearch implements crewai.WebSearcher.
+//
+// OpenAI does not have a standalone search API. The Chat Completions API
+// supports web search via the web_search_options field, which requires a
+// search-capable model (gpt-4o-search-preview, gpt-5-search-api, etc).
+//
+// This method sends the query as a user message with web_search_options
+// enabled. The model searches the web and returns results as annotations
+// (url_citation blocks with title and URL). We extract the annotations
+// and use the message content as the combined snippet.
+//
+// IMPORTANT: This method uses c.model as-is. The caller must configure
+// the client with a search-capable model (e.g. "gpt-4o-search-preview").
+// If the configured model does not support web search, the API returns
+// an error.
+//
+// Note: this consumes tokens (the model is involved), unlike Ollama's
+// pure search endpoint. For high-volume search, consider using the
+// WebSearchTool with a Brave or Google provider instead.
+func (c *Client) WebSearch(ctx context.Context, query string, max int) ([]crewai.SearchHit, error) {
+	token, err := c.authToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if max <= 0 || max > 10 {
+		max = 5
+	}
+
+	reqBody := webSearchChatRequest{
+		Model: c.model,
+		Messages: []chatMessage{
+			{
+				Role: "user",
+				// Ask the model to return up to max results so we can
+				// clamp the annotations we extract.
+				Content: fmt.Sprintf("Search the web for: %s. Return the top %d results.", query, max),
+			},
+		},
+		WebSearchOptions: &webSearchOptions{},
+		Temperature:      c.temperature,
+	}
+
+	buf, _ := json.Marshal(reqBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(buf))
+	if err != nil {
+		return nil, fmt.Errorf("openai: creating web search request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("openai: sending web search request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body := io.LimitReader(resp.Body, crewai.MaxProviderResponseBytes)
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, fmt.Errorf("openai: reading web search response: %w", err)
+	}
+
+	var parsed webSearchChatResponse
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return nil, fmt.Errorf("openai: decoding web search response: %w", err)
+	}
+	if parsed.Error != nil {
+		return nil, fmt.Errorf("openai: API error: %s", parsed.Error.Message)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("openai: web search HTTP %d: %s", resp.StatusCode, string(data))
+	}
+
+	if len(parsed.Choices) == 0 {
+		return nil, nil
+	}
+
+	choice := parsed.Choices[0]
+
+	// Extract hits from annotations (url_citation blocks).
+	// Each annotation has type "url_citation" and a nested
+	// url_citation object with url, title, start_index, end_index.
+	var hits []crewai.SearchHit
+	for _, ann := range choice.Message.Annotations {
+		if ann.Type == "url_citation" && ann.URLCitation.URL != "" {
+			hits = append(hits, crewai.SearchHit{
+				Title:   ann.URLCitation.Title,
+				URL:     ann.URLCitation.URL,
+				Content: choice.Message.Content,
+			})
+		}
+	}
+
+	// If no annotations, try to use content as a single result.
+	if len(hits) == 0 && choice.Message.Content != "" {
+		hits = []crewai.SearchHit{{
+			Title:   query,
+			URL:     "",
+			Content: choice.Message.Content,
+		}}
+	}
+
+	// Clamp to max.
+	if len(hits) > max {
+		hits = hits[:max]
+	}
+
+	return hits, nil
+}
+
+// Compile-time check.
+var _ crewai.WebSearcher = (*Client)(nil)
+
+// Compile-time check.
+var _ crewai.ToolCallingLLM = (*Client)(nil)

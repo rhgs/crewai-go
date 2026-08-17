@@ -12,6 +12,25 @@
 // implementations live in the llm/openai, llm/anthropic, and llm/mock
 // subpackages.
 //
+// # Native tool calling
+//
+// When an Agent's ToolMode is set to ToolModeNative and its LLM implements
+// the ToolCallingLLM interface, the executor uses the provider's native
+// function calling API instead of the text-based ReAct protocol. This is
+// more reliable and produces structured tool_calls that the executor
+// executes directly, without text parsing.
+//
+// Providers that support ToolCallingLLM: llm/ollama, llm/openai, llm/anthropic.
+// Providers that do not: llm/mock (uses a queued response mechanism for tests).
+//
+// ToolTraces in TaskOutput record each native tool invocation (name, args,
+// output, duration, failed) for observability. Facts from FactSource tools
+// are collected the same way as in ReAct.
+//
+// An LLM is any type implementing the LLM interface; ready-made
+// implementations live in the llm/openai, llm/anthropic, and llm/mock
+// subpackages.
+//
 // Minimal example:
 //
 //	llm := openai.New("gpt-4o-mini")
@@ -79,4 +98,85 @@
 //	        return crewai.AllFactsProvenanced(out.Facts)
 //	    },
 //	}
+//
+// # Web search
+//
+// The framework supports web search in two complementary patterns:
+//
+// Agent-driven — the agent's Go code decides what to search, when, and how
+// many results to fetch. Any LLM that implements the optional WebSearcher
+// interface can be searched directly via the SearchWeb helper:
+//
+//	type WebSearcher interface {
+//	    WebSearch(ctx context.Context, query string, max int) ([]SearchHit, error)
+//	}
+//
+//	hits, err := crewai.SearchWeb(ctx, llm, "Go programming", 5)
+//
+// SearchHit is a single result with Title, URL, and Content (a short
+// snippet, not the full page).
+//
+// Providers that implement WebSearcher:
+//
+//   - llm/ollama  — POST /api/web_search (pure search, no model invocation).
+//     Works with both Ollama Cloud and local Ollama (if the endpoint is
+//     available).
+//   - llm/openai  — uses web_search_options (NOT the tools field) with a
+//     search-capable model (gpt-4o-search-preview, gpt-5-search-api, etc.).
+//     The model is invoked, so this consumes tokens.
+//   - llm/anthropic — uses the web_search_20250305 server tool. The model
+//     searches and returns web_search_tool_result content blocks.
+//     Consumes tokens.
+//   - llm/xai     — delegates to the OpenAI-compatible client (same
+//     web_search_options wire format). Requires a search-capable model.
+//
+// If the LLM does not implement WebSearcher, SearchWeb returns
+// ErrWebSearchUnsupported.
+//
+// Model-driven — the WebSearchTool (in the tools package) is a Tool that
+// also implements FactSource. It searches the web via a pluggable
+// SearchProvider and returns formatted results for the ReAct observation.
+// The LLM decides when to search.
+//
+//	import "github.com/rhgs/crewai-go/tools"
+//
+//	tool := tools.NewWebSearch(tools.NewWikipediaSearch())
+//	agent.WithTools(tool)
+//
+// Available SearchProvider implementations:
+//
+//   - Wikipedia (default, free, no API key) — searches Wikipedia articles.
+//   - LangSearch (100% free) — general web search, requires API key.
+//   - Serpstack (1000 requests/month free) — requires API key.
+//   - DuckDuckGo (optional, may be rate-limited or blocked) — no API key.
+//   - Google Custom Search (requires API key + CX ID).
+//   - Brave Search (requires API key).
+//
+// All URLs returned by any provider are filtered through SSRF protection:
+// non-http(s) schemes, loopback/private/link-local/unspecified addresses are
+// blocked, and domain names are resolved via DNS to prevent rebinding attacks.
+// Fail-closed: unresolvable hosts are blocked.
+//
+// # Logging
+//
+// crewai-go uses log/slog (structured logging) from the standard library.
+// Inject a custom *slog.Logger via the WithLogger method on Crew and Agent:
+//
+// NOTE: Debug logs include the full LLM output and tool inputs; warn logs
+// include upstream error messages (which providers may render with request
+// details). Pick your log destination accordingly — avoid shared remote
+// sinks when prompts/outputs may contain sensitive data.
+//
+//	crew := crewai.NewCrew(agents, tasks)
+//	crew.WithLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+//	    Level: slog.LevelDebug,
+//	})))
+//
+// If no logger is provided, Kickoff creates a text-format logger on stderr.
+// The level is LevelDebug when Crew.Verbose is true and LevelError otherwise
+// (matching the legacy behavior, where only Verbose=true emitted any logs).
+// When WithLogger is used, the injected logger is used as-is — the caller
+// controls level, handler, and destination. Agent.Execute, when called
+// standalone (without a crew), falls back to slog.Default() unless
+// Agent.WithLogger is used.
 package crewai

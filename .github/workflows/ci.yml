@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   test:
-    name: Test (Go ${{ matrix.go-version }})
+    name: test (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
