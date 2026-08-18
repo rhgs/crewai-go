@@ -245,4 +245,20 @@
 // The Crew executor injects the current Task as a WarningSink into ctx
 // before invoking tools; Agent.Execute standalone does not inject a sink
 // (calls become silent no-ops).
+//
+// # Progress observability
+//
+// Crews emit real-time progress events through a ProgressFunc set via
+// Crew.WithProgress. Events include stage_started, stage_completed,
+// task_started, task_completed, and tool_invoked (both ReAct and native
+// tool calling paths). The callback runs from multiple goroutines when
+// stages run in parallel — it MUST be thread-safe, like an slog.Handler.
+// A panic inside the callback is recovered and logged; Kickoff continues.
+// Progress payloads carry only metadata (Stage, Task, Agent, Event, Tool,
+// Duration, Err) — never prompt bodies, LLM outputs, or tool inputs.
+//
+//	crew.WithProgress(func(p crewai.Progress) {
+//	    fmt.Printf("%s/%s/%s tool=%s dur=%s\n",
+//	        p.Stage, p.Task, p.Agent, p.Tool, p.Duration)
+//	})
 package crewai

@@ -289,6 +289,12 @@ func executeTaskWithTools(ctx context.Context, a *Agent, t *Task, contextText st
 					collectedFacts = dedupFacts(collectedFacts, fs.Facts())
 				}
 			}
+			emitProgress(ctx, Progress{
+				Agent:    a.Role,
+				Event:    "tool_invoked",
+				Tool:     tc.Function.Name,
+				Duration: trace.Duration,
+			})
 			traces = append(traces, trace)
 
 			messages = append(messages, Message{

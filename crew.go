@@ -50,6 +50,28 @@ type Crew struct {
 	// Kickoff starts and not mutated while Kickoff is running.
 	logger *slog.Logger
 	mem    *Memory
+	// progress is invoked during Kickoff to surface execution events.
+	// Set via WithProgress before Kickoff. NOT CONCURRENT-SAFE in the
+	// same sense as logger (set once before Kickoff). The callback
+	// itself MAY be called from multiple goroutines and MUST be
+	// thread-safe. Panics inside the callback are recovered.
+	progress ProgressFunc
+}
+
+// WithProgress registers a progress callback invoked during Kickoff.
+// The callback is called from multiple goroutines when stages run in
+// parallel, so it MUST be safe for concurrent use, like an
+// slog.Handler. Passing nil disables progress reporting. The callback
+// receives Progress values that contain metadata only (stage, task,
+// agent, event, tool, duration, err) — never prompt bodies, LLM
+// outputs, or tool inputs. Panics inside the callback are recovered
+// and logged via slog.Default(); Kickoff is not affected.
+//
+// Set BEFORE Kickoff is called. Mutating this field directly while
+// Kickoff is running is undefined.
+func (c *Crew) WithProgress(fn ProgressFunc) *Crew {
+	c.progress = fn
+	return c
 }
 
 // Stage is a step of the Staged pipeline. Stages run in sequence, but the
@@ -196,6 +218,9 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 	var err error
 	out := &CrewOutput{}
 
+	// Inject the progress callback into ctx so every executor sees it.
+	ctx = ContextWithProgress(ctx, c.progress)
+
 	switch c.Process {
 	case Sequential:
 		out, err = c.runSequential(ctx)
@@ -229,10 +254,27 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 			return nil, ErrNoAgent
 		}
 
+		emitProgress(ctx, Progress{
+			Task:  taskLabel(task, i),
+			Agent: agent.Role,
+			Event: "task_started",
+		})
+
 		result, facts, err := c.execute(ctx, agent, task)
 		if err != nil {
+			emitProgress(ctx, Progress{
+				Task:  taskLabel(task, i),
+				Agent: agent.Role,
+				Event: "task_completed",
+				Err:   redactError(err),
+			})
 			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
+		emitProgress(ctx, Progress{
+			Task:  taskLabel(task, i),
+			Agent: agent.Role,
+			Event: "task_completed",
+		})
 		warnings := task.Warnings()
 		out.TasksOutput = append(out.TasksOutput, TaskOutput{
 			Task:       taskLabel(task, i),
@@ -268,10 +310,27 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 		}
 		c.logger.InfoContext(ctx, "task delegated", "task_index", i+1, "agent", agent.Role)
 
+		emitProgress(ctx, Progress{
+			Task:  taskLabel(task, i),
+			Agent: agent.Role,
+			Event: "task_started",
+		})
+
 		result, facts, err := c.execute(ctx, agent, task)
 		if err != nil {
+			emitProgress(ctx, Progress{
+				Task:  taskLabel(task, i),
+				Agent: agent.Role,
+				Event: "task_completed",
+				Err:   redactError(err),
+			})
 			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
+		emitProgress(ctx, Progress{
+			Task:  taskLabel(task, i),
+			Agent: agent.Role,
+			Event: "task_completed",
+		})
 		warnings := task.Warnings()
 		out.TasksOutput = append(out.TasksOutput, TaskOutput{
 			Task:       taskLabel(task, i),
@@ -299,6 +358,11 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 		if stageName == "" {
 			stageName = fmt.Sprintf("stage %d", si+1)
 		}
+
+		emitProgress(ctx, Progress{
+			Stage: stageName,
+			Event: "stage_started",
+		})
 
 		// A single derived context for the whole stage: cancelling it stops
 		// every sibling goroutine (on parent cancellation or a non-optional
@@ -356,6 +420,13 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 				c.logger.InfoContext(stageCtx, "task started",
 					"stage", stageName, "task_index", ti+1, "agent", agent.Role)
 
+				emitProgress(stageCtx, Progress{
+					Stage: stageName,
+					Task:  taskLabel(task, ti),
+					Agent: agent.Role,
+					Event: "task_started",
+				})
+
 				result, facts, err := c.execute(stageCtx, agent, task)
 				results[ti] = stageResult{
 					task:  task,
@@ -364,6 +435,13 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 					facts: facts,
 					err:   err,
 				}
+				emitProgress(stageCtx, Progress{
+					Stage: stageName,
+					Task:  taskLabel(task, ti),
+					Agent: agent.Role,
+					Event: "task_completed",
+					Err:   redactError(err),
+				})
 				if err != nil {
 					recordErr(ti, err)
 				}
@@ -371,6 +449,11 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 		}
 		wg.Wait()
 		cancel()
+
+		emitProgress(ctx, Progress{
+			Stage: stageName,
+			Event: "stage_completed",
+		})
 
 		// A non-optional stage aborts on the first failure.
 		if firstErr != nil && !stage.Optional {

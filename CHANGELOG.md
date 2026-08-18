@@ -46,6 +46,20 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   a task*; optional stages mean *task failure does not abort the crew*.
   No new dependencies; backward compatible.
 
+### Added
+
+- **Progress observability**: new `crewai.ProgressFunc` and
+  `crewai.Progress` types plus the fluent setter `Crew.WithProgress(fn)`.
+  During `Kickoff` the executor emits events for `stage_started`,
+  `stage_completed`, `task_started`, `task_completed`, and `tool_invoked`
+  (both ReAct and native paths). The callback is invoked from multiple
+  goroutines when stages run in parallel — it MUST be safe for
+  concurrent use, like an `slog.Handler`. Panics inside the callback
+  are recovered and logged via `slog.Default()`; `Kickoff` is never
+  aborted by a callback failure. `Progress` payloads never contain
+  prompt bodies, LLM outputs, or tool inputs — only metadata. No new
+  dependencies; backward compatible.
+
 ## [v0.4.0] — 2026-08-17
 
 ### Added

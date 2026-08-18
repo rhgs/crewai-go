@@ -190,3 +190,31 @@ task := crewai.NewTask("...", "...", agent).
 
 Schema validation checks the **shape**; guardrails check the **meaning**.
 Use both for maximum safety.
+
+## Progress observability
+
+`Kickoff` is a black box until it returns. To surface real-time events
+to a frontend (e.g. via SSE), set a progress callback with
+`WithProgress`:
+
+```go
+crew := crewai.NewCrew(agents, tasks).
+    WithProgress(func(p crewai.Progress) {
+        // p carries: Stage, Task, Agent, Event, Tool, Duration, Err
+        // Event is one of: "stage_started", "stage_completed",
+        //                  "task_started", "task_completed",
+        //                  "tool_invoked"
+        w.Header().Set("Content-Type", "text/event-stream")
+        fmt.Fprintf(w, "data: %s %s %s\n\n", p.Event, p.Task, p.Tool)
+    })
+```
+
+The callback is invoked from multiple goroutines when stages run in
+parallel — it MUST be safe for concurrent use, like an `slog.Handler`.
+A panic inside the callback is recovered and logged via
+`slog.Default()`; the `Kickoff` runs to completion either way.
+
+Progress events never contain prompt bodies, LLM outputs, or tool
+inputs — only metadata. If you need to surface tool inputs or outputs,
+use `crewai.Redact` on tool errors or log them explicitly with the
+sensitive parts masked.

@@ -48,6 +48,20 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   *falha da tarefa nao aborta o crew*. Sem novas dependencias;
   backward compatible.
 
+### Adicionado
+
+- **Observabilidade de progresso**: novos tipos `crewai.ProgressFunc` e
+  `crewai.Progress` mais o setter fluente `Crew.WithProgress(fn)`.
+  Durante `Kickoff`, o executor emite eventos `stage_started`,
+  `stage_completed`, `task_started`, `task_completed` e `tool_invoked`
+  (caminhos ReAct e native). O callback e invocado de multiplas
+  goroutines quando estagios rodam em paralelo — deve ser thread-safe,
+  como um `slog.Handler`. Panics dentro do callback sao recuperados e
+  logados via `slog.Default()`; `Kickoff` nunca e abortado por falha
+  no callback. Payloads de `Progress` nunca contem corpo de prompt,
+  saida do LLM nem input de ferramenta — apenas metadados. Sem novas
+  dependencias; backward compatible.
+
 ## [v0.4.0] — 2026-08-17
 
 ### Adicionado

@@ -192,3 +192,31 @@ tarefa := crewai.NewTask("...", "...", agente).
 
 A validacao de schema checa a **forma**; guardrails checam o **significado**.
 Use ambos para maxima seguranca.
+
+## Observabilidade de progresso
+
+`Kickoff` e uma caixa-preta ate retornar. Para expor eventos em tempo
+real a um frontend (ex.: via SSE), defina um callback de progresso com
+`WithProgress`:
+
+```go
+crew := crewai.NewCrew(agentes, tarefas).
+    WithProgress(func(p crewai.Progress) {
+        // p carrega: Stage, Task, Agent, Event, Tool, Duration, Err
+        // Event e um de: "stage_started", "stage_completed",
+        //                "task_started",  "task_completed",
+        //                "tool_invoked"
+        w.Header().Set("Content-Type", "text/event-stream")
+        fmt.Fprintf(w, "data: %s %s %s\n\n", p.Event, p.Task, p.Tool)
+    })
+```
+
+O callback e invocado de multiplas goroutines quando estagios rodam em
+paralelo — deve ser thread-safe, como um `slog.Handler`. Um panic
+dentro do callback e recuperado e logado via `slog.Default()`; o
+`Kickoff` roda ate o fim independentemente.
+
+Eventos de progresso nunca contem corpo de prompt, saida do LLM nem
+input de ferramenta — apenas metadados. Se precisar expor inputs ou
+saidas de ferramentas, use `crewai.Redact` nos erros de ferramentas
+ou logue explicitamente com as partes sensiveis mascaradas.
