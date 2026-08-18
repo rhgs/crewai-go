@@ -119,6 +119,47 @@ func (c *Client) Initialize(ctx context.Context, name, version string) error {
 	return nil
 }
 
+// Close ends the MCP session if one is active. It sends an HTTP DELETE
+// with the Mcp-Session-Id header (Streamable HTTP session teardown) and
+// then forgets the local session id. Close is idempotent and is a no-op
+// on a client that was never initialized. Transport errors are returned
+// but the local session is cleared either way so a later Close is a no-op.
+// Header values are never logged.
+func (c *Client) Close(ctx context.Context) error {
+	c.sessionMu.Lock()
+	sid := c.sessionID
+	c.sessionID = ""
+	c.sessionMu.Unlock()
+	if sid == "" {
+		return nil
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("close session: %w", err)
+	}
+	httpReq.Header.Set("Mcp-Session-Id", sid)
+	for _, h := range c.headers {
+		httpReq.Header.Set(h.key, h.val)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("close session: %w", err)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 512))
+	// 404/405: server has no session resource to delete. Anything
+	// else non-2xx is reported but the local id is already gone.
+	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusMethodNotAllowed {
+		return nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("close session: HTTP %d", resp.StatusCode)
+	}
+	return nil
+}
+
 // Tool is an MCP tool descriptor returned by tools/list. InputSchema
 // is the JSON Schema the tool accepts and must be preserved verbatim
 // for native function calling (see SchemaProvider).

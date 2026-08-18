@@ -21,8 +21,11 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   substituido por um placeholder. Um `isError: true` no nivel da
   ferramenta e retornado ao modelo como texto de observacao (prefixado
   com `[tool error]`), nao como erro de Go — apenas falhas HTTP /
-  JSON-RPC viram `error`. Novos helpers: `WithHTTPClient`, `WithHeader`.
-  Nova constante `MaxMCPResponseBytes = 16 MiB`. Sem novas dependencias;
+  JSON-RPC viram `error`. Novos helpers: `WithHTTPClient`, `WithHeader`,
+  `Client.Close` (teardown de sessao via HTTP DELETE; idempotente).
+  `LoadConfig` fecha os clients ja inicializados se um servidor
+  posterior falha no `Initialize`. Nova constante
+  `MaxMCPResponseBytes = 16 MiB`. Sem novas dependencias;
   totalmente backward compatible.
 
 - **Interface `SchemaProvider`**: uma capacidade opcional, verificada via
@@ -31,8 +34,6 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   cair no schema de objeto vazio padrao — usado pelo adapter MCP e
   disponivel a qualquer ferramenta que queira encaminhar seu schema real
   ao modelo. Puramente aditivo.
-
-### Adicionado
 
 - **Warnings por tarefa (degradacao graciosa)**: novos metodos thread-safe
   `Task.AddWarning(msg)` e `Task.Warnings()`, a interface opcional
@@ -48,8 +49,6 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   *falha da tarefa nao aborta o crew*. Sem novas dependencias;
   backward compatible.
 
-### Adicionado
-
 - **Observabilidade de progresso**: novos tipos `crewai.ProgressFunc` e
   `crewai.Progress` mais o setter fluente `Crew.WithProgress(fn)`.
   Durante `Kickoff`, o executor emite eventos `stage_started`,
@@ -61,8 +60,6 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   no callback. Payloads de `Progress` nunca contem corpo de prompt,
   saida do LLM nem input de ferramenta — apenas metadados. Sem novas
   dependencias; backward compatible.
-
-### Adicionado
 
 - **Saida estruturada via tool-call (`WithToolCall`)**: novo modo em
   `StructuredOutput` que extrai JSON via uma chamada de tool
@@ -78,6 +75,12 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   retorna `ErrToolCallStructuredUnsupported`. O modo JSON-only legado
   segue como padrao e e backward compatible. Ative com
   `crewai.WithToolCall()`.
+
+### Modificado
+
+- O CI agora roda `govulncheck ./...` como job dedicado no Go 1.25.x
+  (CVEs da stdlib ja corrigidas nessa toolchain; o modulo em si nao
+  tem vulnerabilidades conhecidas).
 
 ## [v0.4.0] — 2026-08-17
 

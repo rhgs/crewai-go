@@ -97,7 +97,11 @@ failures surface as Go errors.
 - Headers configured via `WithHeader` and `Mcp-Session-Id` are never logged.
 - SSE parsing extracts only `data:` lines; nothing is interpreted or executed.
 - `LoadConfig` errors name the failing server (by `Name`) but never include
-  header values or file contents.
+  header values or file contents. If a later server fails `Initialize`,
+  clients already opened are `Close`d so their sessions are not left
+  hanging.
+- `Client.Close` sends HTTP DELETE with `Mcp-Session-Id` (Streamable
+  HTTP teardown) and is idempotent.
 
 ## Coverage
 

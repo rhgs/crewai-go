@@ -30,7 +30,9 @@ type ServerConfig struct {
 // configuration files implicitly. Errors from Initialize name the
 // server (by Name when set, else by Endpoint) but never include header
 // values or file contents. An empty Endpoint is rejected before any
-// network call, identified by Name.
+// network call, identified by Name. If Initialize fails for a later
+// server, clients already initialized are Closed before the error
+// returns so their MCP sessions are not abandoned.
 func LoadConfig(ctx context.Context, path, clientName, clientVersion string) ([]*Client, error) {
 	if path == "" {
 		return nil, fmt.Errorf("mcp: config path is required")
@@ -68,6 +70,12 @@ func LoadConfig(ctx context.Context, path, clientName, clientVersion string) ([]
 
 		c := New(sc.Endpoint, opts...)
 		if err := c.Initialize(ctx, clientName, clientVersion); err != nil {
+			// Tear down sessions already opened so a mid-list
+			// failure does not leak MCP sessions on earlier
+			// servers. Close errors are secondary.
+			for _, prev := range clients {
+				_ = prev.Close(ctx)
+			}
 			return nil, fmt.Errorf("mcp: initialize server %q: %w", identity, err)
 		}
 		clients = append(clients, c)

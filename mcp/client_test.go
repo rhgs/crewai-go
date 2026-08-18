@@ -76,6 +76,113 @@ func TestInitialize_CapturesSessionID(t *testing.T) {
 	}
 }
 
+func TestClose_SendsDeleteAndIsIdempotent(t *testing.T) {
+	var (
+		deletes atomic.Int32
+		gotSID  string
+	)
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			deletes.Add(1)
+			gotSID = r.Header.Get("Mcp-Session-Id")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Mcp-Session-Id", "sess-close")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"jsonrpc":"2.0","id":1,"result":{}}`)
+	})
+	defer cleanup()
+
+	c := New(srv.URL)
+	if err := c.Close(context.Background()); err != nil {
+		t.Fatalf("Close on never-initialized client: %v", err)
+	}
+	if deletes.Load() != 0 {
+		t.Fatal("Close must be a no-op without a session")
+	}
+	if err := c.Initialize(context.Background(), "t", "1"); err != nil {
+		t.Fatalf("initialize: %v", err)
+	}
+	if err := c.Close(context.Background()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if deletes.Load() != 1 {
+		t.Fatalf("expected 1 DELETE, got %d", deletes.Load())
+	}
+	if gotSID != "sess-close" {
+		t.Fatalf("DELETE must carry session id, got %q", gotSID)
+	}
+	if err := c.Close(context.Background()); err != nil {
+		t.Fatalf("second Close: %v", err)
+	}
+	if deletes.Load() != 1 {
+		t.Fatalf("second Close must be a no-op, got %d DELETEs", deletes.Load())
+	}
+}
+
+func TestClose_404IsNotError(t *testing.T) {
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Mcp-Session-Id", "gone")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"jsonrpc":"2.0","id":1,"result":{}}`)
+	})
+	defer cleanup()
+	c := New(srv.URL)
+	if err := c.Initialize(context.Background(), "t", "1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Close(context.Background()); err != nil {
+		t.Fatalf("404 on DELETE must be treated as already-closed: %v", err)
+	}
+}
+
+func TestClose_HTTPError(t *testing.T) {
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Mcp-Session-Id", "sess")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"jsonrpc":"2.0","id":1,"result":{}}`)
+	})
+	defer cleanup()
+	c := New(srv.URL)
+	if err := c.Initialize(context.Background(), "t", "1"); err != nil {
+		t.Fatal(err)
+	}
+	err := c.Close(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "HTTP 500") {
+		t.Fatalf("expected HTTP 500, got %v", err)
+	}
+	// Local session is cleared even on HTTP error, so retry is a no-op.
+	if err := c.Close(context.Background()); err != nil {
+		t.Fatalf("retry after failed Close must be no-op: %v", err)
+	}
+}
+
+func TestClose_TransportError(t *testing.T) {
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Mcp-Session-Id", "sess")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"jsonrpc":"2.0","id":1,"result":{}}`)
+	})
+	c := New(srv.URL)
+	if err := c.Initialize(context.Background(), "t", "1"); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+	cleanup() // shut the server so DELETE fails at transport
+	if err := c.Close(context.Background()); err == nil {
+		t.Fatal("expected transport error on Close")
+	}
+}
+
 func TestInitialize_ProtocolVersionAndClientInfo(t *testing.T) {
 	var gotParams map[string]any
 	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {

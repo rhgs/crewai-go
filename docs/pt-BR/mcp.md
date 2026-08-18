@@ -98,7 +98,11 @@ falhas HTTP ou JSON-RPC viram erros de Go.
 - Headers configurados via `WithHeader` e o `Mcp-Session-Id` nunca sao logados.
 - O parser de SSE extrai apenas linhas `data:`; nada e interpretado ou executado.
 - Erros de `LoadConfig` nomeiam o servidor que falhou (por `Name`), mas nunca
-  incluem valores de header ou conteudo do arquivo.
+  incluem valores de header ou conteudo do arquivo. Se um servidor posterior
+  falha no `Initialize`, os clients ja abertos sao fechados com `Close`
+  para nao deixar sessoes penduradas.
+- `Client.Close` envia HTTP DELETE com `Mcp-Session-Id` (teardown do
+  Streamable HTTP) e e idempotente.
 
 ## Cobertura
 

@@ -148,6 +148,46 @@ func TestLoadConfig_EmptyEndpoint(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_InitFailureClosesPriorSessions(t *testing.T) {
+	var closed atomic.Int32
+	good, cleanupGood := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			closed.Add(1)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Mcp-Session-Id", "keep-me")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
+	})
+	defer cleanupGood()
+	bad, cleanupBad := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	defer cleanupBad()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	cfg := Config{Servers: []ServerConfig{
+		{Name: "good", Endpoint: good.URL},
+		{Name: "bad", Endpoint: bad.URL},
+	}}
+	data, _ := json.Marshal(cfg)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadConfig(context.Background(), path, "c", "1")
+	if err == nil {
+		t.Fatal("expected init failure on second server")
+	}
+	if !strings.Contains(err.Error(), "bad") {
+		t.Fatalf("error must name the failing server: %v", err)
+	}
+	if closed.Load() == 0 {
+		t.Fatal("LoadConfig must Close already-initialized clients")
+	}
+}
+
 func TestLoadConfig_NoLeakOfHeaderValues(t *testing.T) {
 	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
