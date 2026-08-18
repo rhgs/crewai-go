@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions (Q&A, ideas, show & tell)
+    url: https://github.com/rhgs/crewai-go/discussions
+    about: Prefer asking in Discussions for design questions and quick help.
+  - name: 🔒 Private security report
+    url: https://github.com/rhgs/crewai-go/security/advisories/new
+    about: Please **do not** file public issues for security vulnerabilities.
