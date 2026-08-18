@@ -3,6 +3,34 @@
 All notable changes to **crewai-go** are documented here. This project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **MCP support** (`mcp/`): a stdlib-only client for the Model Context
+  Protocol over Streamable HTTP (JSON-RPC 2.0, protocol version 2025-06-18).
+  Two configuration modes, both supplied programmatically by the caller:
+  - **Programmatic**: `mcp.New(endpoint, opts...)` + `client.Initialize(ctx, name, version)`.
+  - **JSON file**: `mcp.LoadConfig(ctx, path, name, version)` reads a config
+    with one or more server entries (Name, Endpoint, Headers), creates a
+    client for each, calls `Initialize`, and returns the slice.
+  Each MCP tool is exposed as a `crewai.Tool` via `mcp.NewToolAdapter`.
+  The adapter implements `crewai.SchemaProvider`, so the original
+  `inputSchema` is forwarded to native function calling instead of being
+  replaced with a placeholder. A tool-level `isError: true` is returned
+  to the model as observation text (prefixed `[tool error]`), not as a
+  Go error — only HTTP / JSON-RPC failures surface as `error`.
+  New helpers: `WithHTTPClient`, `WithHeader`. New constant
+  `MaxMCPResponseBytes = 16 MiB`. No new dependencies; fully
+  backward compatible.
+
+- **`SchemaProvider` interface**: an optional, type-asserted capability a
+  `Tool` may implement to expose its JSON Schema. The executor's
+  `toToolSpecs` consults `SchemaProvider` before falling back to the
+  default empty object schema — used by the MCP adapter and available to
+  any tool that wants to carry its real schema forward to the model.
+  Purely additive.
+
 ## [v0.4.0] — 2026-08-17
 
 ### Added

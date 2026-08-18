@@ -104,15 +104,24 @@ const (
 )
 
 // toToolSpecs converts the crewai Tool interface to ToolSpec for the wire.
+// When a tool implements SchemaProvider, its declared JSON Schema is
+// used in place of the default empty object schema — this preserves
+// structured inputs from sources such as MCP servers.
 func toToolSpecs(tools []Tool) []ToolSpec {
 	out := make([]ToolSpec, len(tools))
 	for i, t := range tools {
+		params := json.RawMessage(`{"type":"object","properties":{}}`)
+		if sp, ok := t.(SchemaProvider); ok {
+			if schema := sp.Schema(); len(schema) > 0 {
+				params = schema
+			}
+		}
 		out[i] = ToolSpec{
 			Type: "function",
 			Function: ToolFunction{
 				Name:        t.Name(),
 				Description: t.Description(),
-				Parameters:  json.RawMessage(`{"type":"object","properties":{}}`),
+				Parameters:  params,
 			},
 		}
 	}

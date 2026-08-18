@@ -208,4 +208,24 @@
 // controls level, handler, and destination. Agent.Execute, when called
 // standalone (without a crew), falls back to slog.Default() unless
 // Agent.WithLogger is used.
+//
+// # MCP (Model Context Protocol)
+//
+// The subpackage mcp/ exposes tools from external MCP servers as
+// crewai.Tool values. The original inputSchema is preserved verbatim
+// (the adapter implements SchemaProvider) so native tool calling
+// receives the real schema. Configuration can be programmatic
+// (mcp.New + mcp.Initialize) or via a JSON file (mcp.LoadConfig).
+// See docs/en/mcp.md (or docs/pt-BR/mcp.md) for usage and security
+// notes.
+//
+//	clients, _ := mcp.LoadConfig(ctx, "/etc/mcp.json", "auditor", "1.0.0")
+//	var tools []crewai.Tool
+//	for _, c := range clients {
+//	    ts, _ := c.ListTools(ctx)
+//	    for _, t := range ts {
+//	        tools = append(tools, mcp.NewToolAdapter(c, t))
+//	    }
+//	}
+//	agent.WithTools(tools...)
 package crewai
