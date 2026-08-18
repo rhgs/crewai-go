@@ -22,8 +22,13 @@ import (
 
 // MaxMCPResponseBytes caps the body size of any MCP HTTP response.
 // 16 MiB matches the spec's Streamable HTTP guidance for typical tool
-// payloads while keeping memory bounded under DoS.
+// payloads while keeping memory bounded under DoS. Applied on every
+// response in do() so callers cannot bypass the cap.
 const MaxMCPResponseBytes = 16 << 20
+
+// maxListToolsPages stops a malicious or buggy server from returning
+// an endless nextCursor chain and growing the catalog without bound.
+const maxListToolsPages = 256
 
 // protocolVersion is the MCP spec version this client targets.
 const protocolVersion = "2025-06-18"
@@ -144,7 +149,7 @@ func (r listToolsResult) cursor() string {
 func (c *Client) ListTools(ctx context.Context) ([]Tool, error) {
 	var all []Tool
 	var cursor string
-	for {
+	for pageNum := 0; pageNum < maxListToolsPages; pageNum++ {
 		params := map[string]any{}
 		if cursor != "" {
 			params["cursor"] = cursor
@@ -160,6 +165,7 @@ func (c *Client) ListTools(ctx context.Context) ([]Tool, error) {
 		}
 		cursor = next
 	}
+	return nil, fmt.Errorf("tools/list: exceeded %d pages", maxListToolsPages)
 }
 
 // ContentBlock is one item inside a CallToolResult. Only `text` fields
@@ -257,14 +263,19 @@ func (c *Client) call(ctx context.Context, method string, params any, out any) e
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// Drain a bounded prefix for diagnostics; do not include the
-		// full body which may carry secrets.
-		preview, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return fmt.Errorf("mcp: HTTP %d: %s", resp.StatusCode, string(preview))
+		// Drain a bounded prefix so the connection can be reused;
+		// never include the body in the error — servers may echo
+		// Authorization or other secrets.
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("mcp: HTTP %d", resp.StatusCode)
 	}
 
+	payload, err := readJSONRPCPayload(resp)
+	if err != nil {
+		return err
+	}
 	var rpc jsonRPCResponse
-	if err := json.NewDecoder(resp.Body).Decode(&rpc); err != nil {
+	if err := json.Unmarshal(payload, &rpc); err != nil {
 		return fmt.Errorf("decode response: %w", err)
 	}
 	if rpc.Error != nil {
@@ -343,7 +354,45 @@ func (c *Client) do(ctx context.Context, body []byte, asNotification bool) (*htt
 	}
 	c.sessionMu.Unlock()
 
+	// Bound every response body before the caller sees it. A second
+	// LimitReader further down the stack is then a no-op relative to
+	// this cap.
+	resp.Body = &cappedReadCloser{Reader: readLimited(resp.Body), Closer: resp.Body}
+
 	return resp, nil
+}
+
+// cappedReadCloser pairs a LimitReader with the original Body closer
+// so Close still releases the HTTP connection.
+type cappedReadCloser struct {
+	io.Reader
+	io.Closer
+}
+
+// readJSONRPCPayload extracts a single JSON-RPC envelope from resp.
+// When Content-Type is text/event-stream the first complete SSE data
+// block is used; otherwise the (already capped) body is read as JSON.
+// Only `data:` lines are considered — comments, event names, and ids
+// are ignored and never interpreted.
+func readJSONRPCPayload(resp *http.Response) ([]byte, error) {
+	ct := strings.ToLower(resp.Header.Get("Content-Type"))
+	if strings.Contains(ct, "text/event-stream") {
+		scan := bufio.NewScanner(resp.Body)
+		scan.Buffer(make([]byte, 0, 64*1024), MaxMCPResponseBytes)
+		raw, ok, err := parseSSEChunk(scan)
+		if err != nil {
+			return nil, fmt.Errorf("decode sse: %w", err)
+		}
+		if !ok {
+			return nil, fmt.Errorf("decode sse: empty event stream")
+		}
+		return raw, nil
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+	return data, nil
 }
 
 // parseSSEChunk extracts the JSON payload from a single SSE chunk's

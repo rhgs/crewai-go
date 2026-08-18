@@ -302,18 +302,11 @@ func TestCrew_Warnings_DoNotAbortKickoff(t *testing.T) {
 }
 
 func TestStandaloneAgent_NoSink_NoPanic(t *testing.T) {
-	// The plan calls out that Agent.Execute (standalone) does NOT
-	// inject a sink. A tool that tries to call AddWarningFromCtx on
-	// the bare ctx must therefore find nil and silently drop the
-	// warning. This test verifies the behaviour does not panic and
-	// that no warnings leak.
-	//
-	// We don't run ReAct here because we only care about the
-	// no-panic/no-leak property; an LLM that returns plain text
-	// hits the same code path (tool not invoked). For real coverage
-	// of the ctx plumbing, see TestCrew_Warnings_PropagateToOutput.
+	// Agent.Execute (standalone) does NOT inject a sink. Drive ReAct
+	// so the tool actually runs AddWarningFromCtx on a bare ctx; the
+	// call must be a silent no-op, not a panic or a leaked warning.
 	pt := &noSinkTool{}
-	llm := &warnLLM{}
+	llm := &reactNoSinkLLM{}
 	agent := NewAgent("A", "g", "b", llm)
 	agent.Tools = []Tool{pt}
 	task := NewTask("x", "y", agent)
@@ -325,3 +318,20 @@ func TestStandaloneAgent_NoSink_NoPanic(t *testing.T) {
 			task.Warnings())
 	}
 }
+
+// reactNoSinkLLM calls the "no-sink" tool once, then finishes.
+type reactNoSinkLLM struct {
+	calls int
+	mu    sync.Mutex
+}
+
+func (r *reactNoSinkLLM) Call(_ context.Context, _ []Message) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls++
+	if r.calls == 1 {
+		return "Thought: try the tool.\nAction: no-sink\nAction Input: ", nil
+	}
+	return "Thought: done.\nFinal Answer: ok", nil
+}
+func (r *reactNoSinkLLM) Model() string { return "react-nosink" }

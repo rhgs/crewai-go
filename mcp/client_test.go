@@ -451,7 +451,7 @@ func TestCallTool_ResponseBounded(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"`)
-		buf := make([]byte, (16<<20)+1024)
+		buf := make([]byte, MaxMCPResponseBytes+1024)
 		for i := range buf {
 			buf[i] = 'x'
 		}
@@ -460,9 +460,64 @@ func TestCallTool_ResponseBounded(t *testing.T) {
 	})
 	defer cleanup()
 	c := New(srv.URL)
-	// Decoding will fail because the JSON is truncated; we assert the
-	// call returns without exhausting memory or hanging.
-	_, _ = c.CallTool(context.Background(), "t", nil)
+	// The live path wraps the body in LimitReader(MaxMCPResponseBytes),
+	// so the oversized payload is truncated and cannot decode as JSON.
+	_, err := c.CallTool(context.Background(), "t", nil)
+	if err == nil {
+		t.Fatal("oversized response must fail to decode after the 16 MiB cap")
+	}
+}
+
+func TestCallTool_SSESuccess(t *testing.T) {
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, ": keepalive\n")
+		_, _ = io.WriteString(w, "event: message\n")
+		_, _ = io.WriteString(w, `data: {"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"from-sse"}]}}`+"\n\n")
+	})
+	defer cleanup()
+	c := New(srv.URL)
+	res, err := c.CallTool(context.Background(), "echo", json.RawMessage(`{}`))
+	if err != nil {
+		t.Fatalf("SSE CallTool: %v", err)
+	}
+	if len(res.Content) != 1 || res.Content[0].Text != "from-sse" {
+		t.Fatalf("unexpected SSE content: %+v", res.Content)
+	}
+}
+
+func TestInitialize_SSEHandshake(t *testing.T) {
+	var calls int
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Content-Type", "text/event-stream")
+		if calls == 1 {
+			w.Header().Set("Mcp-Session-Id", "sse-sess")
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `data: {"jsonrpc":"2.0","id":1,"result":{}}`+"\n\n")
+	})
+	defer cleanup()
+	c := New(srv.URL)
+	if err := c.Initialize(context.Background(), "t", "1"); err != nil {
+		t.Fatalf("SSE initialize: %v", err)
+	}
+	if c.sessionID != "sse-sess" {
+		t.Fatalf("session id not captured from SSE response: %q", c.sessionID)
+	}
+}
+
+func TestListTools_PageCap(t *testing.T) {
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"a"}],"nextCursor":"more"}}`)
+	})
+	defer cleanup()
+	c := New(srv.URL)
+	_, err := c.ListTools(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "exceeded") {
+		t.Fatalf("expected page-cap error, got %v", err)
+	}
 }
 
 // --- SSE parsing -------------------------------------------------------------

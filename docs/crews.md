@@ -215,6 +215,8 @@ A panic inside the callback is recovered and logged via
 `slog.Default()`; the `Kickoff` runs to completion either way.
 
 Progress events never contain prompt bodies, LLM outputs, or tool
-inputs — only metadata. If you need to surface tool inputs or outputs,
-use `crewai.Redact` on tool errors or log them explicitly with the
+inputs — only metadata. Task-failure errors on `task_completed` are
+passed through `redactError` before the callback sees them (long
+tokens and Bearer credentials are masked). If you need to surface
+tool inputs or outputs yourself, log them explicitly with the
 sensitive parts masked.

@@ -29,12 +29,8 @@ type ServerConfig struct {
 // The path is supplied by the caller — the framework never searches for
 // configuration files implicitly. Errors from Initialize name the
 // server (by Name when set, else by Endpoint) but never include header
-// values or file contents.
-//
-//	clientNames := []string{"contract-data", "procurement-db"}
-//	clientName := "contract-data"
-//	_ = clientNames
-//	_ = clientName
+// values or file contents. An empty Endpoint is rejected before any
+// network call, identified by Name.
 func LoadConfig(ctx context.Context, path, clientName, clientVersion string) ([]*Client, error) {
 	if path == "" {
 		return nil, fmt.Errorf("mcp: config path is required")
@@ -58,6 +54,12 @@ func LoadConfig(ctx context.Context, path, clientName, clientVersion string) ([]
 		if identity == "" {
 			identity = sc.Endpoint
 		}
+		if identity == "" {
+			identity = fmt.Sprintf("servers[%d]", i)
+		}
+		if sc.Endpoint == "" {
+			return nil, fmt.Errorf("mcp: server %q: empty endpoint", identity)
+		}
 
 		opts := []Option{}
 		for k, v := range sc.Headers {
@@ -68,7 +70,6 @@ func LoadConfig(ctx context.Context, path, clientName, clientVersion string) ([]
 		if err := c.Initialize(ctx, clientName, clientVersion); err != nil {
 			return nil, fmt.Errorf("mcp: initialize server %q: %w", identity, err)
 		}
-		_ = i // silence unused in case of future logging
 		clients = append(clients, c)
 	}
 	return clients, nil

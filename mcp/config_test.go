@@ -131,20 +131,20 @@ func TestLoadConfig_UsesEndpointWhenNameMissing(t *testing.T) {
 func TestLoadConfig_EmptyEndpoint(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
-	// Empty endpoint + name "noname" hits the New endpoint="" path,
-	// which surfaces during HTTP. That's acceptable behaviour; what we
-	// verify here is that the error identifies the server.
-	cfg := Config{Servers: []ServerConfig{{Name: "noname", Endpoint: "http://127.0.0.1:1"}}}
+	cfg := Config{Servers: []ServerConfig{{Name: "noname", Endpoint: ""}}}
 	data, _ := json.Marshal(cfg)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, err := LoadConfig(context.Background(), path, "c", "1")
 	if err == nil {
-		t.Fatal("unreachable endpoint must error")
+		t.Fatal("empty endpoint must error")
 	}
 	if !strings.Contains(err.Error(), "noname") {
 		t.Fatalf("error should mention server name, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "empty endpoint") {
+		t.Fatalf("error should name the empty-endpoint condition, got %v", err)
 	}
 }
 

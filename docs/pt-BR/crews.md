@@ -217,6 +217,8 @@ dentro do callback e recuperado e logado via `slog.Default()`; o
 `Kickoff` roda ate o fim independentemente.
 
 Eventos de progresso nunca contem corpo de prompt, saida do LLM nem
-input de ferramenta — apenas metadados. Se precisar expor inputs ou
-saidas de ferramentas, use `crewai.Redact` nos erros de ferramentas
-ou logue explicitamente com as partes sensiveis mascaradas.
+input de ferramenta — apenas metadados. Erros de falha de tarefa em
+`task_completed` passam por `redactError` antes do callback (tokens
+longos e credenciais Bearer sao mascarados). Se precisar expor
+inputs ou saidas de ferramentas, logue explicitamente com as partes
+sensiveis mascaradas.

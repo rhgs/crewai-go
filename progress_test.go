@@ -165,31 +165,78 @@ func TestProgress_Staged_Order(t *testing.T) {
 }
 
 func TestProgress_ToolInvoked_NativeAndReact(t *testing.T) {
-	coll := &progressCollector{}
-	llm := &reactProgressLLM{}
-	agent := NewAgent("A", "g", "b", llm)
-	agent.Tools = []Tool{&progressTool{}}
-	task := NewTask("x", "y", agent)
-	crew := NewCrew([]*Agent{agent}, []*Task{task}).WithProgress(coll.Collect)
+	t.Run("react", func(t *testing.T) {
+		coll := &progressCollector{}
+		llm := &reactProgressLLM{}
+		agent := NewAgent("A", "g", "b", llm)
+		agent.Tools = []Tool{&progressTool{}}
+		task := NewTask("x", "y", agent)
+		crew := NewCrew([]*Agent{agent}, []*Task{task}).WithProgress(coll.Collect)
 
-	if _, err := crew.Kickoff(context.Background(), nil); err != nil {
-		t.Fatal(err)
-	}
-	gotToolInvokes := 0
-	for _, e := range coll.Snapshot() {
-		if e.Event == "tool_invoked" {
-			if e.Tool != "ptool" {
-				t.Fatalf("tool_invoked Tool=%q, want ptool", e.Tool)
-			}
-			if e.Duration <= 0 {
-				t.Fatalf("Duration must be > 0")
-			}
-			gotToolInvokes++
+		if _, err := crew.Kickoff(context.Background(), nil); err != nil {
+			t.Fatal(err)
 		}
+		assertOneToolInvoked(t, coll.Snapshot(), "ptool")
+	})
+
+	t.Run("native", func(t *testing.T) {
+		coll := &progressCollector{}
+		llm := &nativeProgressLLM{}
+		agent := NewAgent("A", "g", "b", llm)
+		agent.ToolMode = ToolModeNative
+		agent.Tools = []Tool{&progressTool{}}
+		task := NewTask("x", "y", agent)
+		crew := NewCrew([]*Agent{agent}, []*Task{task}).WithProgress(coll.Collect)
+
+		if _, err := crew.Kickoff(context.Background(), nil); err != nil {
+			t.Fatal(err)
+		}
+		assertOneToolInvoked(t, coll.Snapshot(), "ptool")
+	})
+}
+
+func assertOneToolInvoked(t *testing.T, events []Progress, wantTool string) {
+	t.Helper()
+	got := 0
+	for _, e := range events {
+		if e.Event != "tool_invoked" {
+			continue
+		}
+		if e.Tool != wantTool {
+			t.Fatalf("tool_invoked Tool=%q, want %s", e.Tool, wantTool)
+		}
+		if e.Duration <= 0 {
+			t.Fatalf("Duration must be > 0")
+		}
+		got++
 	}
-	if gotToolInvokes != 1 {
-		t.Fatalf("expected 1 tool_invoked, got %d", gotToolInvokes)
+	if got != 1 {
+		t.Fatalf("expected 1 tool_invoked, got %d", got)
 	}
+}
+
+// nativeProgressLLM implements ToolCallingLLM and issues exactly one
+// call to "ptool" so the native executeTaskWithTools path emits
+// tool_invoked.
+type nativeProgressLLM struct {
+	calls int
+	mu    sync.Mutex
+}
+
+func (n *nativeProgressLLM) Call(_ context.Context, _ []Message) (string, error) {
+	return "unused", nil
+}
+func (n *nativeProgressLLM) Model() string { return "native-progress" }
+func (n *nativeProgressLLM) CallWithTools(_ context.Context, _ []Message, _ []ToolSpec) (*ToolCallResponse, error) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.calls++
+	if n.calls == 1 {
+		return &ToolCallResponse{ToolCalls: []ToolCall{{
+			Function: ToolCallFunction{Name: "ptool", Arguments: []byte(`{}`)},
+		}}}, nil
+	}
+	return &ToolCallResponse{Content: "done"}, nil
 }
 
 func TestProgress_CallbackPanic_DoesNotAbort(t *testing.T) {
