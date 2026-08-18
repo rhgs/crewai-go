@@ -3,15 +3,14 @@
 > **Languages:** [English](README.md) · **Português** (atual)
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/rhgs/crewai-go.svg)](https://pkg.go.dev/github.com/rhgs/crewai-go)
-
 [![CI](https://github.com/rhgs/crewai-go/actions/workflows/ci.yml/badge.svg)](https://github.com/rhgs/crewai-go/actions/workflows/ci.yml)
-
-[![Release](https://img.shields.io/github/v/release/rhgs/crewai-go?label=release)](https://github.com/rhgs/crewai-go/releases)
-
-
 [![codecov](https://codecov.io/gh/rhgs/crewai-go/graph/badge.svg)](https://codecov.io/gh/rhgs/crewai-go)
-
+[![Release](https://img.shields.io/github/v/release/rhgs/crewai-go?label=release)](https://github.com/rhgs/crewai-go/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/rhgs/crewai-go)](https://github.com/rhgs/crewai-go/blob/main/go.mod)
+[![Last Commit](https://img.shields.io/github/last-commit/rhgs/crewai-go)](https://github.com/rhgs/crewai-go/commits)
+[![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-success)](https://pkg.go.dev/github.com/rhgs/crewai-go)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/rhgs/crewai-go/blob/main/LICENSE)
+[![Mentioned in Awesome Go](https://awesome.re/mentioned-badge.svg)](https://github.com/avelino/awesome-go)
 
 <p align="center">
   <img src="gopher.jpg" alt="capa do crewai-go" width="600">
