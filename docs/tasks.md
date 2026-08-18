@@ -134,3 +134,59 @@ and `minItems`/`maxItems`.
 | `ErrRepairBudgetExceeded` | Repair attempts exhausted; the task fails. Wraps the last validation error. |
 
 Both can be checked with `errors.Is`.
+
+## Graceful degradation: per-task warnings
+
+A task that **succeeds** can still record non-fatal diagnostics when a
+secondary source was unavailable or a non-critical step failed. The task
+itself succeeds; the warning is preserved in `TaskOutput.Warnings` and
+`CrewOutput.Warnings` so the caller can render a degraded section (e.g.
+"section unavailable") rather than aborting the whole investigation.
+
+This is distinct from `Stage.Optional` — optional stages swallow
+**failures**; warnings represent **partial successes**.
+
+Recording a warning from Go:
+
+```go
+task.AddWarning("CNPJ lookup service returned 503")
+crewai.AddWarningFromCtx(ctx, "secondary source timeout")
+```
+
+`Task.AddWarning` is thread-safe (protected by `sync.RWMutex`). A tool
+can record warnings during execution via the context:
+
+```go
+func (t *myTool) Call(ctx context.Context, _ string) (string, error) {
+    primary, err := t.primary(ctx)
+    if err != nil { return "", err }
+    secondary, err := t.secondary(ctx)
+    if err != nil {
+        // Secondary source failed — task can still succeed.
+        crewai.AddWarningFromCtx(ctx, "secondary unavailable: " + err.Error())
+    }
+    return primary + "\n" + secondary, nil
+}
+```
+
+The executor (`Crew.execute`) injects the task as a `WarningSink` into
+`ctx` before invoking tools. `Agent.Execute` (standalone, without a
+crew) does not inject a sink — calls to `AddWarningFromCtx` in that
+mode are silent no-ops.
+
+### Surfacing warnings
+
+After `Kickoff`:
+
+```go
+out, _ := crew.Kickoff(ctx, nil)
+for _, to := range out.TasksOutput {
+    for _, w := range to.Warnings {
+        fmt.Printf("WARNING from %s: %s\n", to.Task, w)
+    }
+}
+// Aggregated view (in execution order):
+for _, w := range out.Warnings {
+    fmt.Println("AGG:", w)
+}
+```

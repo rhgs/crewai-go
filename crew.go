@@ -78,6 +78,12 @@ type CrewOutput struct {
 	// tools, deduplicated by PayloadHash. Populated by the executor,
 	// never by the LLM.
 	Facts []Fact
+	// Warnings is the concatenation of every task's Warnings, in
+	// execution order (declaration order for sequential, stage-then-task
+	// order for staged). Includes only warnings from successful tasks
+	// — failed tasks contribute no warnings because their context is
+	// discarded along with their output.
+	Warnings []string
 }
 
 // TaskOutput is the output of a single task.
@@ -91,6 +97,12 @@ type TaskOutput struct {
 	// ToolTraces holds the native tool call traces (empty when using ReAct).
 	// Each entry is a tool invocation: name, arguments, result, duration.
 	ToolTraces []ToolTrace
+	// Warnings holds non-fatal diagnostics recorded during this task's
+	// execution (partial successes, e.g. a secondary source was down).
+	// Warnings are additive to Output: the task SUCCEEDED, but a
+	// downstream step was unavailable. Distinct from stage failures
+	// gated by Stage.Optional. In insertion order.
+	Warnings []string
 }
 
 // String returns the crew's final output.
@@ -221,14 +233,17 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 		if err != nil {
 			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
+		warnings := task.Warnings()
 		out.TasksOutput = append(out.TasksOutput, TaskOutput{
 			Task:       taskLabel(task, i),
 			Agent:      agent.Role,
 			Output:     result,
 			Facts:      facts,
 			ToolTraces: task.ToolTraces(),
+			Warnings:   warnings,
 		})
 		out.Facts = dedupFacts(out.Facts, facts)
+		out.Warnings = append(out.Warnings, warnings...)
 		out.Final = result
 	}
 	return out, nil
@@ -257,14 +272,17 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 		if err != nil {
 			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
+		warnings := task.Warnings()
 		out.TasksOutput = append(out.TasksOutput, TaskOutput{
 			Task:       taskLabel(task, i),
 			Agent:      agent.Role,
 			Output:     result,
 			Facts:      facts,
 			ToolTraces: task.ToolTraces(),
+			Warnings:   warnings,
 		})
 		out.Facts = dedupFacts(out.Facts, facts)
+		out.Warnings = append(out.Warnings, warnings...)
 		out.Final = result
 	}
 	return out, nil
@@ -368,14 +386,17 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 					"stage", stageName, "task_index", ti+1, "error", redactError(res.err))
 				continue
 			}
+			warnings := res.task.Warnings()
 			out.TasksOutput = append(out.TasksOutput, TaskOutput{
 				Task:       taskLabel(res.task, ti),
 				Agent:      res.agent.Role,
 				Output:     res.out,
 				Facts:      res.facts,
 				ToolTraces: res.task.ToolTraces(),
+				Warnings:   warnings,
 			})
 			out.Facts = dedupFacts(out.Facts, res.facts)
+			out.Warnings = append(out.Warnings, warnings...)
 			out.Final = res.out
 		}
 	}
@@ -395,7 +416,15 @@ type stageResult struct {
 
 // execute runs a task, assembles the context, and persists the output/memory.
 // It returns the task result string, collected facts, and an error.
+//
+// If a task is supplied, it is attached to ctx as a WarningSink so tools
+// (including adapters from mcp/, tools/, etc.) can record non-fatal
+// diagnostics via AddWarningFromCtx or by retrieving the sink from ctx
+// themselves.
 func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, []Fact, error) {
+	if task != nil {
+		ctx = ContextWithWarningSink(ctx, task)
+	}
 	contextText := task.contextText()
 	if c.mem != nil && contextText == "" {
 		// With no explicit context, inject the accumulated memory.

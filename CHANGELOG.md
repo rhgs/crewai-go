@@ -31,6 +31,21 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   any tool that wants to carry its real schema forward to the model.
   Purely additive.
 
+### Added
+
+- **Per-task warnings (graceful degradation)**: new `Task.AddWarning(msg)`
+  and `Task.Warnings()` thread-safe methods, the optional `WarningSink`
+  interface retrievable from `context.Context` via `warningSinkFromCtx`,
+  and the convenience helper `AddWarningFromCtx(ctx, msg)`. The executor
+  (`Crew.execute`) injects the task as a `WarningSink` into `ctx` before
+  invoking tools, so a tool can record a non-fatal diagnostic and the
+  task still succeeds. Warnings aggregate into `TaskOutput.Warnings` and
+  `CrewOutput.Warnings` in execution order. `Agent.Execute` standalone
+  does not inject a sink — `AddWarningFromCtx` is a silent no-op there.
+  Distinct from `Stage.Optional`: warnings mean *partial success within
+  a task*; optional stages mean *task failure does not abort the crew*.
+  No new dependencies; backward compatible.
+
 ## [v0.4.0] — 2026-08-17
 
 ### Added

@@ -228,4 +228,21 @@
 //	    }
 //	}
 //	agent.WithTools(tools...)
+//
+// # Per-task warnings (graceful degradation)
+//
+// A task may record non-fatal diagnostics when a secondary source was
+// unavailable or a non-critical step failed, while the task itself
+// still succeeds. Recorded warnings are aggregated into TaskOutput.Warnings
+// and CrewOutput.Warnings in execution order — distinct from Stage.Optional,
+// which concerns TASK FAILURE not partial success.
+//
+// Use Task.AddWarning from the agent code, or crewai.AddWarningFromCtx
+// from inside a Tool that has only context.Context to work with:
+//
+//	crewai.AddWarningFromCtx(ctx, "secondary source timeout")
+//
+// The Crew executor injects the current Task as a WarningSink into ctx
+// before invoking tools; Agent.Execute standalone does not inject a sink
+// (calls become silent no-ops).
 package crewai

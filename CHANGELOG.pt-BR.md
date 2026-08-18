@@ -32,6 +32,22 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   disponivel a qualquer ferramenta que queira encaminhar seu schema real
   ao modelo. Puramente aditivo.
 
+### Adicionado
+
+- **Warnings por tarefa (degradacao graciosa)**: novos metodos thread-safe
+  `Task.AddWarning(msg)` e `Task.Warnings()`, a interface opcional
+  `WarningSink` recuperavel do `context.Context` via `warningSinkFromCtx`,
+  e o helper `AddWarningFromCtx(ctx, msg)`. O executor (`Crew.execute`)
+  injeta a tarefa como `WarningSink` no `ctx` antes de invocar as
+  ferramentas, permitindo que uma ferramenta registre um diagnostico nao
+  fatal enquanto a tarefa sucede. Os warnings sao agregados em
+  `TaskOutput.Warnings` e `CrewOutput.Warnings` em ordem de execucao.
+  `Agent.Execute` standalone nao injeta sink — `AddWarningFromCtx` ai e
+  um no-op silencioso. Distinto de `Stage.Optional`: warnings significam
+  *sucesso parcial dentro da tarefa*; estagios opcionais significam
+  *falha da tarefa nao aborta o crew*. Sem novas dependencias;
+  backward compatible.
+
 ## [v0.4.0] — 2026-08-17
 
 ### Adicionado

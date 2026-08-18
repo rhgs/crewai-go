@@ -133,3 +133,60 @@ e `minItems`/`maxItems`.
 | `ErrRepairBudgetExceeded` | Tentativas de reparo esgotadas; a tarefa falha. Envolve o ultimo erro de validacao. |
 
 Ambas podem ser verificadas com `errors.Is`.
+
+## Degradacao graciosa: warnings por tarefa
+
+Uma tarefa que **sucedeu** ainda pode registrar diagnosticos nao
+fatais quando uma fonte secundaria ficou indisponivel ou um passo nao
+critico falhou. A tarefa em si sucede; o warning e preservado em
+`TaskOutput.Warnings` e `CrewOutput.Warnings` para que o chamador
+possa renderizar uma secao degradada (ex.: "secao indisponivel") em vez
+de abortar a investigacao inteira.
+
+Isso e distinto de `Stage.Optional` — estagios opcionais engolem
+**falhas**; warnings representam **sucessos parciais**.
+
+Registrando um warning em Go:
+
+```go
+task.AddWarning("servico de CNPJ retornou 503")
+crewai.AddWarningFromCtx(ctx, "timeout de fonte secundaria")
+```
+
+`Task.AddWarning` e thread-safe (protegido por `sync.RWMutex`). Uma
+ferramenta pode registrar warnings durante a execucao via contexto:
+
+```go
+func (t *myTool) Call(ctx context.Context, _ string) (string, error) {
+    primary, err := t.primary(ctx)
+    if err != nil { return "", err }
+    secondary, err := t.secondary(ctx)
+    if err != nil {
+        // Fonte secundaria falhou — a tarefa ainda pode suceder.
+        crewai.AddWarningFromCtx(ctx, "secundaria indisponivel: " + err.Error())
+    }
+    return primary + "\n" + secondary, nil
+}
+```
+
+O executor (`Crew.execute`) injeta a tarefa como `WarningSink` no
+`ctx` antes de invocar as ferramentas. `Agent.Execute` (standalone,
+sem crew) nao injeta sink — chamadas a `AddWarningFromCtx` nesse modo
+sao silenciosamente ignoradas.
+
+### Expondo os warnings
+
+Apos `Kickoff`:
+
+```go
+out, _ := crew.Kickoff(ctx, nil)
+for _, to := range out.TasksOutput {
+    for _, w := range to.Warnings {
+        fmt.Printf("WARNING de %s: %s\n", to.Task, w)
+    }
+}
+// Visao agregada (em ordem de execucao):
+for _, w := range out.Warnings {
+    fmt.Println("AGG:", w)
+}
+```
