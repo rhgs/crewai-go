@@ -78,9 +78,10 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Modificado
 
-- O CI agora roda `govulncheck ./...` como job dedicado no Go 1.25.x
-  (CVEs da stdlib ja corrigidas nessa toolchain; o modulo em si nao
-  tem vulnerabilidades conhecidas).
+- O hook de pre-commit local (`scripts/pre-commit`) agora roda
+  `govulncheck ./...` no Go 1.25.x alem do `gofmt`. O modulo em si
+  nao tem vulnerabilidades conhecidas. Instale com
+  `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`.
 
 ## [v0.4.0] — 2026-08-17
 

@@ -69,6 +69,14 @@ go test -cover ./...
 
 CI runs the same gates on every pull request.
 
+The versioned pre-commit hook also runs `gofmt` on staged Go files and
+`govulncheck ./...` (Go 1.25.x toolchain, so known stdlib CVEs already
+fixed upstream do not fail the commit). Install once per clone:
+
+```bash
+ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+```
+
 ### Coverage
 
 CI measures statement coverage across library packages only (`go list ./...`

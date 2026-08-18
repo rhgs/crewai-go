@@ -75,9 +75,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- CI now runs `govulncheck ./...` as a dedicated job on Go 1.25.x
-  (stdlib CVEs already patched in that toolchain; the module itself
-  has no known vulnerabilities).
+- Local pre-commit hook (`scripts/pre-commit`) now runs `govulncheck
+  ./...` against Go 1.25.x in addition to `gofmt`. The module itself
+  has no known vulnerabilities. Install with
+  `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`.
 
 ## [v0.4.0] — 2026-08-17
 

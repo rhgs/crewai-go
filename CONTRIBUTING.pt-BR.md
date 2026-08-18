@@ -69,6 +69,14 @@ go test -cover ./...
 
 O CI roda os mesmos portoes em todo pull request.
 
+O hook de pre-commit versionado tambem roda `gofmt` nos arquivos Go
+staged e `govulncheck ./...` (toolchain Go 1.25.x, para CVEs da
+stdlib ja corrigidas nao falharem o commit). Instale uma vez por clone:
+
+```bash
+ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+```
+
 ### Cobertura
 
 O CI mede cobertura de statements apenas nos pacotes de biblioteca
