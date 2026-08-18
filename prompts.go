@@ -72,6 +72,13 @@ const noToolFinalInstruction = "\nAnswer directly with the best possible answer 
 // task requires structured (JSON) output.
 const structuredSystemInstruction = "You MUST respond with a single, valid JSON object that satisfies the provided JSON Schema. Do NOT include any explanation, markdown, or surrounding text. Output ONLY the JSON."
 
+// toolCallStructuredInstruction is appended when StructuredOutput is in
+// tool-call mode. It directs the model to use the synthetic
+// `emit_result` tool instead of replying with plain JSON text — the
+// reliable path for providers that do not support structured outputs
+// via the `format` parameter (e.g. Ollama Cloud).
+const toolCallStructuredInstruction = "To submit your final answer you MUST call the `emit_result` tool exactly once and pass your answer as the tool's arguments. Do not return plain text, do not wrap the answer in markdown, and do not call any other tool."
+
 // buildStructuredPrompt assembles the user message for a structured-output
 // task, including the task description and the JSON Schema.
 func buildStructuredPrompt(t *Task, context string, schema json.RawMessage) string {
@@ -173,5 +180,19 @@ func buildRepairPrompt(previousOutput string, valErr error, schema json.RawMessa
 	b.WriteString("\n\nThe JSON Schema is:\n")
 	b.Write(schema)
 	b.WriteString("\n\nFix the issues and reply ONLY with the corrected JSON. No markdown, no prose, no surrounding text.")
+	return b.String()
+}
+
+// buildToolCallRepairPrompt assembles the user message for a repair
+// attempt in tool-call structured output mode. The feedback explains
+// why the previous emit_result call was rejected (or why the model
+// produced plain text instead of calling the tool), and the same
+// schema is included for reference.
+func buildToolCallRepairPrompt(feedback string, schema json.RawMessage) string {
+	var b strings.Builder
+	b.WriteString(feedback)
+	b.WriteString("\n\nCall the `emit_result` tool exactly once with your corrected answer as arguments. The tool's parameters must conform to the following JSON Schema:\n\n")
+	b.Write(schema)
+	b.WriteString("\n")
 	return b.String()
 }

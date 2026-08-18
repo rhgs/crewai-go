@@ -37,6 +37,11 @@ var (
 	// ErrWebSearchUnsupported is returned when an agent calls WebSearch but
 	// its LLM does not implement WebSearcher.
 	ErrWebSearchUnsupported = errors.New("crewai: LLM does not implement WebSearcher")
+	// ErrToolCallStructuredUnsupported is returned when StructuredOutput
+	// has ToolCall=true but the LLM does not implement ToolCallingLLM.
+	// The caller must either use a provider that supports tool calling
+	// or set ToolCall=false (the default JSON-only mode).
+	ErrToolCallStructuredUnsupported = errors.New("crewai: structured output with tool-call requires an LLM that implements ToolCallingLLM")
 	// ErrEvaluationFailed is returned when the evaluator scores the output
 	// below the pass threshold and all refinement attempts are exhausted.
 	ErrEvaluationFailed = errors.New("crewai: output did not pass evaluation after all refinements")

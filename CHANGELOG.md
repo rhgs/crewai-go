@@ -60,6 +60,23 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   prompt bodies, LLM outputs, or tool inputs — only metadata. No new
   dependencies; backward compatible.
 
+### Added
+
+- **Structured output via tool-call (`WithToolCall`)**: a new mode on
+  `StructuredOutput` that extracts JSON via a synthetic tool call
+  instead of plain-text JSON prompts. Useful for providers that do not
+  support structured outputs through the `format` parameter (notably
+  Ollama Cloud): the executor declares a `ToolSpec` named
+  `emit_result` with `Parameters = schema`, asks the model to call it
+  exactly once, and parses the call's `arguments` (already
+  `json.RawMessage` in every provider's `ToolCallingLLM`) as the
+  validated output. If the model returns free text or the arguments
+  fail validation, the existing `RepairMax` repair loop kicks in. If
+  the LLM does not implement `ToolCallingLLM`, returns
+  `ErrToolCallStructuredUnsupported`. The legacy JSON-only mode
+  remains the default and is backward compatible. Opt in with
+  `crewai.WithToolCall()`.
+
 ## [v0.4.0] — 2026-08-17
 
 ### Added

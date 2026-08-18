@@ -62,6 +62,23 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   saida do LLM nem input de ferramenta — apenas metadados. Sem novas
   dependencias; backward compatible.
 
+### Adicionado
+
+- **Saida estruturada via tool-call (`WithToolCall`)**: novo modo em
+  `StructuredOutput` que extrai JSON via uma chamada de tool
+  sintetica em vez de prompt de texto JSON puro. Util para provedores
+  que nao suportam saidas estruturadas atraves do parametro `format`
+  (notavelmente Ollama Cloud): o executor declara um `ToolSpec` de
+  nome `emit_result` com `Parameters = schema`, pede ao modelo que
+  chame exatamente uma vez e interpreta o campo `arguments` da
+  chamada (ja em `json.RawMessage` em toda `ToolCallingLLM` desta
+  repo) como saida validada. Se o modelo retornar texto livre ou os
+  argumentos falharem na validacao, o loop de reparo existente
+  (`RepairMax`) e acionado. Se a LLM nao implementa `ToolCallingLLM`,
+  retorna `ErrToolCallStructuredUnsupported`. O modo JSON-only legado
+  segue como padrao e e backward compatible. Ative com
+  `crewai.WithToolCall()`.
+
 ## [v0.4.0] — 2026-08-17
 
 ### Adicionado

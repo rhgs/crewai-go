@@ -131,8 +131,40 @@ e `minItems`/`maxItems`.
 |---|---|
 | `ErrInvalidOutput` | O modelo retornou JSON que nao valida contra o schema. |
 | `ErrRepairBudgetExceeded` | Tentativas de reparo esgotadas; a tarefa falha. Envolve o ultimo erro de validacao. |
+| `ErrToolCallStructuredUnsupported` | `ToolCall` e true mas a LLM do agente nao implementa `ToolCallingLLM`. |
 
-Ambas podem ser verificadas com `errors.Is`.
+As tres podem ser verificadas com `errors.Is`.
+
+### Modo tool-call (`WithToolCall`)
+
+Para provedores que nao suportam o parametro `format` com JSON Schema
+(notavelmente o **Ollama Cloud**), o caminho mais confiavel e
+declarar uma tool sintetica cujos parametros sao o schema e forcar o
+modelo a chama-la. Os argumentos que o modelo passa ja chegam
+parseados por toda implementacao de `ToolCallingLLM` em
+`llm/openai.go`, `llm/ollama.go`, etc. — eles chegam como
+`json.RawMessage`, nao como string.
+
+```go
+structured, _ := crewai.NewStructuredOutput(
+    schema,
+    crewai.WithToolCall(),
+    crewai.WithRepairMax(3),
+)
+task.Structured = structured
+```
+
+O executor constroi `ToolSpec{Name: "emit_result", Parameters: schema}`,
+pede ao modelo que chame exatamente uma vez e usa o campo `arguments`
+da chamada como saida validada. Se o modelo retornar texto livre ou
+os argumentos falharem na validacao, o loop de reparo existente
+aciona (ate `RepairMax` tentativas). No esgotamento, a tarefa falha
+com `ErrRepairBudgetExceeded`.
+
+O modo tool-call exige que a LLM do agente implemente
+`ToolCallingLLM`; caso contrario a tarefa falha com
+`ErrToolCallStructuredUnsupported`. O modo JSON-only padrao e
+preservado para backward compatibility — ative com `WithToolCall()`.
 
 ## Degradacao graciosa: warnings por tarefa
 

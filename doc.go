@@ -261,4 +261,20 @@
 //	    fmt.Printf("%s/%s/%s tool=%s dur=%s\n",
 //	        p.Stage, p.Task, p.Agent, p.Tool, p.Duration)
 //	})
+//
+// # Structured output via tool-call
+//
+// When a StructuredOutput is configured with WithToolCall(), the executor
+// declares a synthetic ToolSpec named "emit_result" whose Parameters are
+// the JSON Schema, instructs the model to call it exactly once, and
+// parses the call's arguments as the validated output. This is the
+// reliable path for providers (notably Ollama Cloud) that do not honour
+// structured outputs via the `format` parameter.
+//
+//	structured, _ := crewai.NewStructuredOutput(schema, crewai.WithToolCall())
+//	task.Structured = structured
+//
+// Tool-call mode requires the agent's LLM to implement ToolCallingLLM;
+// otherwise it returns ErrToolCallStructuredUnsupported. The default
+// JSON-only mode remains unchanged for backward compatibility.
 package crewai
