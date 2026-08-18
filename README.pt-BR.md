@@ -8,7 +8,6 @@
 
 [![Release](https://img.shields.io/github/v/release/rhgs/crewai-go?label=release)](https://github.com/rhgs/crewai-go/releases)
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/rhgs/crewai-go)](https://goreportcard.com/report/github.com/rhgs/crewai-go)
 
 [![codecov](https://codecov.io/gh/rhgs/crewai-go/graph/badge.svg)](https://codecov.io/gh/rhgs/crewai-go)
 
