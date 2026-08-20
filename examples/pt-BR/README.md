@@ -17,6 +17,7 @@ Cada subpasta é um programa executável independente.
 | `xai_oauth`     | Grok por chave de API ou OAuth de assinatura      | ✅ xAI                  |
 | `logging`       | `*slog.Logger` customizado com `RedactHandler`     | ❌ Não                  |
 | `delegation`    | Tool inter-agent `delegate_to_coworker` (opt-in)   | ✅ OpenAI / so wiring   |
+| `mcp`           | Wiring do client MCP (`FilterTools`, limit de description) | ❌ wiring / ✅ MCP live |
 
 ## Rodando
 
@@ -34,6 +35,7 @@ go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
 go run ./examples/logging      # demo offline de redacao
 go run ./examples/delegation   # wiring; live com OPENAI_API_KEY
+go run ./examples/mcp          # wiring; live com MCP_ENDPOINT
 ```
 
 Para usar outro provedor (Anthropic, Ollama, Groq…), troque a linha de criação

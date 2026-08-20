@@ -5,6 +5,22 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Go toolchain pin**: `go.mod` now declares `toolchain go1.24.9` (language
+  version remains `go 1.24`) so builds prefer a stdlib with known CVE fixes
+  while CI stays on the `1.24.x` line.
+
+### Added
+
+- **`examples/mcp`**: offline wiring demo for MCP `FilterTools` /
+  `WithDescriptionLimit` / `NewToolAdapter` (optional live `MCP_ENDPOINT`).
+
+### Documentation
+
+- **Plan sync**: `Plan/PLAN.md` and `PLAN.pt-BR.md` updated for v0.5.0 reality
+  (architecture includes `mcp/`, residuals marked done, limitations refreshed).
+
 ## [v0.5.0] — 2026-08-20
 
 ### Security

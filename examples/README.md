@@ -17,6 +17,7 @@ Each subfolder is a standalone executable program.
 | `xai_oauth`     | Grok via API key or subscription OAuth             | ✅ xAI                  |
 | `logging`       | Custom `*slog.Logger` with `RedactHandler`           | ❌ No                   |
 | `delegation`    | Inter-agent `delegate_to_coworker` tool (opt-in)   | ✅ OpenAI / wiring only |
+| `mcp`           | MCP client wiring (`FilterTools`, description limit) | ❌ wiring / ✅ live MCP |
 
 ## Running
 
@@ -34,6 +35,7 @@ go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
 go run ./examples/logging      # offline redaction demo
 go run ./examples/delegation   # wiring; live with OPENAI_API_KEY
+go run ./examples/mcp          # wiring; live with MCP_ENDPOINT
 ```
 
 To use another provider (Anthropic, Ollama, Groq…), swap the LLM creation line.

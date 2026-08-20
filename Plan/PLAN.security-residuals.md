@@ -2,7 +2,7 @@
 
 > **Languages:** **English** (current) · [Português](PLAN.security-residuals.pt-BR.md)
 >
-> **Status:** Draft for implementation (plan only — do not implement until scheduled)
+> **Status:** **Implemented in v0.5.0** (PR #28). This document remains as design archive.
 > **Scope:** Close the eight residual items from the post-merge code/security
 > review of `feature/mcp-tool-call-progress-warnings` (merged as PR #27 /
 > `a8f01b7`). Items range from small hardening defaults to larger feature
@@ -598,7 +598,7 @@ not mergeable.
 ```markdown
 ## Code review
 
-- [ ] Trust boundary reviewed (paths, network, tool results, logs)
+- [x] Trust boundary reviewed (paths, network, tool results, logs)
 - [ ] Errors are sentinels / wrapped; no secret material in error strings
 - [ ] ctx canceled/deadline honored on new I/O
 - [ ] No unbounded reads/writes (LimitReader / size caps where applicable)
@@ -630,7 +630,7 @@ not mergeable.
 ## 8. Acceptance criteria (definition of done per residual)
 
 ### P0
-- [ ] R1: default MCP client timeout 30s; escape hatch documented; tests green.
+- [x] R1: default MCP client timeout 30s; escape hatch documented; tests green.
 - [x] R3: path `Clean` always; optional `OutputDir` jail; `ErrOutputPathRejected`; tests for escape attempts.
 - [x] R2-P0: threat model + operator checklist in MCP docs EN/PT + SECURITY.
 
@@ -645,9 +645,9 @@ not mergeable.
 - [x] R7: `delegate_to_coworker` tool + depth/cycle guards; `AllowDelegation` meaning updated.
 
 ### Global
-- [ ] `go test -race ./...` pass; bilingual docs; CHANGELOG updated; no new deps.
-- [ ] Code review checklist (§6.1) completed on the PR.
-- [ ] Touched packages stay at **≥ 90%** coverage (`go test -cover`); `llm/anthropic` raised to ≥ 90% if touched.
+- [x] `go test -race ./...` pass; bilingual docs; CHANGELOG updated; no new deps.
+- [x] Code review checklist (§6.1) completed on the PR.
+- [x] Touched packages stay at **≥ 90%** coverage (`go test -cover`); `llm/anthropic` raised to ≥ 90% if touched.
 
 ---
 

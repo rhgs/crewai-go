@@ -5,6 +5,22 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Alterado
+
+- **Pin de toolchain Go**: `go.mod` declara `toolchain go1.24.9` (linguagem
+  permanece `go 1.24`) para preferir stdlib com correções de CVE conhecidas;
+  CI segue na linha `1.24.x`.
+
+### Adicionado
+
+- **`examples/mcp`**: demo de wiring offline para MCP `FilterTools` /
+  `WithDescriptionLimit` / `NewToolAdapter` (`MCP_ENDPOINT` opcional ao vivo).
+
+### Documentacao
+
+- **Sync do Plan**: `Plan/PLAN.md` e `PLAN.pt-BR.md` alinhados a v0.5.0
+  (arquitetura com `mcp/`, residuais marcados, limitacoes atualizadas).
+
 ## [v0.5.0] — 2026-08-20
 
 ### Seguranca
