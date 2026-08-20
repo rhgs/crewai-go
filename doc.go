@@ -72,8 +72,16 @@
 //	structured, _ := crewai.NewStructuredOutput(schema, crewai.WithRepairMax(3))
 //	task.Structured = structured
 //
-// The built-in validator supports a subset of JSON Schema (type, properties,
-// required, enum, items) and uses only the standard library.
+// The built-in validator is a stdlib-only subset of JSON Schema: type,
+// properties, required, enum, items, additionalProperties, minLength/
+// maxLength (bytes), minimum/maximum/exclusive*, minItems/maxItems,
+// pattern, and oneOf/anyOf/allOf. WithStrictSchema rejects unsupported
+// keywords ($ref, if/then/else, format, ...) at NewStructuredOutput time.
+//
+// WithAllowTools() runs a bounded tool gather phase (ReAct or native)
+// before JSON capture; FactSource facts are preserved. If gather hits
+// MaxIterations without a clean stop, the task records a warning and
+// still proceeds to capture.
 //
 // # Agentic loop
 //
@@ -192,13 +200,14 @@
 //
 // NOTE: Debug logs include the full LLM output and tool inputs; warn logs
 // include upstream error messages (which providers may render with request
-// details). Pick your log destination accordingly — avoid shared remote
-// sinks when prompts/outputs may contain sensitive data.
+// details). Prefer LevelInfo/LevelError in production, or wrap the handler
+// with RedactHandler to mask likely API keys, Bearer tokens, and query-string
+// secrets (best-effort, opt-in):
 //
-//	crew := crewai.NewCrew(agents, tasks)
-//	crew.WithLogger(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-//	    Level: slog.LevelDebug,
-//	})))
+//	log := slog.New(crewai.RedactHandler(
+//	    slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
+//	))
+//	crew := crewai.NewCrew(agents, tasks).WithLogger(log)
 //
 // If no logger is provided, Kickoff creates a text-format logger on stderr.
 // The level is LevelDebug when Crew.Verbose is true and LevelError otherwise
@@ -207,6 +216,10 @@
 // controls level, handler, and destination. Agent.Execute, when called
 // standalone (without a crew), falls back to slog.Default() unless
 // Agent.WithLogger is used.
+//
+// Only one Kickoff may run at a time on a given *Crew; a concurrent call
+// returns ErrCrewRunning. Task.OutputFile paths are cleaned; optional
+// Task.OutputDir / Crew.OutputDir jails writes (symlink-aware, fail closed).
 //
 // # MCP (Model Context Protocol)
 //
@@ -218,12 +231,17 @@
 // See docs/en/mcp.md (or docs/pt-BR/mcp.md) for usage and security
 // notes.
 //
+// The HTTP client defaults to DefaultHTTPTimeout (30s); override with
+// WithHTTPTimeout, WithHTTPClient, or JSON servers[].timeout. Prefer
+// FilterTools and WithDescriptionLimit when attaching catalogs.
+//
 //	clients, _ := mcp.LoadConfig(ctx, "/etc/mcp.json", "auditor", "1.0.0")
 //	var tools []crewai.Tool
 //	for _, c := range clients {
 //	    ts, _ := c.ListTools(ctx)
+//	    ts = mcp.FilterTools(ts, map[string]struct{}{"search_docs": {}})
 //	    for _, t := range ts {
-//	        tools = append(tools, mcp.NewToolAdapter(c, t))
+//	        tools = append(tools, mcp.NewToolAdapter(c, t, mcp.WithDescriptionLimit(500)))
 //	    }
 //	}
 //	agent.WithTools(tools...)
@@ -276,4 +294,16 @@
 // Tool-call mode requires the agent's LLM to implement ToolCallingLLM;
 // otherwise it returns ErrToolCallStructuredUnsupported. The default
 // JSON-only mode remains unchanged for backward compatibility.
+//
+// # Inter-agent delegation
+//
+// NewDelegationTool(roster) exposes the delegate_to_coworker tool so an
+// agent can ask a peer mid-reasoning. Targets must set AllowDelegation.
+// Nested calls honor DefaultMaxDelegationDepth with cycle/self guards.
+// Crew.EnableDelegationTool (default false) auto-attaches the tool at
+// Kickoff; Crew implements DelegationRoster via PeerAgents().
+//
+//	researcher.AllowDelegation = true
+//	crew.EnableDelegationTool = true
+//	// or: writer.WithTools(crewai.NewDelegationTool(crew))
 package crewai

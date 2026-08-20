@@ -305,6 +305,17 @@ incluídas são seguras para uso concorrente.
 
 ## Logging
 
+Para mascarar segredos provaveis (best-effort, opt-in):
+
+```go
+log := slog.New(crewai.RedactHandler(
+    slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}),
+))
+crew.WithLogger(log)
+```
+
+
+
 O executor emite logs estruturados via `*log/slog`. Injete um logger em
 `Crew` (e opcionalmente em `Agent`) antes de chamar `Kickoff`:
 

@@ -495,9 +495,13 @@ the model never produces valid JSON within the repair budget, the task
 fails with `crewai.ErrRepairBudgetExceeded`. The executor never returns
 invalid JSON or invents data.
 
-The built-in validator supports a subset of JSON Schema (`type`,
-`properties`, `required`, `enum`, `items`) — stdlib only, no external
-dependencies. Details in [`docs/tasks.md`](docs/tasks.md).
+The built-in validator is a stdlib-only JSON Schema subset: `type`,
+`properties`, `required`, `enum`, `items`, `additionalProperties`,
+`minLength`/`maxLength` (**bytes**), numeric/array bounds, `pattern`,
+and `oneOf`/`anyOf`/`allOf`. Use `WithStrictSchema()` to reject
+unsupported keywords at construction. Optional `WithAllowTools()` runs a
+tool gather phase before JSON capture. Details in
+[`docs/tasks.md`](docs/tasks.md).
 
 ## Guardrails
 
@@ -555,19 +559,23 @@ as `crewai.Tool` values. The original `inputSchema` is preserved
 import "github.com/rhgs/crewai-go/mcp"
 
 clients, err := mcp.LoadConfig(ctx, "/etc/mcp.json", "my-app", "1.0.0")
-// or: client := mcp.New(endpoint, mcp.WithHeader("Authorization", "Bearer "+tok))
+// or: client := mcp.New(endpoint, mcp.WithHTTPTimeout(30*time.Second),
+//     mcp.WithHeader("Authorization", "Bearer "+tok))
 var tools []crewai.Tool
 for _, c := range clients {
     ts, _ := c.ListTools(ctx)
+    // Optional least-privilege filter (deny-by-default for unlisted names):
+    // ts = mcp.FilterTools(ts, map[string]struct{}{"search_docs": {}})
     for _, t := range ts {
-        tools = append(tools, mcp.NewToolAdapter(c, t))
+        tools = append(tools, mcp.NewToolAdapter(c, t, mcp.WithDescriptionLimit(500)))
     }
 }
 agent.WithTools(tools...)
 ```
 
-See [`docs/en/mcp.md`](docs/en/mcp.md) for configuration, security notes
-(response size caps, trusted-server model, timeouts), and the programmatic API.
+Default HTTP timeout is 30s (`DefaultHTTPTimeout`); JSON config accepts
+per-server `"timeout"`. See [`docs/en/mcp.md`](docs/en/mcp.md) for
+configuration, threat model, catalog guards, and the programmatic API.
 
 ## Progress & warnings
 
@@ -593,6 +601,17 @@ crewai.AddWarningFromCtx(ctx, "secondary source timeout")
 ```
 
 Details in [`docs/crews.md`](docs/crews.md) and [`docs/tasks.md`](docs/tasks.md).
+
+## Inter-agent delegation
+
+```go
+researcher.AllowDelegation = true // eligible target
+crew.EnableDelegationTool = true  // auto-attach delegate_to_coworker
+// or: writer.WithTools(crewai.NewDelegationTool(crew))
+```
+
+Depth/cycle/self guards apply (`DefaultMaxDelegationDepth` = 2). See
+[`docs/agents.md`](docs/agents.md) and [`examples/delegation`](examples/delegation).
 
 ## Memory
 
@@ -658,6 +677,17 @@ All features are **backward compatible** — no breaking changes.
 | **Warnings** | Per-task non-fatal diagnostics via `AddWarning` / `AddWarningFromCtx`. | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
 | **Structured via tool-call** | `WithToolCall()` extracts JSON through a synthetic `emit_result` tool (Ollama Cloud-friendly). | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
 
+### Unreleased (this branch)
+
+| Feature | Description | Docs (EN) | Docs (PT) |
+|---------|-------------|-----------|-----------|
+| **MCP hardening** | Default 30s HTTP timeout; `WithHTTPTimeout`; JSON `timeout`; `FilterTools` + `WithDescriptionLimit`; threat-model docs. | [docs/en/mcp.md](docs/en/mcp.md) | [docs/pt-BR/mcp.md](docs/pt-BR/mcp.md) |
+| **OutputFile jail** | Path clean + optional `OutputDir` with symlink-aware checks (`ErrOutputPathRejected`). | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
+| **RedactHandler** | Opt-in `slog.Handler` secret masking in the root package. | [README §Logging](#logging) | [README.pt-BR](README.pt-BR.md#logging) |
+| **Kickoff single-flight** | Concurrent `Kickoff` on the same `*Crew` returns `ErrCrewRunning`. | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
+| **Schema keywords** | Expanded JSON Schema subset + `WithStrictSchema` / `WithAllowTools`. | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
+| **Delegation tool** | `delegate_to_coworker` + `EnableDelegationTool` (opt-in). | [docs/agents.md](docs/agents.md) | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) |
+
 **Also in v0.3.0**: native tool calling, web search (agent-driven + model-driven), structured logging via `log/slog`, secret redaction.
 
 See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.4.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.4.0) for details.
@@ -702,7 +732,7 @@ Tests are **hermetic**: they use the `mock` LLM and `httptest`, with no real net
 | **Web search (agent-driven)** | ✅ `WebSearcher` interface + `SearchWeb(ctx, llm, query, max)` — direct search from Go code via Ollama, OpenAI, Anthropic, xAI | ❌ no direct search API; requires tools |
 | **Web search (model-driven)** | ✅ `WebSearchTool` with 7 pluggable providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave) | ⚠️ requires SerperDev or similar external tool integration |
 | **SSRF protection** | ✅ blocks non-http(s), userinfo, loopback, private/CGNAT/multicast IPs, link-local, unspecified, metadata aliases; DNS rebinding prevention via `net.LookupIP` (fail-closed) | ❌ no URL filtering on search results |
-| **Secret redaction in logs** | ✅ `redactError`/`redactString` masks API keys, Bearer tokens, query-string secrets before logging | ❌ no log redaction |
+| **Secret redaction in logs** | ✅ `redactError`/`redactString` + opt-in `RedactHandler` for `slog` messages/attrs | ❌ no log redaction |
 | **Structured logging** | ✅ `log/slog` — inject any `*slog.Logger` with custom handler, level, and output | ❌ Python `logging` module, less flexible handler injection |
 | **Tool call security limits** | ✅ max args size, output size, response size, JSON depth, arg validation — all configurable | ❌ no size/depth limits on tool calls |
 | **Tool traces** | ✅ `ToolTrace` in `TaskOutput` — full observability of every tool call (name, args, result, duration) | ❌ no per-call trace type |

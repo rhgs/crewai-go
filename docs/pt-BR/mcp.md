@@ -67,8 +67,12 @@ var crewTools []crewai.Tool
 for _, c := range clients {
     tools, err := c.ListTools(ctx)
     if err != nil { return err }
+    // Filtro opcional least-privilege (deny-by-default para nomes nao listados):
+    // tools = mcp.FilterTools(tools, map[string]struct{}{"search_docs": {}, "get_ticket": {}})
     for _, t := range tools {
-        crewTools = append(crewTools, mcp.NewToolAdapter(c, t))
+        crewTools = append(crewTools, mcp.NewToolAdapter(c, t,
+            mcp.WithDescriptionLimit(500), // opcional; 0 = inalterado
+        ))
     }
 }
 ```
