@@ -49,6 +49,11 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 
+- **Guards de catalogo MCP**: `mcp.FilterTools` (allowlist por nome,
+  deny-by-default ao filtrar) e `mcp.WithDescriptionLimit` em
+  `NewToolAdapter` (strip de controles ASCII + truncar em N runes).
+  Defaults inalterados sem options.
+
 - **`RedactHandler`**: wrapper opt-in de `slog.Handler` no pacote raiz
   que aplica as regras existentes de redacao de segredos a mensagens e
   atributos string. O logger default nao muda.

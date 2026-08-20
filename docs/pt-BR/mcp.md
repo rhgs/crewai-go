@@ -98,6 +98,12 @@ falhas HTTP ou JSON-RPC viram erros de Go.
 - `mcp.WithHTTPTimeout(time.Duration)` — define o timeout do client default da lib (ignorado se `WithHTTPClient` foi setado). Nao-positivo desliga o deadline do client.
 - `mcp.WithHeader(key, val)` — adicionado a cada requisicao. Valores de
   header nunca sao logados.
+- `mcp.WithDescriptionLimit(n int)` — opcao de `NewToolAdapter`; quando
+  `n > 0`, remove controles ASCII da description e trunca em `n` runes
+  (higiene de prompt, nao e sanitizer anti-jailbreak).
+- `mcp.FilterTools(tools, allow)` — mantem so tools cujos nomes estao em
+  `allow` (deny-by-default ao filtrar). Prefira isso a anexar o catalogo
+  inteiro de `ListTools` a um agent.
 
 ## Seguranca
 
@@ -138,8 +144,9 @@ descricoes ou resultados de tools antes de entrarem no prompt do LLM.
 2. Mantenha o timeout HTTP default (30s) ou defina `timeout` / `WithHTTPTimeout`.
 3. Passe sempre um deadline no `context` alem do timeout do client.
 4. Proteja arquivos JSON com bearer tokens (`0600`).
-5. Restrinja as tools de cada agent ao minimo — nao anexe o catalogo inteiro.
-6. Nao logue headers MCP ou session ids (o client ja evita isso).
+5. Restrinja as tools de cada agent ao minimo — use `FilterTools` e nao anexe o catalogo inteiro.
+6. Opcionalmente limite o tamanho da description com `WithDescriptionLimit`.
+7. Nao logue headers MCP ou session ids (o client ja evita isso).
 
 ## Cobertura
 

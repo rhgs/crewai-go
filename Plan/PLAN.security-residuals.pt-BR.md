@@ -560,7 +560,7 @@ não é mergeável.
 ### P1
 - [x] R5: `RedactHandler` no core; example delega; snippet no README.
 - [x] R6: Kickoff concorrente → `ErrCrewRunning`; docs single-flight.
-- [ ] R2-P1 (opcional): limit de description + filter de nomes.
+- [x] R2-P1 (opcional): limit de description + filter de nomes.
 
 ### P2
 - [ ] R4: ao menos `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf` testados.
@@ -798,7 +798,7 @@ Números exatos ficam com o processo de release (inclui higiene
 | Residual | Fase | PR | Status |
 |---|---|---|---|
 | R1 timeout MCP | P0 | A | **Implementado** na branch (D1) |
-| R2 trust MCP docs/guards | P0/P1 | C/F | **Docs P0 implementados** (threat model); guards P1 pendentes |
+| R2 trust MCP docs/guards | P0/P1 | C/F | **Implementado** (threat model + guards de catalogo) |
 | R3 política OutputFile | P0 | B | **Implementado** na branch (D2) |
 | R4 keywords schema | P2 | G/H | **D7 decidido** (bytes); impl pendente |
 | R5 RedactHandler | P1 | D | **Implementado** na branch (D3) |

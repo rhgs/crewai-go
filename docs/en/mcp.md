@@ -66,8 +66,12 @@ var crewTools []crewai.Tool
 for _, c := range clients {
     tools, err := c.ListTools(ctx)
     if err != nil { return err }
+    // Optional least-privilege filter (deny-by-default for names not listed):
+    // tools = mcp.FilterTools(tools, map[string]struct{}{"search_docs": {}, "get_ticket": {}})
     for _, t := range tools {
-        crewTools = append(crewTools, mcp.NewToolAdapter(c, t))
+        crewTools = append(crewTools, mcp.NewToolAdapter(c, t,
+            mcp.WithDescriptionLimit(500), // optional; 0 = unchanged
+        ))
     }
 }
 ```
@@ -97,6 +101,12 @@ failures surface as Go errors.
 - `mcp.WithHTTPTimeout(time.Duration)` — set the timeout on the library-built default client (ignored when `WithHTTPClient` is set). Non-positive disables the client deadline.
 - `mcp.WithHeader(key, val)` — added to every request. Header values are never
   logged.
+- `mcp.WithDescriptionLimit(n int)` — optional `NewToolAdapter` option; when
+  `n > 0`, strips ASCII control characters from the tool description and
+  truncates it to `n` runes (prompt hygiene, not a jailbreak sanitizer).
+- `mcp.FilterTools(tools, allow)` — keep only tools whose names are in
+  `allow` (deny-by-default when filtering). Prefer this over attaching an
+  entire `ListTools` catalog to an agent.
 
 ## Security
 
@@ -136,8 +146,9 @@ results before they enter the LLM prompt.
 2. Keep the default HTTP timeout (30s) or set an explicit `timeout` / `WithHTTPTimeout`.
 3. Always pass a `context` deadline in addition to the client timeout.
 4. Protect JSON config files that hold bearer tokens (`0600`).
-5. Scope each agent's tools to the minimum set — do not attach an entire catalog.
-6. Do not log raw MCP headers or session ids (the client already avoids this).
+5. Scope each agent's tools to the minimum set — use `FilterTools` and do not attach an entire catalog.
+6. Optionally cap description size with `WithDescriptionLimit` to reduce prompt noise.
+7. Do not log raw MCP headers or session ids (the client already avoids this).
 
 ## Coverage
 

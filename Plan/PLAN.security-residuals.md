@@ -637,7 +637,7 @@ not mergeable.
 ### P1
 - [x] R5: `RedactHandler` in core; example delegates to it; README snippet.
 - [x] R6: concurrent Kickoff returns `ErrCrewRunning`; docs state single-flight.
-- [ ] R2-P1 (optional): description limit + name filter helpers.
+- [x] R2-P1 (optional): description limit + name filter helpers.
 
 ### P2
 - [ ] R4: at least `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf` tested.
@@ -875,7 +875,7 @@ Exact version numbers left to release process (see also: still-open
 | Residual | Phase | PR | Status |
 |---|---|---|---|
 | R1 MCP timeout | P0 | A | **Implemented** on branch (D1) |
-| R2 MCP trust docs/guards | P0/P1 | C/F | **P0 docs implemented** (threat model); P1 guards pending |
+| R2 MCP trust docs/guards | P0/P1 | C/F | **Implemented** (threat model + catalog guards) |
 | R3 OutputFile policy | P0 | B | **Implemented** on branch (D2) |
 | R4 Schema keywords | P2 | G/H | **D7 decided** (bytes); impl pending |
 | R5 RedactHandler | P1 | D | **Implemented** on branch (D3) |
