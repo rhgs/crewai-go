@@ -46,7 +46,7 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   programaticamente pelo chamador:
   - **Programatica**: `mcp.New(endpoint, opts...)` + `client.Initialize(ctx, name, version)`.
   - **Arquivo JSON**: `mcp.LoadConfig(ctx, path, name, version)` le um
-    arquivo com uma ou mais entradas de servidor (Name, Endpoint, Headers),
+    arquivo com uma ou mais entradas de servidor (Name, Endpoint, Headers, Timeout opcional),
     cria um cliente para cada, chama `Initialize` e retorna o slice.
   Cada ferramenta MCP e exposta como `crewai.Tool` via `mcp.NewToolAdapter`.
   O adapter implementa `crewai.SchemaProvider`, entao o `inputSchema`
@@ -54,8 +54,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   substituido por um placeholder. Um `isError: true` no nivel da
   ferramenta e retornado ao modelo como texto de observacao (prefixado
   com `[tool error]`), nao como erro de Go — apenas falhas HTTP /
-  JSON-RPC viram `error`. Novos helpers: `WithHTTPClient`, `WithHeader`,
-  `Client.Close` (teardown de sessao via HTTP DELETE; idempotente).
+  JSON-RPC viram `error`. Novos helpers: `WithHTTPClient`, `WithHTTPTimeout`,
+  `WithHeader`, `Client.Close` (teardown de sessao via HTTP DELETE; idempotente).
   `LoadConfig` fecha os clients ja inicializados se um servidor
   posterior falha no `Initialize`. Nova constante
   `MaxMCPResponseBytes = 16 MiB`. Sem novas dependencias;
