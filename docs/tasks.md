@@ -193,6 +193,28 @@ Tool-call mode requires the agent's LLM to implement
 `ErrToolCallStructuredUnsupported`. The default JSON-only mode is
 preserved for backward compatibility — opt in with `WithToolCall()`.
 
+### Tools before structured output (`WithAllowTools`)
+
+When the agent must call tools (search, connectors) before emitting JSON:
+
+```go
+structured, _ := crewai.NewStructuredOutput(
+    schema,
+    crewai.WithAllowTools(),
+    crewai.WithRepairMax(3),
+)
+task.Structured = structured
+```
+
+Pipeline:
+
+1. **Gather** — tool loop (ReAct or native) until Final Answer / no tool
+   calls, or `MaxIterations` exhausted.
+2. **Capture** — existing JSON or `emit_result` path with the gather
+   transcript in context.
+
+Default remains `AllowTools == false` (backward compatible).
+
 ## Graceful degradation: per-task warnings
 
 A task that **succeeds** can still record non-fatal diagnostics when a

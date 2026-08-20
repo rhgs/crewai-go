@@ -139,11 +139,20 @@ tarefa.Structured = structured
 
 ### Palavras-chave de schema suportadas
 
-O validador embutido suporta um subconjunto do JSON Schema: `type`,
-`properties`, `required`, `enum`, `items`. Nao e uma implementacao
-completa do JSON Schema e omite intencionalmente palavras-chave como
-`additionalProperties`, `oneOf`/`anyOf`, `pattern`, `minimum`/`maximum`,
-e `minItems`/`maxItems`.
+O validador embutido e um **subconjunto stdlib** do JSON Schema:
+
+| Keyword | Notas |
+|---|---|
+| `type`, `properties`, `required`, `enum`, `items` | Nucleo (inalterado) |
+| `additionalProperties` | `false` rejeita keys desconhecidas; objeto valida extras |
+| `minLength`, `maxLength` | Tamanho de string em **bytes** (`len(s)`), nao runes |
+| `minimum`, `maximum` | Numeros como `float64` |
+| `exclusiveMinimum`, `exclusiveMaximum` | Bool (draft-04) ou numerico (draft-06+) |
+| `minItems`, `maxItems` | Arrays |
+| `pattern` | `regexp` do Go; tamanho do pattern limitado a `MaxSchemaPatternLen` (512) |
+| `oneOf`, `anyOf`, `allOf` | Composicao |
+
+**Nao suportado:** `$ref`, `if`/`then`/`else`, `format`, `unevaluated*`, e a maioria das keywords draft 2020-12. Use `WithStrictSchema()` / `StrictSchema` em `NewStructuredOutput` para falhar cedo se o schema do autor tiver keywords nao suportadas.
 
 ### Erros
 
@@ -185,6 +194,28 @@ O modo tool-call exige que a LLM do agente implemente
 `ToolCallingLLM`; caso contrario a tarefa falha com
 `ErrToolCallStructuredUnsupported`. O modo JSON-only padrao e
 preservado para backward compatibility — ative com `WithToolCall()`.
+
+### Tools antes da saida estruturada (`WithAllowTools`)
+
+Quando o agent precisa chamar tools (busca, connectors) antes de emitir JSON:
+
+```go
+structured, _ := crewai.NewStructuredOutput(
+    schema,
+    crewai.WithAllowTools(),
+    crewai.WithRepairMax(3),
+)
+task.Structured = structured
+```
+
+Pipeline:
+
+1. **Gather** — loop de tools (ReAct ou native) ate Final Answer / sem
+   tool_calls, ou `MaxIterations` esgotado.
+2. **Capture** — path JSON ou `emit_result` com o transcript do gather no
+   contexto.
+
+Default continua `AllowTools == false` (backward compatible).
 
 ## Degradacao graciosa: warnings por tarefa
 
