@@ -3,6 +3,111 @@
 Todas as mudancas relevantes no **crewai-go** sao documentadas aqui. Este projeto
 segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
+## [Unreleased]
+
+### Seguranca
+
+- **Corpos de resposta dos provedores**: `Call` em OpenAI, Anthropic e
+  Ollama agora limita o body a `MaxProviderResponseBytes` (antes so
+  `CallWithTools` / `WebSearch` faziam isso). Erros nao-2xx nao ecoam
+  mais o body da resposta (provedores podem reexibir credenciais).
+- **Round-trip de native tools**: `Message.ToolCallID` e populado pelo
+  executor e mapeado para `tool_call_id` (OpenAI) e `tool_use_id`
+  (Anthropic). Definicoes de tools do Anthropic sao enviadas no formato
+  flat `{name, description, input_schema}` (nao no shape aninhado da
+  OpenAI), e turnos assistant/tool sao reenviados como content blocks
+  tipados para o loop multi-turno funcionar de ponta a ponta.
+- **Cap de observacao ReAct**: outputs de tools no loop ReAct em texto
+  sao truncados com o mesmo limite `MaxToolOutputBytes` do native tool
+  calling.
+- **Endurecimento SSRF** (`tools.WebSearchTool`): tambem bloqueia
+  userinfo, multicast, CGNAT (`100.64.0.0/10`), hosts vazios e aliases
+  de metadata (`metadata`, `metadata.google.internal`).
+- **Erros de provedores de busca**: Google, Brave, LangSearch e
+  Serpstack nao ecoam mais bodies de erro / URLs de request que
+  poderiam vazar API keys em logs.
+- **Caminhos OAuth xAI**: `SaveToken` / `LoadToken` expandem um
+  `~/...` inicial para o home do usuario (antes o til era tratado
+  literalmente).
+
+### Adicionado
+
+- **Suporte a MCP** (`mcp/`): cliente padrao Go (somente stdlib) para o
+  Model Context Protocol sobre Streamable HTTP (JSON-RPC 2.0, versao de
+  protocolo 2025-06-18). Dois modos de configuracao, ambos informados
+  programaticamente pelo chamador:
+  - **Programatica**: `mcp.New(endpoint, opts...)` + `client.Initialize(ctx, name, version)`.
+  - **Arquivo JSON**: `mcp.LoadConfig(ctx, path, name, version)` le um
+    arquivo com uma ou mais entradas de servidor (Name, Endpoint, Headers),
+    cria um cliente para cada, chama `Initialize` e retorna o slice.
+  Cada ferramenta MCP e exposta como `crewai.Tool` via `mcp.NewToolAdapter`.
+  O adapter implementa `crewai.SchemaProvider`, entao o `inputSchema`
+  original e encaminhado ao native function calling em vez de ser
+  substituido por um placeholder. Um `isError: true` no nivel da
+  ferramenta e retornado ao modelo como texto de observacao (prefixado
+  com `[tool error]`), nao como erro de Go — apenas falhas HTTP /
+  JSON-RPC viram `error`. Novos helpers: `WithHTTPClient`, `WithHeader`,
+  `Client.Close` (teardown de sessao via HTTP DELETE; idempotente).
+  `LoadConfig` fecha os clients ja inicializados se um servidor
+  posterior falha no `Initialize`. Nova constante
+  `MaxMCPResponseBytes = 16 MiB`. Sem novas dependencias;
+  totalmente backward compatible.
+
+- **Interface `SchemaProvider`**: uma capacidade opcional, verificada via
+  type assertion, que um `Tool` pode implementar para expor seu JSON
+  Schema. O `toToolSpecs` do executor consulta `SchemaProvider` antes de
+  cair no schema de objeto vazio padrao — usado pelo adapter MCP e
+  disponivel a qualquer ferramenta que queira encaminhar seu schema real
+  ao modelo. Puramente aditivo.
+
+- **Warnings por tarefa (degradacao graciosa)**: novos metodos thread-safe
+  `Task.AddWarning(msg)` e `Task.Warnings()`, a interface opcional
+  `WarningSink` recuperavel do `context.Context` via `warningSinkFromCtx`,
+  e o helper `AddWarningFromCtx(ctx, msg)`. O executor (`Crew.execute`)
+  injeta a tarefa como `WarningSink` no `ctx` antes de invocar as
+  ferramentas, permitindo que uma ferramenta registre um diagnostico nao
+  fatal enquanto a tarefa sucede. Os warnings sao agregados em
+  `TaskOutput.Warnings` e `CrewOutput.Warnings` em ordem de execucao.
+  `Agent.Execute` standalone nao injeta sink — `AddWarningFromCtx` ai e
+  um no-op silencioso. Distinto de `Stage.Optional`: warnings significam
+  *sucesso parcial dentro da tarefa*; estagios opcionais significam
+  *falha da tarefa nao aborta o crew*. Sem novas dependencias;
+  backward compatible.
+
+- **Observabilidade de progresso**: novos tipos `crewai.ProgressFunc` e
+  `crewai.Progress` mais o setter fluente `Crew.WithProgress(fn)`.
+  Durante `Kickoff`, o executor emite eventos `stage_started`,
+  `stage_completed`, `task_started`, `task_completed` e `tool_invoked`
+  (caminhos ReAct e native). O callback e invocado de multiplas
+  goroutines quando estagios rodam em paralelo — deve ser thread-safe,
+  como um `slog.Handler`. Panics dentro do callback sao recuperados e
+  logados via `slog.Default()`; `Kickoff` nunca e abortado por falha
+  no callback. Payloads de `Progress` nunca contem corpo de prompt,
+  saida do LLM nem input de ferramenta — apenas metadados. Sem novas
+  dependencias; backward compatible.
+
+- **Saida estruturada via tool-call (`WithToolCall`)**: novo modo em
+  `StructuredOutput` que extrai JSON via uma chamada de tool
+  sintetica em vez de prompt de texto JSON puro. Util para provedores
+  que nao suportam saidas estruturadas atraves do parametro `format`
+  (notavelmente Ollama Cloud): o executor declara um `ToolSpec` de
+  nome `emit_result` com `Parameters = schema`, pede ao modelo que
+  chame exatamente uma vez e interpreta o campo `arguments` da
+  chamada (ja em `json.RawMessage` em toda `ToolCallingLLM` desta
+  repo) como saida validada. Se o modelo retornar texto livre ou os
+  argumentos falharem na validacao, o loop de reparo existente
+  (`RepairMax`) e acionado. Se a LLM nao implementa `ToolCallingLLM`,
+  retorna `ErrToolCallStructuredUnsupported`. O modo JSON-only legado
+  segue como padrao e e backward compatible. Ative com
+  `crewai.WithToolCall()`.
+
+### Modificado
+
+- O hook de pre-commit local (`scripts/pre-commit`) agora roda
+  `govulncheck ./...` no Go 1.25.x alem do `gofmt`. O modulo em si
+  nao tem vulnerabilidades conhecidas. Instale com
+  `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`.
+
 ## [v0.4.0] — 2026-08-17
 
 ### Adicionado

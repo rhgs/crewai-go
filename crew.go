@@ -50,6 +50,28 @@ type Crew struct {
 	// Kickoff starts and not mutated while Kickoff is running.
 	logger *slog.Logger
 	mem    *Memory
+	// progress is invoked during Kickoff to surface execution events.
+	// Set via WithProgress before Kickoff. NOT CONCURRENT-SAFE in the
+	// same sense as logger (set once before Kickoff). The callback
+	// itself MAY be called from multiple goroutines and MUST be
+	// thread-safe. Panics inside the callback are recovered.
+	progress ProgressFunc
+}
+
+// WithProgress registers a progress callback invoked during Kickoff.
+// The callback is called from multiple goroutines when stages run in
+// parallel, so it MUST be safe for concurrent use, like an
+// slog.Handler. Passing nil disables progress reporting. The callback
+// receives Progress values that contain metadata only (stage, task,
+// agent, event, tool, duration, err) — never prompt bodies, LLM
+// outputs, or tool inputs. Panics inside the callback are recovered
+// and logged via slog.Default(); Kickoff is not affected.
+//
+// Set BEFORE Kickoff is called. Mutating this field directly while
+// Kickoff is running is undefined.
+func (c *Crew) WithProgress(fn ProgressFunc) *Crew {
+	c.progress = fn
+	return c
 }
 
 // Stage is a step of the Staged pipeline. Stages run in sequence, but the
@@ -78,6 +100,12 @@ type CrewOutput struct {
 	// tools, deduplicated by PayloadHash. Populated by the executor,
 	// never by the LLM.
 	Facts []Fact
+	// Warnings is the concatenation of every task's Warnings, in
+	// execution order (declaration order for sequential, stage-then-task
+	// order for staged). Includes only warnings from successful tasks
+	// — failed tasks contribute no warnings because their context is
+	// discarded along with their output.
+	Warnings []string
 }
 
 // TaskOutput is the output of a single task.
@@ -91,6 +119,12 @@ type TaskOutput struct {
 	// ToolTraces holds the native tool call traces (empty when using ReAct).
 	// Each entry is a tool invocation: name, arguments, result, duration.
 	ToolTraces []ToolTrace
+	// Warnings holds non-fatal diagnostics recorded during this task's
+	// execution (partial successes, e.g. a secondary source was down).
+	// Warnings are additive to Output: the task SUCCEEDED, but a
+	// downstream step was unavailable. Distinct from stage failures
+	// gated by Stage.Optional. In insertion order.
+	Warnings []string
 }
 
 // String returns the crew's final output.
@@ -184,6 +218,9 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 	var err error
 	out := &CrewOutput{}
 
+	// Inject the progress callback into ctx so every executor sees it.
+	ctx = ContextWithProgress(ctx, c.progress)
+
 	switch c.Process {
 	case Sequential:
 		out, err = c.runSequential(ctx)
@@ -217,18 +254,38 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 			return nil, ErrNoAgent
 		}
 
+		emitProgress(ctx, Progress{
+			Task:  taskLabel(task, i),
+			Agent: agent.Role,
+			Event: "task_started",
+		})
+
 		result, facts, err := c.execute(ctx, agent, task)
 		if err != nil {
+			emitProgress(ctx, Progress{
+				Task:  taskLabel(task, i),
+				Agent: agent.Role,
+				Event: "task_completed",
+				Err:   redactError(err),
+			})
 			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
+		emitProgress(ctx, Progress{
+			Task:  taskLabel(task, i),
+			Agent: agent.Role,
+			Event: "task_completed",
+		})
+		warnings := task.Warnings()
 		out.TasksOutput = append(out.TasksOutput, TaskOutput{
 			Task:       taskLabel(task, i),
 			Agent:      agent.Role,
 			Output:     result,
 			Facts:      facts,
 			ToolTraces: task.ToolTraces(),
+			Warnings:   warnings,
 		})
 		out.Facts = dedupFacts(out.Facts, facts)
+		out.Warnings = append(out.Warnings, warnings...)
 		out.Final = result
 	}
 	return out, nil
@@ -253,18 +310,38 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 		}
 		c.logger.InfoContext(ctx, "task delegated", "task_index", i+1, "agent", agent.Role)
 
+		emitProgress(ctx, Progress{
+			Task:  taskLabel(task, i),
+			Agent: agent.Role,
+			Event: "task_started",
+		})
+
 		result, facts, err := c.execute(ctx, agent, task)
 		if err != nil {
+			emitProgress(ctx, Progress{
+				Task:  taskLabel(task, i),
+				Agent: agent.Role,
+				Event: "task_completed",
+				Err:   redactError(err),
+			})
 			return nil, fmt.Errorf("task %d: %w", i+1, err)
 		}
+		emitProgress(ctx, Progress{
+			Task:  taskLabel(task, i),
+			Agent: agent.Role,
+			Event: "task_completed",
+		})
+		warnings := task.Warnings()
 		out.TasksOutput = append(out.TasksOutput, TaskOutput{
 			Task:       taskLabel(task, i),
 			Agent:      agent.Role,
 			Output:     result,
 			Facts:      facts,
 			ToolTraces: task.ToolTraces(),
+			Warnings:   warnings,
 		})
 		out.Facts = dedupFacts(out.Facts, facts)
+		out.Warnings = append(out.Warnings, warnings...)
 		out.Final = result
 	}
 	return out, nil
@@ -281,6 +358,11 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 		if stageName == "" {
 			stageName = fmt.Sprintf("stage %d", si+1)
 		}
+
+		emitProgress(ctx, Progress{
+			Stage: stageName,
+			Event: "stage_started",
+		})
 
 		// A single derived context for the whole stage: cancelling it stops
 		// every sibling goroutine (on parent cancellation or a non-optional
@@ -338,6 +420,13 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 				c.logger.InfoContext(stageCtx, "task started",
 					"stage", stageName, "task_index", ti+1, "agent", agent.Role)
 
+				emitProgress(stageCtx, Progress{
+					Stage: stageName,
+					Task:  taskLabel(task, ti),
+					Agent: agent.Role,
+					Event: "task_started",
+				})
+
 				result, facts, err := c.execute(stageCtx, agent, task)
 				results[ti] = stageResult{
 					task:  task,
@@ -346,6 +435,13 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 					facts: facts,
 					err:   err,
 				}
+				emitProgress(stageCtx, Progress{
+					Stage: stageName,
+					Task:  taskLabel(task, ti),
+					Agent: agent.Role,
+					Event: "task_completed",
+					Err:   redactError(err),
+				})
 				if err != nil {
 					recordErr(ti, err)
 				}
@@ -353,6 +449,11 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 		}
 		wg.Wait()
 		cancel()
+
+		emitProgress(ctx, Progress{
+			Stage: stageName,
+			Event: "stage_completed",
+		})
 
 		// A non-optional stage aborts on the first failure.
 		if firstErr != nil && !stage.Optional {
@@ -368,14 +469,17 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 					"stage", stageName, "task_index", ti+1, "error", redactError(res.err))
 				continue
 			}
+			warnings := res.task.Warnings()
 			out.TasksOutput = append(out.TasksOutput, TaskOutput{
 				Task:       taskLabel(res.task, ti),
 				Agent:      res.agent.Role,
 				Output:     res.out,
 				Facts:      res.facts,
 				ToolTraces: res.task.ToolTraces(),
+				Warnings:   warnings,
 			})
 			out.Facts = dedupFacts(out.Facts, res.facts)
+			out.Warnings = append(out.Warnings, warnings...)
 			out.Final = res.out
 		}
 	}
@@ -395,7 +499,15 @@ type stageResult struct {
 
 // execute runs a task, assembles the context, and persists the output/memory.
 // It returns the task result string, collected facts, and an error.
+//
+// If a task is supplied, it is attached to ctx as a WarningSink so tools
+// (including adapters from mcp/, tools/, etc.) can record non-fatal
+// diagnostics via AddWarningFromCtx or by retrieving the sink from ctx
+// themselves.
 func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, []Fact, error) {
+	if task != nil {
+		ctx = ContextWithWarningSink(ctx, task)
+	}
 	contextText := task.contextText()
 	if c.mem != nil && contextText == "" {
 		// With no explicit context, inject the accumulated memory.

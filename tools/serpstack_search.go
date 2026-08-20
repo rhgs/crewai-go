@@ -52,23 +52,26 @@ func (s *Serpstack) Search(ctx context.Context, query string, maxResults int) ([
 	}
 
 	// Free tier uses HTTP. For HTTPS, a paid plan is required.
+	// Put the API key in the query string only after QueryEscape, and never
+	// include the raw URL in returned errors (the key would leak into logs).
 	searchURL := fmt.Sprintf("%s?access_key=%s&query=%s&num=%d",
 		s.baseURL, url.QueryEscape(s.apiKey), url.QueryEscape(query), maxResults)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("serpstack: building request: %w", err)
 	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		// http.Client errors can embed the full URL (and thus the key).
+		return nil, fmt.Errorf("serpstack: request failed")
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("serpstack: reading response: %w", err)
 	}
 
 	var result struct {
@@ -88,8 +91,10 @@ func (s *Serpstack) Search(ctx context.Context, query string, maxResults int) ([
 		return nil, fmt.Errorf("serpstack: decode: %w", err)
 	}
 	if !result.Success && result.Error != nil {
-		return nil, fmt.Errorf("serpstack: error %d (%s): %s",
-			result.Error.Code, result.Error.Type, result.Error.Info)
+		// Do not echo result.Error.Info verbatim — some upstream errors
+		// restate the request URL (and therefore the access_key).
+		return nil, fmt.Errorf("serpstack: error %d (%s)",
+			result.Error.Code, result.Error.Type)
 	}
 
 	var results []SearchResult

@@ -220,7 +220,7 @@ tool := tools.NewWebSearch(tools.NewDuckDuckGoSearch())
 
 ```go
 tool := tools.NewWebSearch(
-	tools.NewGoogleSearch(os.Getenv("GOOGLE_API_KEY"), os.Getenv("GOOGLE_CX_ID")),
+	tools.NewGoogleSearch(os.Getenv("GOOGLE_API_KEY"), os.Getenv("GOOGLE_CSE_ID")),
 )
 ```
 
@@ -260,14 +260,20 @@ All URLs returned by any provider are filtered through SSRF (Server-Side
 Request Forgery) protection before being presented to the agent:
 
 - **Non-http(s) schemes** are blocked (`file://`, `ftp://`, etc.).
-- **Loopback** addresses (`localhost`, `127.0.0.1`, `::1`) are blocked.
-- **Private, link-local, and unspecified** IP addresses are blocked
+- **Userinfo** (`user:pass@host`) is blocked — never useful for public
+  search results and a common SSRF smuggling vector.
+- **Loopback** addresses (`localhost`, `localhost.localdomain`,
+  `127.0.0.1`, `::1`) and bare metadata aliases
+  (`metadata`, `metadata.google.internal`) are blocked by name.
+- **Private, link-local, unspecified, multicast, and CGNAT**
+  (`100.64.0.0/10`, RFC 6598) IP addresses are blocked
   (e.g. `10.x`, `192.168.x`, `169.254.x` — this covers cloud metadata
   endpoints like `169.254.169.254`).
 - **DNS rebinding prevention**: domain names are resolved via DNS and all
   resolved IPs are checked. If any resolves to a blocked address, the URL
   is blocked.
-- **Fail-closed**: if DNS resolution fails, the URL is blocked by default.
+- **Fail-closed**: if DNS resolution fails or the host is empty, the URL
+  is blocked by default.
 
 ## Logging
 

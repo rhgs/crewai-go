@@ -43,16 +43,23 @@ See [LLMs > Logging](llms.md#logging) for the full reference.
 | `Memory`       | `bool`         | Enables shared memory. |
 | `ManagerLLM`   | `LLM`          | The manager's LLM (hierarchical process). |
 | `ManagerAgent` | `*Agent`       | Explicit manager (takes precedence over `ManagerLLM`). |
+| `Guardrails`   | `[]Guardrail`  | Crew-level post-output validation hooks. |
+| `progress`     | `ProgressFunc` | Internal — set via `WithProgress`. |
 
 ## The result: `CrewOutput`
 
 ```go
 type CrewOutput struct {
 	Final       string        // output of the last task
-	TasksOutput []TaskOutput  // output of each task
+	TasksOutput []TaskOutput  // output of each task (incl. Facts, ToolTraces, Warnings)
 	Duration    time.Duration // total time
+	Facts       []Fact        // facts collected from FactSource tools (deduped)
+	Warnings    []string      // non-fatal diagnostics from successful tasks
 }
 ```
+
+`TaskOutput` also carries per-task `Facts`, `ToolTraces` (native tool
+calling only), and `Warnings`.
 
 ## Sequential process
 
@@ -190,3 +197,33 @@ task := crewai.NewTask("...", "...", agent).
 
 Schema validation checks the **shape**; guardrails check the **meaning**.
 Use both for maximum safety.
+
+## Progress observability
+
+`Kickoff` is a black box until it returns. To surface real-time events
+to a frontend (e.g. via SSE), set a progress callback with
+`WithProgress`:
+
+```go
+crew := crewai.NewCrew(agents, tasks).
+    WithProgress(func(p crewai.Progress) {
+        // p carries: Stage, Task, Agent, Event, Tool, Duration, Err
+        // Event is one of: "stage_started", "stage_completed",
+        //                  "task_started", "task_completed",
+        //                  "tool_invoked"
+        w.Header().Set("Content-Type", "text/event-stream")
+        fmt.Fprintf(w, "data: %s %s %s\n\n", p.Event, p.Task, p.Tool)
+    })
+```
+
+The callback is invoked from multiple goroutines when stages run in
+parallel — it MUST be safe for concurrent use, like an `slog.Handler`.
+A panic inside the callback is recovered and logged via
+`slog.Default()`; the `Kickoff` runs to completion either way.
+
+Progress events never contain prompt bodies, LLM outputs, or tool
+inputs — only metadata. Task-failure errors on `task_completed` are
+passed through `redactError` before the callback sees them (long
+tokens and Bearer credentials are masked). If you need to surface
+tool inputs or outputs yourself, log them explicitly with the
+sensitive parts masked.

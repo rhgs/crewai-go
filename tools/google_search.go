@@ -54,27 +54,30 @@ func (g *GoogleSearch) Search(ctx context.Context, query string, maxResults int)
 		maxResults = 10
 	}
 
+	// Escape every query parameter. Never include the raw URL (which holds
+	// the API key) in returned errors — http.Client errors embed it.
 	searchURL := fmt.Sprintf("%s?q=%s&key=%s&cx=%s&num=%d",
-		g.baseURL, url.QueryEscape(query), g.apiKey, g.cxID, maxResults)
+		g.baseURL, url.QueryEscape(query), url.QueryEscape(g.apiKey), url.QueryEscape(g.cxID), maxResults)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("google search: building request: %w", err)
 	}
 
 	resp, err := g.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("google search: request failed")
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("google search: reading response: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("google search: HTTP %d: %s", resp.StatusCode, string(body))
+		// Do not echo the body: Google error payloads can restate the key.
+		return nil, fmt.Errorf("google search: HTTP %d", resp.StatusCode)
 	}
 
 	var result struct {

@@ -302,8 +302,28 @@ func (s *refreshingSource) Token(ctx context.Context) (string, error) {
 
 // --- Persistence -------------------------------------------------------------
 
-// SaveToken writes the token to a JSON file (permission 0600).
+// expandHome replaces a leading "~/..." with the current user's home
+// directory. Bare "~" is left unchanged. Returns path untouched when
+// home cannot be resolved.
+func expandHome(path string) string {
+	if path == "~" {
+		if home, err := os.UserHomeDir(); err == nil {
+			return home
+		}
+		return path
+	}
+	if strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return home + path[1:]
+		}
+	}
+	return path
+}
+
+// SaveToken writes the token to a JSON file (permission 0600). A leading
+// "~/..." in path is expanded to the current user's home directory.
 func SaveToken(path string, tok Token) error {
+	path = expandHome(path)
 	data, err := json.MarshalIndent(tok, "", "  ")
 	if err != nil {
 		return err
@@ -311,8 +331,10 @@ func SaveToken(path string, tok Token) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
-// LoadToken reads a token from a JSON file.
+// LoadToken reads a token from a JSON file. A leading "~/..." in path is
+// expanded to the current user's home directory.
 func LoadToken(path string) (Token, error) {
+	path = expandHome(path)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return Token{}, err

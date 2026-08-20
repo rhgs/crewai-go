@@ -25,8 +25,10 @@ task := crewai.NewTask(
 | `Agent`          | `*crewai.Agent` | The assignee. Can be `nil` (the crew resolves it). |
 | `Tools`          | `[]crewai.Tool` | Overrides the agent's tools for this task. |
 | `Context`        | `[]*crewai.Task`| Tasks whose outputs become this task's context. |
-| `OutputFile`     | `string`        | If set, writes the output to this file. |
+| `OutputFile`     | `string`        | If set, writes the output to this file (mode `0600`). Treat as a trusted path — the framework does not sandbox it. |
 | `Structured`     | `*crewai.StructuredOutput` | If set, requires JSON output validated against a JSON Schema. |
+| `Guardrail`      | `crewai.Guardrail` | Optional task-level post-output validation. |
+| `Loop`           | `crewai.Loop`   | Optional per-task execution strategy (overrides `Agent.Loop`). |
 
 ## Context between tasks
 
@@ -132,5 +134,92 @@ and `minItems`/`maxItems`.
 |---|---|
 | `ErrInvalidOutput` | The model returned JSON that does not validate against the schema. |
 | `ErrRepairBudgetExceeded` | Repair attempts exhausted; the task fails. Wraps the last validation error. |
+| `ErrToolCallStructuredUnsupported` | `ToolCall` is true but the agent's LLM does not implement `ToolCallingLLM`. |
 
-Both can be checked with `errors.Is`.
+All three can be checked with `errors.Is`.
+
+### Tool-call mode (`WithToolCall`)
+
+For providers that do not honour the JSON-Schema `format` parameter
+(notably **Ollama Cloud**), the more reliable path is to declare a
+synthetic tool whose parameters are the schema itself and force the
+model to call it. The arguments the model passes come back pre-parsed
+by every `ToolCallingLLM` implementation in `llm/openai.go`, `llm/ollama.go`,
+etc. — they arrive as `json.RawMessage`, not as a string.
+
+```go
+structured, _ := crewai.NewStructuredOutput(
+    schema,
+    crewai.WithToolCall(),
+    crewai.WithRepairMax(3),
+)
+task.Structured = structured
+```
+
+The executor builds `ToolSpec{Name: "emit_result", Parameters: schema}`,
+asks the model to call it exactly once, and uses the call's
+`arguments` field as the validated output. If the model returns free
+text or the arguments fail validation, the existing repair loop kicks
+in (up to `RepairMax` attempts). On exhaustion, the task fails with
+`ErrRepairBudgetExceeded`.
+
+Tool-call mode requires the agent's LLM to implement
+`ToolCallingLLM`; otherwise the task fails with
+`ErrToolCallStructuredUnsupported`. The default JSON-only mode is
+preserved for backward compatibility — opt in with `WithToolCall()`.
+
+## Graceful degradation: per-task warnings
+
+A task that **succeeds** can still record non-fatal diagnostics when a
+secondary source was unavailable or a non-critical step failed. The task
+itself succeeds; the warning is preserved in `TaskOutput.Warnings` and
+`CrewOutput.Warnings` so the caller can render a degraded section (e.g.
+"section unavailable") rather than aborting the whole investigation.
+
+This is distinct from `Stage.Optional` — optional stages swallow
+**failures**; warnings represent **partial successes**.
+
+Recording a warning from Go:
+
+```go
+task.AddWarning("CNPJ lookup service returned 503")
+crewai.AddWarningFromCtx(ctx, "secondary source timeout")
+```
+
+`Task.AddWarning` is thread-safe (protected by `sync.RWMutex`). A tool
+can record warnings during execution via the context:
+
+```go
+func (t *myTool) Call(ctx context.Context, _ string) (string, error) {
+    primary, err := t.primary(ctx)
+    if err != nil { return "", err }
+    secondary, err := t.secondary(ctx)
+    if err != nil {
+        // Secondary source failed — task can still succeed.
+        crewai.AddWarningFromCtx(ctx, "secondary unavailable: " + err.Error())
+    }
+    return primary + "\n" + secondary, nil
+}
+```
+
+The executor (`Crew.execute`) injects the task as a `WarningSink` into
+`ctx` before invoking tools. `Agent.Execute` (standalone, without a
+crew) does not inject a sink — calls to `AddWarningFromCtx` in that
+mode are silent no-ops.
+
+### Surfacing warnings
+
+After `Kickoff`:
+
+```go
+out, _ := crew.Kickoff(ctx, nil)
+for _, to := range out.TasksOutput {
+    for _, w := range to.Warnings {
+        fmt.Printf("WARNING from %s: %s\n", to.Task, w)
+    }
+}
+// Aggregated view (in execution order):
+for _, w := range out.Warnings {
+    fmt.Println("AGG:", w)
+}
+```

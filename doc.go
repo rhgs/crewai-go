@@ -9,8 +9,8 @@
 //   - Tool:  a capability the agent can invoke during reasoning.
 //
 // An LLM is any type implementing the LLM interface; ready-made
-// implementations live in the llm/openai, llm/anthropic, and llm/mock
-// subpackages.
+// implementations live in the llm/openai, llm/anthropic, llm/ollama,
+// llm/xai, and llm/mock subpackages.
 //
 // # Native tool calling
 //
@@ -20,16 +20,15 @@
 // more reliable and produces structured tool_calls that the executor
 // executes directly, without text parsing.
 //
-// Providers that support ToolCallingLLM: llm/ollama, llm/openai, llm/anthropic.
-// Providers that do not: llm/mock (uses a queued response mechanism for tests).
+// Providers that support ToolCallingLLM: llm/ollama, llm/openai,
+// llm/anthropic, llm/xai. Providers that do not: llm/mock (uses a queued
+// response mechanism for tests).
 //
 // ToolTraces in TaskOutput record each native tool invocation (name, args,
 // output, duration, failed) for observability. Facts from FactSource tools
-// are collected the same way as in ReAct.
-//
-// An LLM is any type implementing the LLM interface; ready-made
-// implementations live in the llm/openai, llm/anthropic, and llm/mock
-// subpackages.
+// are collected the same way as in ReAct. Tool results carry ToolCallID so
+// providers that require it (OpenAI tool_call_id, Anthropic tool_use_id)
+// can match a result back to the call.
 //
 // Minimal example:
 //
@@ -208,4 +207,73 @@
 // controls level, handler, and destination. Agent.Execute, when called
 // standalone (without a crew), falls back to slog.Default() unless
 // Agent.WithLogger is used.
+//
+// # MCP (Model Context Protocol)
+//
+// The subpackage mcp/ exposes tools from external MCP servers as
+// crewai.Tool values. The original inputSchema is preserved verbatim
+// (the adapter implements SchemaProvider) so native tool calling
+// receives the real schema. Configuration can be programmatic
+// (mcp.New + mcp.Initialize) or via a JSON file (mcp.LoadConfig).
+// See docs/en/mcp.md (or docs/pt-BR/mcp.md) for usage and security
+// notes.
+//
+//	clients, _ := mcp.LoadConfig(ctx, "/etc/mcp.json", "auditor", "1.0.0")
+//	var tools []crewai.Tool
+//	for _, c := range clients {
+//	    ts, _ := c.ListTools(ctx)
+//	    for _, t := range ts {
+//	        tools = append(tools, mcp.NewToolAdapter(c, t))
+//	    }
+//	}
+//	agent.WithTools(tools...)
+//
+// # Per-task warnings (graceful degradation)
+//
+// A task may record non-fatal diagnostics when a secondary source was
+// unavailable or a non-critical step failed, while the task itself
+// still succeeds. Recorded warnings are aggregated into TaskOutput.Warnings
+// and CrewOutput.Warnings in execution order — distinct from Stage.Optional,
+// which concerns TASK FAILURE not partial success.
+//
+// Use Task.AddWarning from the agent code, or crewai.AddWarningFromCtx
+// from inside a Tool that has only context.Context to work with:
+//
+//	crewai.AddWarningFromCtx(ctx, "secondary source timeout")
+//
+// The Crew executor injects the current Task as a WarningSink into ctx
+// before invoking tools; Agent.Execute standalone does not inject a sink
+// (calls become silent no-ops).
+//
+// # Progress observability
+//
+// Crews emit real-time progress events through a ProgressFunc set via
+// Crew.WithProgress. Events include stage_started, stage_completed,
+// task_started, task_completed, and tool_invoked (both ReAct and native
+// tool calling paths). The callback runs from multiple goroutines when
+// stages run in parallel — it MUST be thread-safe, like an slog.Handler.
+// A panic inside the callback is recovered and logged; Kickoff continues.
+// Progress payloads carry only metadata (Stage, Task, Agent, Event, Tool,
+// Duration, Err) — never prompt bodies, LLM outputs, or tool inputs.
+//
+//	crew.WithProgress(func(p crewai.Progress) {
+//	    fmt.Printf("%s/%s/%s tool=%s dur=%s\n",
+//	        p.Stage, p.Task, p.Agent, p.Tool, p.Duration)
+//	})
+//
+// # Structured output via tool-call
+//
+// When a StructuredOutput is configured with WithToolCall(), the executor
+// declares a synthetic ToolSpec named "emit_result" whose Parameters are
+// the JSON Schema, instructs the model to call it exactly once, and
+// parses the call's arguments as the validated output. This is the
+// reliable path for providers (notably Ollama Cloud) that do not honour
+// structured outputs via the `format` parameter.
+//
+//	structured, _ := crewai.NewStructuredOutput(schema, crewai.WithToolCall())
+//	task.Structured = structured
+//
+// Tool-call mode requires the agent's LLM to implement ToolCallingLLM;
+// otherwise it returns ErrToolCallStructuredUnsupported. The default
+// JSON-only mode remains unchanged for backward compatibility.
 package crewai

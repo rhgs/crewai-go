@@ -42,6 +42,48 @@ func TestToToolSpecs_Empty(t *testing.T) {
 	}
 }
 
+// schemaTool is a minimal Tool + SchemaProvider used to verify that
+// toToolSpecs honours the optional schema exposed via SchemaProvider.
+type schemaTool struct {
+	name   string
+	desc   string
+	schema json.RawMessage
+}
+
+func (s *schemaTool) Name() string        { return s.name }
+func (s *schemaTool) Description() string { return s.desc }
+func (s *schemaTool) Call(_ context.Context, _ string) (string, error) {
+	return "", nil
+}
+func (s *schemaTool) Schema() json.RawMessage { return s.schema }
+
+func TestToToolSpecs_SchemaProviderUsed(t *testing.T) {
+	want := json.RawMessage(`{"type":"object","properties":{"x":{"type":"integer"}}}`)
+	specs := toToolSpecs([]Tool{&schemaTool{name: "s", desc: "d", schema: want}})
+	if len(specs) != 1 {
+		t.Fatalf("len = %d, want 1", len(specs))
+	}
+	if string(specs[0].Function.Parameters) != string(want) {
+		t.Errorf("parameters = %q, want %q", specs[0].Function.Parameters, want)
+	}
+}
+
+func TestToToolSpecs_SchemaProviderEmptyFallsBackToDefault(t *testing.T) {
+	specs := toToolSpecs([]Tool{&schemaTool{name: "s", desc: "d", schema: nil}})
+	if string(specs[0].Function.Parameters) != `{"type":"object","properties":{}}` {
+		t.Errorf("expected default empty object schema, got %q", specs[0].Function.Parameters)
+	}
+}
+
+func TestToToolSpecs_ToolWithoutSchemaProviderUsesDefault(t *testing.T) {
+	specs := toToolSpecs([]Tool{
+		NewTool("plain", "no schema", func(_ context.Context, _ string) (string, error) { return "", nil }),
+	})
+	if string(specs[0].Function.Parameters) != `{"type":"object","properties":{}}` {
+		t.Errorf("expected default, got %q", specs[0].Function.Parameters)
+	}
+}
+
 // --- validateToolArgs ---
 
 func TestValidateToolArgs_Oversized(t *testing.T) {

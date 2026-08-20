@@ -53,8 +53,9 @@ func (t *FunctionTool) Call(ctx context.Context, input string) (string, error) {
 	return t.fn(ctx, input)
 }
 
-// findTool looks up a tool by name (case-insensitive at the edges) within a
-// list.
+// findTool looks up a tool by exact name within a list. Matching is
+// case-sensitive and does not trim whitespace — the model is instructed to
+// emit the name exactly as declared in the tool catalog.
 func findTool(tools []Tool, name string) (Tool, bool) {
 	for _, t := range tools {
 		if t.Name() == name {

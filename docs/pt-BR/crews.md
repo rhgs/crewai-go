@@ -42,16 +42,23 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 | `Memory`       | `bool`         | Ativa a memória compartilhada. |
 | `ManagerLLM`   | `LLM`          | LLM do gerente (processo hierárquico). |
 | `ManagerAgent` | `*Agent`       | Gerente explícito (tem prioridade sobre `ManagerLLM`). |
+| `Guardrails`   | `[]Guardrail`  | Hooks de validação pós-saída no nível da crew. |
+| `progress`     | `ProgressFunc` | Interno — definido via `WithProgress`. |
 
 ## O resultado: `CrewOutput`
 
 ```go
 type CrewOutput struct {
 	Final       string        // saída da última tarefa
-	TasksOutput []TaskOutput  // saída de cada tarefa
+	TasksOutput []TaskOutput  // saída de cada tarefa (incl. Facts, ToolTraces, Warnings)
 	Duration    time.Duration // tempo total
+	Facts       []Fact        // facts coletados de tools FactSource (deduplicados)
+	Warnings    []string      // diagnósticos não-fatais de tarefas bem-sucedidas
 }
 ```
+
+`TaskOutput` também carrega `Facts`, `ToolTraces` (apenas native tool
+calling) e `Warnings` por tarefa.
 
 ## Processo sequencial
 
@@ -192,3 +199,33 @@ tarefa := crewai.NewTask("...", "...", agente).
 
 A validacao de schema checa a **forma**; guardrails checam o **significado**.
 Use ambos para maxima seguranca.
+
+## Observabilidade de progresso
+
+`Kickoff` e uma caixa-preta ate retornar. Para expor eventos em tempo
+real a um frontend (ex.: via SSE), defina um callback de progresso com
+`WithProgress`:
+
+```go
+crew := crewai.NewCrew(agentes, tarefas).
+    WithProgress(func(p crewai.Progress) {
+        // p carrega: Stage, Task, Agent, Event, Tool, Duration, Err
+        // Event e um de: "stage_started", "stage_completed",
+        //                "task_started",  "task_completed",
+        //                "tool_invoked"
+        w.Header().Set("Content-Type", "text/event-stream")
+        fmt.Fprintf(w, "data: %s %s %s\n\n", p.Event, p.Task, p.Tool)
+    })
+```
+
+O callback e invocado de multiplas goroutines quando estagios rodam em
+paralelo — deve ser thread-safe, como um `slog.Handler`. Um panic
+dentro do callback e recuperado e logado via `slog.Default()`; o
+`Kickoff` roda ate o fim independentemente.
+
+Eventos de progresso nunca contem corpo de prompt, saida do LLM nem
+input de ferramenta — apenas metadados. Erros de falha de tarefa em
+`task_completed` passam por `redactError` antes do callback (tokens
+longos e credenciais Bearer sao mascarados). Se precisar expor
+inputs ou saidas de ferramentas, logue explicitamente com as partes
+sensiveis mascaradas.

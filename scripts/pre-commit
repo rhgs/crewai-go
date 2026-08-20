@@ -1,0 +1,61 @@
+#!/bin/bash
+# Pre-commit hook: gofmt on staged Go files, then govulncheck on the
+# module. Install with:
+#   ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+#
+# govulncheck is run against a patched toolchain (go1.25.x) so known
+# stdlib CVEs already fixed upstream do not fail the commit. The
+# module itself currently reports no vulnerabilities.
+
+set -e
+
+# --- gofmt ----------------------------------------------------------------
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+
+if [ -n "$STAGED_GO_FILES" ]; then
+    UNFORMATTED=""
+    for file in $STAGED_GO_FILES; do
+        if [ -f "$file" ]; then
+            DIFF=$(gofmt -l "$file")
+            if [ -n "$DIFF" ]; then
+                UNFORMATTED="$UNFORMATTED $file"
+            fi
+        fi
+    done
+
+    if [ -n "$UNFORMATTED" ]; then
+        echo "Error: the following Go files are not gofmt-formatted:"
+        echo "$UNFORMATTED" | tr ' ' '\n' | grep -v '^$'
+        echo ""
+        echo "Run 'gofmt -w .' and re-stage the changes."
+        exit 1
+    fi
+fi
+
+# --- govulncheck ----------------------------------------------------------
+# Always scan the module (not just when .go files are staged) so a
+# go.mod bump cannot land with a known vuln. Skip if the binary is
+# missing so a fresh clone still commits after gofmt.
+if ! command -v govulncheck >/dev/null 2>&1; then
+    GOPATH_BIN="$(go env GOPATH 2>/dev/null)/bin"
+    if [ -x "${GOPATH_BIN}/govulncheck" ]; then
+        PATH="${GOPATH_BIN}:$PATH"
+    fi
+fi
+
+if ! command -v govulncheck >/dev/null 2>&1; then
+    echo "govulncheck not found; installing golang.org/x/vuln/cmd/govulncheck@latest"
+    go install golang.org/x/vuln/cmd/govulncheck@latest
+    PATH="$(go env GOPATH)/bin:$PATH"
+fi
+
+# Prefer a toolchain that already contains the stdlib fixes. Falls
+# back to the local toolchain if 1.25.x is unavailable.
+if ! GOTOOLCHAIN=go1.25.13 govulncheck ./...; then
+    echo ""
+    echo "govulncheck failed. Fix reported vulnerabilities before committing."
+    echo "To inspect locally: GOTOOLCHAIN=go1.25.13 govulncheck ./..."
+    exit 1
+fi
+
+exit 0

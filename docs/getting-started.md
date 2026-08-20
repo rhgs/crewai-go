@@ -83,7 +83,9 @@ go run github.com/rhgs/crewai-go/examples/custom_llm
 
 ## Next steps
 
-- [Agents](agents.md) — configure roles, goals, and tools.
-- [Tasks](tasks.md) — chain tasks with context and interpolate variables.
-- [Crews](crews.md) — sequential and hierarchical processes.
-- [Tools](tools.md) — give "hands" to your agents.
+- [Agents](agents.md) — configure roles, goals, tools, and the agentic loop.
+- [Tasks](tasks.md) — chain tasks with context, structured output, and warnings.
+- [Crews](crews.md) — sequential, hierarchical, and staged processes; progress callbacks.
+- [Tools](tools.md) — give "hands" to your agents (including web search).
+- [LLMs](llms.md) — providers, native tool calling, and logging.
+- [MCP](en/mcp.md) — connect external Model Context Protocol servers.

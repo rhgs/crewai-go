@@ -14,12 +14,15 @@ type LLM interface {
 }
 ```
 
-`Message` has only `Role` and `Content`:
+`Message` carries role, content, and optional native-tool fields:
 
 ```go
 type Message struct {
-	Role    Role   // RoleSystem, RoleUser, RoleAssistant, RoleTool
-	Content string
+	Role       Role   // RoleSystem, RoleUser, RoleAssistant, RoleTool
+	Content    string
+	ToolCalls  []ToolCall // assistant turns that requested tools
+	ToolName   string     // tool result: tool name
+	ToolCallID string     // tool result: provider call id (OpenAI/Anthropic)
 }
 ```
 

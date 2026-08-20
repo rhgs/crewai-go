@@ -3,6 +3,108 @@
 All notable changes to **crewai-go** are documented here. This project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- **Provider response bodies**: `Call` on OpenAI, Anthropic, and Ollama
+  now caps bodies at `MaxProviderResponseBytes` (previously only
+  `CallWithTools` / `WebSearch` did). Non-2xx errors no longer echo the
+  response body (providers may restate credentials).
+- **Native tool round-trip**: `Message.ToolCallID` is populated by the
+  executor and mapped to OpenAI `tool_call_id` and Anthropic
+  `tool_use_id`. Anthropic tool definitions are sent in the flat
+  `{name, description, input_schema}` wire format (not the nested
+  OpenAI shape), and assistant/tool turns are replayed as typed content
+  blocks so multi-turn native tool loops work end-to-end.
+- **ReAct observation cap**: tool outputs in the text ReAct loop are
+  truncated with the same `MaxToolOutputBytes` limit as native tool
+  calling.
+- **SSRF hardening** (`tools.WebSearchTool`): also blocks userinfo,
+  multicast, CGNAT (`100.64.0.0/10`), empty hosts, and metadata
+  aliases (`metadata`, `metadata.google.internal`).
+- **Search provider errors**: Google, Brave, LangSearch, and Serpstack
+  no longer echo upstream error bodies / request URLs that could leak
+  API keys into logs.
+- **xAI OAuth paths**: `SaveToken` / `LoadToken` expand a leading
+  `~/...` to the user home directory (previously the tilde was treated
+  literally).
+
+### Added
+
+- **MCP support** (`mcp/`): a stdlib-only client for the Model Context
+  Protocol over Streamable HTTP (JSON-RPC 2.0, protocol version 2025-06-18).
+  Two configuration modes, both supplied programmatically by the caller:
+  - **Programmatic**: `mcp.New(endpoint, opts...)` + `client.Initialize(ctx, name, version)`.
+  - **JSON file**: `mcp.LoadConfig(ctx, path, name, version)` reads a config
+    with one or more server entries (Name, Endpoint, Headers), creates a
+    client for each, calls `Initialize`, and returns the slice.
+  Each MCP tool is exposed as a `crewai.Tool` via `mcp.NewToolAdapter`.
+  The adapter implements `crewai.SchemaProvider`, so the original
+  `inputSchema` is forwarded to native function calling instead of being
+  replaced with a placeholder. A tool-level `isError: true` is returned
+  to the model as observation text (prefixed `[tool error]`), not as a
+  Go error — only HTTP / JSON-RPC failures surface as `error`.
+  New helpers: `WithHTTPClient`, `WithHeader`, `Client.Close`
+  (HTTP DELETE session teardown; idempotent). `LoadConfig` closes
+  already-initialized clients if a later server fails `Initialize`.
+  New constant `MaxMCPResponseBytes = 16 MiB`. No new dependencies;
+  fully backward compatible.
+
+- **`SchemaProvider` interface**: an optional, type-asserted capability a
+  `Tool` may implement to expose its JSON Schema. The executor's
+  `toToolSpecs` consults `SchemaProvider` before falling back to the
+  default empty object schema — used by the MCP adapter and available to
+  any tool that wants to carry its real schema forward to the model.
+  Purely additive.
+
+- **Per-task warnings (graceful degradation)**: new `Task.AddWarning(msg)`
+  and `Task.Warnings()` thread-safe methods, the optional `WarningSink`
+  interface retrievable from `context.Context` via `warningSinkFromCtx`,
+  and the convenience helper `AddWarningFromCtx(ctx, msg)`. The executor
+  (`Crew.execute`) injects the task as a `WarningSink` into `ctx` before
+  invoking tools, so a tool can record a non-fatal diagnostic and the
+  task still succeeds. Warnings aggregate into `TaskOutput.Warnings` and
+  `CrewOutput.Warnings` in execution order. `Agent.Execute` standalone
+  does not inject a sink — `AddWarningFromCtx` is a silent no-op there.
+  Distinct from `Stage.Optional`: warnings mean *partial success within
+  a task*; optional stages mean *task failure does not abort the crew*.
+  No new dependencies; backward compatible.
+
+- **Progress observability**: new `crewai.ProgressFunc` and
+  `crewai.Progress` types plus the fluent setter `Crew.WithProgress(fn)`.
+  During `Kickoff` the executor emits events for `stage_started`,
+  `stage_completed`, `task_started`, `task_completed`, and `tool_invoked`
+  (both ReAct and native paths). The callback is invoked from multiple
+  goroutines when stages run in parallel — it MUST be safe for
+  concurrent use, like an `slog.Handler`. Panics inside the callback
+  are recovered and logged via `slog.Default()`; `Kickoff` is never
+  aborted by a callback failure. `Progress` payloads never contain
+  prompt bodies, LLM outputs, or tool inputs — only metadata. No new
+  dependencies; backward compatible.
+
+- **Structured output via tool-call (`WithToolCall`)**: a new mode on
+  `StructuredOutput` that extracts JSON via a synthetic tool call
+  instead of plain-text JSON prompts. Useful for providers that do not
+  support structured outputs through the `format` parameter (notably
+  Ollama Cloud): the executor declares a `ToolSpec` named
+  `emit_result` with `Parameters = schema`, asks the model to call it
+  exactly once, and parses the call's `arguments` (already
+  `json.RawMessage` in every provider's `ToolCallingLLM`) as the
+  validated output. If the model returns free text or the arguments
+  fail validation, the existing `RepairMax` repair loop kicks in. If
+  the LLM does not implement `ToolCallingLLM`, returns
+  `ErrToolCallStructuredUnsupported`. The legacy JSON-only mode
+  remains the default and is backward compatible. Opt in with
+  `crewai.WithToolCall()`.
+
+### Changed
+
+- Local pre-commit hook (`scripts/pre-commit`) now runs `govulncheck
+  ./...` against Go 1.25.x in addition to `gofmt`. The module itself
+  has no known vulnerabilities. Install with
+  `ln -sf ../../scripts/pre-commit .git/hooks/pre-commit`.
+
 ## [v0.4.0] — 2026-08-17
 
 ### Added

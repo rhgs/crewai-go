@@ -144,7 +144,7 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, crewai.MaxProviderResponseBytes))
 	if err != nil {
 		return "", fmt.Errorf("ollama: reading response: %w", err)
 	}
@@ -157,7 +157,8 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 		return "", fmt.Errorf("ollama: API error: %s", parsed.Error)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("ollama: unexpected status %d: %s", resp.StatusCode, string(data))
+		// Do not echo the body: error payloads may contain request metadata.
+		return "", fmt.Errorf("ollama: unexpected status %d", resp.StatusCode)
 	}
 	return parsed.Message.Content, nil
 }
@@ -242,7 +243,7 @@ func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, t
 		return nil, fmt.Errorf("ollama: API error: %s", parsed.Error)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ollama: unexpected status %d: %s", resp.StatusCode, string(data))
+		return nil, fmt.Errorf("ollama: unexpected status %d", resp.StatusCode)
 	}
 
 	return &crewai.ToolCallResponse{
@@ -312,7 +313,7 @@ func (c *Client) WebSearch(ctx context.Context, query string, max int) ([]crewai
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ollama: web search HTTP %d: %s", resp.StatusCode, string(data))
+		return nil, fmt.Errorf("ollama: web search HTTP %d", resp.StatusCode)
 	}
 
 	var parsed webSearchResponse
