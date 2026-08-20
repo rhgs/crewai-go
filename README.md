@@ -40,6 +40,8 @@
 - [Structured output](#structured-output)
 - [Guardrails](#guardrails)
 - [Facts & provenance](#facts--provenance)
+- [MCP](#mcp-model-context-protocol)
+- [Progress & warnings](#progress--warnings)
 - [Memory](#memory)
 - [Examples](#examples)
 - [Documentation](#documentation)
@@ -66,6 +68,8 @@
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - 🪜 **Staged process** — stages run in sequence, tasks within a stage run in parallel.
 - 🔁 **Agentic loop** — optional Plan-Execute-Evaluate-Refine cycle with self-evaluation and iterative refinement.
+- 🔌 **MCP** — connect to Model Context Protocol servers and expose their tools as `crewai.Tool` (schema-preserving).
+- 📡 **Progress & warnings** — real-time `WithProgress` callbacks and per-task non-fatal warnings.
 - ✅ **Testable** — mock LLM included; ~90% core coverage.
 
 ## Concepts
@@ -321,7 +325,7 @@ search := tools.NewWebSearch(tools.NewDuckDuckGoSearch())
 agent.WithTools(search)
 ```
 
-All search results are **SSRF-protected**: URLs pointing to localhost, private IPs, `0.0.0.0`, link-local addresses (`169.254.x`), and unspecified addresses are filtered out. Domain names are resolved via DNS to prevent DNS rebinding attacks.
+All search results are **SSRF-protected**: URLs pointing to localhost, private/CGNAT/multicast IPs, `0.0.0.0`, link-local addresses (`169.254.x`), metadata aliases, userinfo, and unspecified addresses are filtered out. Domain names are resolved via DNS to prevent DNS rebinding attacks (fail-closed).
 
 Details in [`docs/llms.md`](docs/llms.md) (WebSearcher) and [`docs/tools.md`](docs/tools.md) (WebSearchTool).
 
@@ -530,6 +534,55 @@ PayloadHash and appear in `CrewOutput.Facts` and `TaskOutput.Facts`. Use
 `crewai.AllFactsProvenanced` in a guardrail to enforce provenance. Details in
 [`docs/tools.md`](docs/tools.md).
 
+## MCP (Model Context Protocol)
+
+Connect to external MCP servers over Streamable HTTP and expose their tools
+as `crewai.Tool` values. The original `inputSchema` is preserved
+(`SchemaProvider`) so native tool calling receives the real schema.
+
+```go
+import "github.com/rhgs/crewai-go/mcp"
+
+clients, err := mcp.LoadConfig(ctx, "/etc/mcp.json", "my-app", "1.0.0")
+// or: client := mcp.New(endpoint, mcp.WithHeader("Authorization", "Bearer "+tok))
+var tools []crewai.Tool
+for _, c := range clients {
+    ts, _ := c.ListTools(ctx)
+    for _, t := range ts {
+        tools = append(tools, mcp.NewToolAdapter(c, t))
+    }
+}
+agent.WithTools(tools...)
+```
+
+See [`docs/en/mcp.md`](docs/en/mcp.md) for configuration, security notes
+(response size caps, trusted-server model, timeouts), and the programmatic API.
+
+## Progress & warnings
+
+**Progress.** Surface real-time execution events to a frontend via
+`Crew.WithProgress`. Events: `stage_started`, `stage_completed`,
+`task_started`, `task_completed`, `tool_invoked`. Payloads carry metadata
+only (never prompts, outputs, or tool inputs). The callback must be
+goroutine-safe; panics are recovered.
+
+```go
+crew.WithProgress(func(p crewai.Progress) {
+    fmt.Printf("%s %s/%s tool=%s\n", p.Event, p.Stage, p.Task, p.Tool)
+})
+```
+
+**Warnings.** A task that succeeds can still record non-fatal diagnostics
+(`Task.AddWarning` / `crewai.AddWarningFromCtx`). They aggregate into
+`TaskOutput.Warnings` and `CrewOutput.Warnings` — distinct from
+`Stage.Optional`, which swallows task *failures*.
+
+```go
+crewai.AddWarningFromCtx(ctx, "secondary source timeout")
+```
+
+Details in [`docs/crews.md`](docs/crews.md) and [`docs/tasks.md`](docs/tasks.md).
+
 ## Memory
 
 ```go
@@ -577,9 +630,11 @@ go run ./examples/xai_oauth
 | Tools | [EN](docs/tools.md) | [PT](docs/pt-BR/tools.md) |
 | LLMs | [EN](docs/llms.md) | [PT](docs/pt-BR/llms.md) |
 | Memory | [EN](docs/memory.md) | [PT](docs/pt-BR/memory.md) |
+| MCP | [EN](docs/en/mcp.md) | [PT](docs/pt-BR/mcp.md) |
 | Plan / Roadmap | [EN](Plan/PLAN.md) | [PT](Plan/PLAN.pt-BR.md) |
+| Security policy | [EN](SECURITY.md) | — |
 
-### What's new in v0.4.0
+### What's new in v0.4.x
 
 All features are **backward compatible** — no breaking changes.
 
@@ -587,6 +642,10 @@ All features are **backward compatible** — no breaking changes.
 |---------|-------------|-----------|-----------|
 | **Staged process** | Third orchestration mode: stages run in sequence, tasks within a stage run concurrently. Optional stages continue on failure. | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
 | **Agentic loop** | Optional Plan-Execute-Evaluate-Refine cycle (`Agent.Loop` / `Task.Loop`). Self-evaluation, independent evaluator, bounded refinements. | [docs/agents.md](docs/agents.md) | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) |
+| **MCP** | Streamable HTTP client for the Model Context Protocol; tools exposed as `crewai.Tool` with schema preservation. | [docs/en/mcp.md](docs/en/mcp.md) | [docs/pt-BR/mcp.md](docs/pt-BR/mcp.md) |
+| **Progress** | `Crew.WithProgress` callback for stage/task/tool events (metadata only). | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
+| **Warnings** | Per-task non-fatal diagnostics via `AddWarning` / `AddWarningFromCtx`. | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
+| **Structured via tool-call** | `WithToolCall()` extracts JSON through a synthetic `emit_result` tool (Ollama Cloud-friendly). | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
 
 **Also in v0.3.0**: native tool calling, web search (agent-driven + model-driven), structured logging via `log/slog`, secret redaction.
 
@@ -631,7 +690,7 @@ Tests are **hermetic**: they use the `mock` LLM and `httptest`, with no real net
 | **Structured output with repair loop** | ✅ JSON Schema validation with bounded repair loop (`RepairMax`, default 2) and `ErrRepairBudgetExceeded` | ⚠️ partial — uses Pydantic, no repair loop |
 | **Web search (agent-driven)** | ✅ `WebSearcher` interface + `SearchWeb(ctx, llm, query, max)` — direct search from Go code via Ollama, OpenAI, Anthropic, xAI | ❌ no direct search API; requires tools |
 | **Web search (model-driven)** | ✅ `WebSearchTool` with 7 pluggable providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave) | ⚠️ requires SerperDev or similar external tool integration |
-| **SSRF protection** | ✅ blocks non-http(s) schemes, loopback, private IPs, link-local, unspecified IPs; DNS rebinding prevention via `net.LookupIP` (fail-closed) | ❌ no URL filtering on search results |
+| **SSRF protection** | ✅ blocks non-http(s), userinfo, loopback, private/CGNAT/multicast IPs, link-local, unspecified, metadata aliases; DNS rebinding prevention via `net.LookupIP` (fail-closed) | ❌ no URL filtering on search results |
 | **Secret redaction in logs** | ✅ `redactError`/`redactString` masks API keys, Bearer tokens, query-string secrets before logging | ❌ no log redaction |
 | **Structured logging** | ✅ `log/slog` — inject any `*slog.Logger` with custom handler, level, and output | ❌ Python `logging` module, less flexible handler injection |
 | **Tool call security limits** | ✅ max args size, output size, response size, JSON depth, arg validation — all configurable | ❌ no size/depth limits on tool calls |

@@ -9,8 +9,8 @@
 //   - Tool:  a capability the agent can invoke during reasoning.
 //
 // An LLM is any type implementing the LLM interface; ready-made
-// implementations live in the llm/openai, llm/anthropic, and llm/mock
-// subpackages.
+// implementations live in the llm/openai, llm/anthropic, llm/ollama,
+// llm/xai, and llm/mock subpackages.
 //
 // # Native tool calling
 //
@@ -20,16 +20,15 @@
 // more reliable and produces structured tool_calls that the executor
 // executes directly, without text parsing.
 //
-// Providers that support ToolCallingLLM: llm/ollama, llm/openai, llm/anthropic.
-// Providers that do not: llm/mock (uses a queued response mechanism for tests).
+// Providers that support ToolCallingLLM: llm/ollama, llm/openai,
+// llm/anthropic, llm/xai. Providers that do not: llm/mock (uses a queued
+// response mechanism for tests).
 //
 // ToolTraces in TaskOutput record each native tool invocation (name, args,
 // output, duration, failed) for observability. Facts from FactSource tools
-// are collected the same way as in ReAct.
-//
-// An LLM is any type implementing the LLM interface; ready-made
-// implementations live in the llm/openai, llm/anthropic, and llm/mock
-// subpackages.
+// are collected the same way as in ReAct. Tool results carry ToolCallID so
+// providers that require it (OpenAI tool_call_id, Anthropic tool_use_id)
+// can match a result back to the call.
 //
 // Minimal example:
 //

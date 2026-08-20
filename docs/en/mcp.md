@@ -93,7 +93,8 @@ failures surface as Go errors.
 
 ## Security
 
-- All response bodies are read with `io.LimitReader` (16 MiB cap).
+- All response bodies are read with `io.LimitReader` (16 MiB cap,
+  `MaxMCPResponseBytes`). `tools/list` pagination is capped at 256 pages.
 - Headers configured via `WithHeader` and `Mcp-Session-Id` are never logged.
 - SSE parsing extracts only `data:` lines; nothing is interpreted or executed.
 - `LoadConfig` errors name the failing server (by `Name`) but never include
@@ -102,6 +103,13 @@ failures surface as Go errors.
   hanging.
 - `Client.Close` sends HTTP DELETE with `Mcp-Session-Id` (Streamable
   HTTP teardown) and is idempotent.
+- The default transport is `http.DefaultClient` (no timeout). Prefer
+  `mcp.WithHTTPClient(&http.Client{Timeout: 30 * time.Second})` in
+  production.
+- Treat MCP endpoints as **trusted**. A compromised server can return
+  tool descriptions that jailbreak the model, or tool results that
+  exfiltrate prior context. Scope each agent's tools to the minimum
+  set it needs; do not attach an entire untrusted catalog.
 
 ## Coverage
 

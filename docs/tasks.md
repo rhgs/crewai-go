@@ -25,8 +25,10 @@ task := crewai.NewTask(
 | `Agent`          | `*crewai.Agent` | The assignee. Can be `nil` (the crew resolves it). |
 | `Tools`          | `[]crewai.Tool` | Overrides the agent's tools for this task. |
 | `Context`        | `[]*crewai.Task`| Tasks whose outputs become this task's context. |
-| `OutputFile`     | `string`        | If set, writes the output to this file. |
+| `OutputFile`     | `string`        | If set, writes the output to this file (mode `0600`). Treat as a trusted path — the framework does not sandbox it. |
 | `Structured`     | `*crewai.StructuredOutput` | If set, requires JSON output validated against a JSON Schema. |
+| `Guardrail`      | `crewai.Guardrail` | Optional task-level post-output validation. |
+| `Loop`           | `crewai.Loop`   | Optional per-task execution strategy (overrides `Agent.Loop`). |
 
 ## Context between tasks
 

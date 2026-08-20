@@ -141,7 +141,7 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, crewai.MaxProviderResponseBytes))
 	if err != nil {
 		return "", fmt.Errorf("anthropic: reading response: %w", err)
 	}
@@ -154,7 +154,8 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 		return "", fmt.Errorf("anthropic: API error: %s", parsed.Error.Message)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("anthropic: unexpected status %d: %s", resp.StatusCode, string(data))
+		// Do not echo the body: error payloads may contain request metadata.
+		return "", fmt.Errorf("anthropic: unexpected status %d", resp.StatusCode)
 	}
 
 	var b strings.Builder
@@ -193,52 +194,141 @@ type anthMessagesResponseWithTools struct {
 	} `json:"error"`
 }
 
-// anthMessagesRequestWithTools extends messagesRequest with tools.
-type anthMessagesRequestWithTools struct {
-	Model       string            `json:"model"`
-	MaxTokens   int               `json:"max_tokens"`
-	Temperature float64           `json:"temperature"`
-	System      string            `json:"system,omitempty"`
-	Messages    []anthToolMsg     `json:"messages"`
-	Tools       []crewai.ToolSpec `json:"tools,omitempty"`
+// anthToolDef is the Anthropic wire format for a client tool definition.
+// Unlike OpenAI's nested ToolSpec ({type,function:{name,description,parameters}}),
+// Anthropic expects a flat object with name/description/input_schema.
+// See https://docs.anthropic.com/en/docs/build-with-claude/tool-use.
+type anthToolDef struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	InputSchema json.RawMessage `json:"input_schema"`
 }
 
-// anthToolMsg extends anthMsg with tool_calls and tool_name for the request.
-type anthToolMsg struct {
-	Role     string             `json:"role"`
-	Content  string             `json:"content"`
-	ToolUse  []anthToolUseBlock `json:"tool_use,omitempty"` // not used; placeholder
-	ToolName string             `json:"tool_name,omitempty"`
+// toAnthropicTools converts crewai.ToolSpec values into Anthropic's flat
+// tool definition shape. Parameters become input_schema; an empty schema
+// is replaced with a permissive object so the API always receives a valid
+// JSON Schema object.
+func toAnthropicTools(tools []crewai.ToolSpec) []anthToolDef {
+	if len(tools) == 0 {
+		return nil
+	}
+	out := make([]anthToolDef, len(tools))
+	for i, t := range tools {
+		schema := t.Function.Parameters
+		if len(schema) == 0 {
+			schema = json.RawMessage(`{"type":"object","properties":{}}`)
+		}
+		out[i] = anthToolDef{
+			Name:        t.Function.Name,
+			Description: t.Function.Description,
+			InputSchema: schema,
+		}
+	}
+	return out
+}
+
+// anthContentPart is one content block in a request message. Anthropic
+// accepts either a plain string Content or an array of typed blocks;
+// we always send the array form so tool_use / tool_result round-trips
+// correctly across multi-turn native tool loops.
+type anthContentPart struct {
+	Type      string          `json:"type"`
+	Text      string          `json:"text,omitempty"`
+	ID        string          `json:"id,omitempty"`
+	Name      string          `json:"name,omitempty"`
+	Input     json.RawMessage `json:"input,omitempty"`
+	ToolUseID string          `json:"tool_use_id,omitempty"`
+	Content   string          `json:"content,omitempty"` // tool_result body
+	IsError   bool            `json:"is_error,omitempty"`
+}
+
+// anthMessagesRequestWithTools is the body for a Messages request that
+// declares client tools. Messages.Content is typed as any so it can be
+// either a string (simple turns) or []anthContentPart (tool turns).
+type anthMessagesRequestWithTools struct {
+	Model       string        `json:"model"`
+	MaxTokens   int           `json:"max_tokens"`
+	Temperature float64       `json:"temperature"`
+	System      string        `json:"system,omitempty"`
+	Messages    []anthReqMsg  `json:"messages"`
+	Tools       []anthToolDef `json:"tools,omitempty"`
+}
+
+// anthReqMsg is one message in the request. Content is string for plain
+// turns and []anthContentPart when tool_use / tool_result blocks are
+// present.
+type anthReqMsg struct {
+	Role    string `json:"role"`
+	Content any    `json:"content"`
 }
 
 // CallWithTools implements crewai.ToolCallingLLM.
-// Anthropic's format: tool calls come as content blocks of type "tool_use"
-// with id, name, input (object, not string). Results go back as content
-// blocks of type "tool_result" with tool_use_id.
+//
+// Anthropic differs from OpenAI in three ways this method normalises:
+//  1. Tool definitions are flat {name, description, input_schema}, not
+//     nested under "function".
+//  2. Model-requested tool calls arrive as content blocks of type
+//     "tool_use" with an object "input" (not a JSON string).
+//  3. Tool results must be returned as content blocks of type
+//     "tool_result" carrying the matching tool_use_id — not as a free
+//     text user message. Assistant turns that requested tools must
+//     likewise be replayed as content blocks, not plain strings.
 func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, tools []crewai.ToolSpec) (*crewai.ToolCallResponse, error) {
 	if c.apiKey == "" {
 		return nil, fmt.Errorf("anthropic: missing API key (set ANTHROPIC_API_KEY or use WithAPIKey)")
 	}
 
 	var systemParts []string
-	var msgs []anthToolMsg
+	var msgs []anthReqMsg
 	for _, m := range messages {
 		switch m.Role {
 		case crewai.RoleSystem:
 			systemParts = append(systemParts, m.Content)
 		case crewai.RoleAssistant:
-			// For assistant messages with tool_calls, we need to send
-			// the content blocks. But the Anthropic API expects content
-			// blocks, not simple string. For simplicity, we send the text
-			// content as a string (the tool_calls are sent as separate
-			// content blocks in a real implementation).
-			msgs = append(msgs, anthToolMsg{Role: "assistant", Content: m.Content})
-		default: // user and tool
-			content := m.Content
-			if m.ToolName != "" {
-				content = fmt.Sprintf("[tool_result for %s]: %s", m.ToolName, m.Content)
+			if len(m.ToolCalls) == 0 {
+				msgs = append(msgs, anthReqMsg{Role: "assistant", Content: m.Content})
+				continue
 			}
-			msgs = append(msgs, anthToolMsg{Role: "user", Content: content, ToolName: m.ToolName})
+			// Replay the prior assistant turn as typed content blocks so
+			// the model can match subsequent tool_result blocks by id.
+			parts := make([]anthContentPart, 0, 1+len(m.ToolCalls))
+			if m.Content != "" {
+				parts = append(parts, anthContentPart{Type: "text", Text: m.Content})
+			}
+			for _, tc := range m.ToolCalls {
+				input := tc.Function.Arguments
+				if len(input) == 0 {
+					input = json.RawMessage(`{}`)
+				}
+				parts = append(parts, anthContentPart{
+					Type:  "tool_use",
+					ID:    tc.ID,
+					Name:  tc.Function.Name,
+					Input: input,
+				})
+			}
+			msgs = append(msgs, anthReqMsg{Role: "assistant", Content: parts})
+		case crewai.RoleTool:
+			// Anthropic requires tool results as user-role content blocks
+			// of type tool_result, keyed by the tool_use id from the
+			// preceding assistant turn. ToolCallID carries that id
+			// (populated by the executor from ToolCall.ID).
+			toolUseID := m.ToolCallID
+			if toolUseID == "" {
+				// Backward-compatible fallback for callers that only
+				// set ToolName (pre-ToolCallID). The API will reject
+				// an empty tool_use_id; surface the name so the error
+				// is at least attributable.
+				toolUseID = m.ToolName
+			}
+			parts := []anthContentPart{{
+				Type:      "tool_result",
+				ToolUseID: toolUseID,
+				Content:   m.Content,
+			}}
+			msgs = append(msgs, anthReqMsg{Role: "user", Content: parts})
+		default: // user
+			msgs = append(msgs, anthReqMsg{Role: "user", Content: m.Content})
 		}
 	}
 
@@ -248,7 +338,7 @@ func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, t
 		Temperature: c.temperature,
 		System:      strings.Join(systemParts, "\n\n"),
 		Messages:    msgs,
-		Tools:       tools,
+		Tools:       toAnthropicTools(tools),
 	}
 
 	buf, err := json.Marshal(reqBody)
@@ -284,7 +374,7 @@ func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, t
 		return nil, fmt.Errorf("anthropic: API error: %s", parsed.Error.Message)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("anthropic: unexpected status %d: %s", resp.StatusCode, string(data))
+		return nil, fmt.Errorf("anthropic: unexpected status %d", resp.StatusCode)
 	}
 
 	// Extract text and tool_use blocks from the response.
@@ -405,16 +495,20 @@ func (c *Client) WebSearch(ctx context.Context, query string, max int) ([]crewai
 		return nil, fmt.Errorf("anthropic: reading web search response: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("anthropic: web search HTTP %d: %s", resp.StatusCode, string(data))
-	}
-
 	var parsed anthWebSearchResponse
 	if err := json.Unmarshal(data, &parsed); err != nil {
+		// Prefer a clean status error over a decode error when the
+		// server already signalled failure — never echo the body.
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("anthropic: web search HTTP %d", resp.StatusCode)
+		}
 		return nil, fmt.Errorf("anthropic: decoding web search response: %w", err)
 	}
 	if parsed.Error != nil {
 		return nil, fmt.Errorf("anthropic: API error: %s", parsed.Error.Message)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("anthropic: web search HTTP %d", resp.StatusCode)
 	}
 
 	// The content array has mixed types. We parse each raw block

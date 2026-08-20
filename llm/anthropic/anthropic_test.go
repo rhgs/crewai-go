@@ -65,8 +65,25 @@ func TestCallWithTools(t *testing.T) {
 		body, _ := io.ReadAll(r.Body)
 		var req map[string]any
 		_ = json.Unmarshal(body, &req)
-		if _, ok := req["tools"]; !ok {
+		toolsRaw, ok := req["tools"]
+		if !ok {
 			t.Error("request should include tools field")
+		}
+		// Anthropic wire format is flat {name, description, input_schema},
+		// not the nested OpenAI {type, function:{...}} shape.
+		toolsArr, _ := toolsRaw.([]any)
+		if len(toolsArr) != 1 {
+			t.Fatalf("tools len = %d, want 1", len(toolsArr))
+		}
+		tool0, _ := toolsArr[0].(map[string]any)
+		if tool0["name"] != "calculator" {
+			t.Errorf("tool name = %v, want calculator", tool0["name"])
+		}
+		if _, has := tool0["input_schema"]; !has {
+			t.Errorf("tool missing input_schema: %#v", tool0)
+		}
+		if _, has := tool0["function"]; has {
+			t.Errorf("tool must not nest under function: %#v", tool0)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		// Anthropic returns tool_use as content blocks with input as object.

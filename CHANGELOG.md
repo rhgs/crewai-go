@@ -5,6 +5,31 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **Provider response bodies**: `Call` on OpenAI, Anthropic, and Ollama
+  now caps bodies at `MaxProviderResponseBytes` (previously only
+  `CallWithTools` / `WebSearch` did). Non-2xx errors no longer echo the
+  response body (providers may restate credentials).
+- **Native tool round-trip**: `Message.ToolCallID` is populated by the
+  executor and mapped to OpenAI `tool_call_id` and Anthropic
+  `tool_use_id`. Anthropic tool definitions are sent in the flat
+  `{name, description, input_schema}` wire format (not the nested
+  OpenAI shape), and assistant/tool turns are replayed as typed content
+  blocks so multi-turn native tool loops work end-to-end.
+- **ReAct observation cap**: tool outputs in the text ReAct loop are
+  truncated with the same `MaxToolOutputBytes` limit as native tool
+  calling.
+- **SSRF hardening** (`tools.WebSearchTool`): also blocks userinfo,
+  multicast, CGNAT (`100.64.0.0/10`), empty hosts, and metadata
+  aliases (`metadata`, `metadata.google.internal`).
+- **Search provider errors**: Google, Brave, LangSearch, and Serpstack
+  no longer echo upstream error bodies / request URLs that could leak
+  API keys into logs.
+- **xAI OAuth paths**: `SaveToken` / `LoadToken` expand a leading
+  `~/...` to the user home directory (previously the tilde was treated
+  literally).
+
 ### Added
 
 - **MCP support** (`mcp/`): a stdlib-only client for the Model Context

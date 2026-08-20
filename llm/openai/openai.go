@@ -141,7 +141,7 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, crewai.MaxProviderResponseBytes))
 	if err != nil {
 		return "", fmt.Errorf("openai: reading response: %w", err)
 	}
@@ -154,7 +154,9 @@ func (c *Client) Call(ctx context.Context, messages []crewai.Message) (string, e
 		return "", fmt.Errorf("openai: API error: %s", parsed.Error.Message)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("openai: unexpected status %d: %s", resp.StatusCode, string(data))
+		// Do not echo the body: providers may include request headers or
+		// partial credentials in error payloads.
+		return "", fmt.Errorf("openai: unexpected status %d", resp.StatusCode)
 	}
 	if len(parsed.Choices) == 0 {
 		return "", fmt.Errorf("openai: response with no choices")
@@ -180,12 +182,15 @@ type openAIChatRequestWithTools struct {
 	Tools       []crewai.ToolSpec `json:"tools,omitempty"`
 }
 
-// openAIChatMsg extends chatMessage with tool_calls and tool_name.
+// openAIChatMsg extends chatMessage with tool_calls and tool_call_id.
+// OpenAI's Chat Completions API requires tool results to carry
+// tool_call_id (matching the id of the preceding tool_calls entry).
+// tool_name is NOT a recognised field and must not be sent.
 type openAIChatMsg struct {
-	Role      string           `json:"role"`
-	Content   string           `json:"content"`
-	ToolCalls []openAIToolCall `json:"tool_calls,omitempty"`
-	ToolName  string           `json:"tool_name,omitempty"`
+	Role       string           `json:"role"`
+	Content    string           `json:"content"`
+	ToolCalls  []openAIToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string           `json:"tool_call_id,omitempty"`
 }
 
 // openAIChatResponseWithTools extends chatResponse with tool_calls.
@@ -218,10 +223,10 @@ func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, t
 	}
 	for i, m := range messages {
 		reqBody.Messages[i] = openAIChatMsg{
-			Role:      string(m.Role),
-			Content:   m.Content,
-			ToolCalls: nil, // openAIToolCall uses string args; will be set below
-			ToolName:  m.ToolName,
+			Role:       string(m.Role),
+			Content:    m.Content,
+			ToolCalls:  nil, // openAIToolCall uses string args; set below
+			ToolCallID: m.ToolCallID,
 		}
 		// Convert crewai.ToolCall (json.RawMessage args) to openAIToolCall (string args).
 		if len(m.ToolCalls) > 0 {
@@ -270,7 +275,7 @@ func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, t
 		return nil, fmt.Errorf("openai: API error: %s", parsed.Error.Message)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("openai: unexpected status %d: %s", resp.StatusCode, string(data))
+		return nil, fmt.Errorf("openai: unexpected status %d", resp.StatusCode)
 	}
 	if len(parsed.Choices) == 0 {
 		return &crewai.ToolCallResponse{}, nil
@@ -433,7 +438,7 @@ func (c *Client) WebSearch(ctx context.Context, query string, max int) ([]crewai
 		return nil, fmt.Errorf("openai: API error: %s", parsed.Error.Message)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("openai: web search HTTP %d: %s", resp.StatusCode, string(data))
+		return nil, fmt.Errorf("openai: web search HTTP %d", resp.StatusCode)
 	}
 
 	if len(parsed.Choices) == 0 {

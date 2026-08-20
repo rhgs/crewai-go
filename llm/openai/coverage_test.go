@@ -127,7 +127,7 @@ func TestCallWithTools_ErrorsAndToolMessages(t *testing.T) {
 				},
 			}},
 		},
-		{Role: crewai.RoleTool, Content: "2", ToolName: "calc"},
+		{Role: crewai.RoleTool, Content: "2", ToolName: "calc", ToolCallID: "1"},
 	}
 	resp, err := c.CallWithTools(context.Background(), msgs, []crewai.ToolSpec{{
 		Type: "function",

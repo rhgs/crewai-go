@@ -18,8 +18,11 @@ type LLM interface {
 
 ```go
 type Message struct {
-	Role    Role   // RoleSystem, RoleUser, RoleAssistant, RoleTool
-	Content string
+	Role       Role   // RoleSystem, RoleUser, RoleAssistant, RoleTool
+	Content    string
+	ToolCalls  []ToolCall // turnos assistant que pediram tools
+	ToolName   string     // resultado de tool: nome da ferramenta
+	ToolCallID string     // resultado de tool: id da chamada (OpenAI/Anthropic)
 }
 ```
 

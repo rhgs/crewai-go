@@ -40,6 +40,8 @@
 - [Saida estruturada](#saida-estruturada)
 - [Guardrails](#guardrails)
 - [Facts e proveniência](#facts-e-proveniência)
+- [MCP](#mcp-model-context-protocol)
+- [Progresso e warnings](#progresso-e-warnings)
 - [Memória](#memória)
 - [Exemplos](#exemplos)
 - [Documentação](#documentação)
@@ -66,6 +68,8 @@
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
 - 🪜 **Processo em estágios (Staged)** — estágios em sequência, tarefas de um estágio em paralelo.
 - 🔁 **Agentic loop** — ciclo opcional Planejar-Executar-Avaliar-Refinar com autoavaliação e refinamento iterativo.
+- 🔌 **MCP** — conecte a servidores Model Context Protocol e exponha as tools como `crewai.Tool` (schema preservado).
+- 📡 **Progresso e warnings** — callbacks `WithProgress` em tempo real e warnings não-fatais por tarefa.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
 
 ## Conceitos
@@ -321,7 +325,7 @@ search := tools.NewWebSearch(tools.NewDuckDuckGoSearch())
 agente.WithTools(search)
 ```
 
-Todos os resultados de busca tem **protecao SSRF**: URLs apontando para localhost, IPs privados, `0.0.0.0`, enderecos link-local (`169.254.x`) e enderecos nao especificados sao filtrados. Nomes de dominio sao resolvidos via DNS para prevenir ataques de DNS rebinding.
+Todos os resultados de busca tem **protecao SSRF**: URLs apontando para localhost, IPs privados/CGNAT/multicast, `0.0.0.0`, enderecos link-local (`169.254.x`), aliases de metadata, userinfo e enderecos nao especificados sao filtrados. Nomes de dominio sao resolvidos via DNS para prevenir ataques de DNS rebinding (fail-closed).
 
 Detalhes em [`docs/pt-BR/llms.md`](docs/pt-BR/llms.md) (WebSearcher) e [`docs/pt-BR/tools.md`](docs/pt-BR/tools.md) (WebSearchTool).
 
@@ -501,6 +505,57 @@ e aparecem em `CrewOutput.Facts` e `TaskOutput.Facts`. Use
 `crewai.AllFactsProvenanced` em um guardrail para exigir proveniencia. Detalhes
 em [`docs/pt-BR/tools.md`](docs/pt-BR/tools.md).
 
+## MCP (Model Context Protocol)
+
+Conecte a servidores MCP externos via Streamable HTTP e exponha as tools
+como valores `crewai.Tool`. O `inputSchema` original e preservado
+(`SchemaProvider`) para o native tool calling.
+
+```go
+import "github.com/rhgs/crewai-go/mcp"
+
+clients, err := mcp.LoadConfig(ctx, "/etc/mcp.json", "meu-app", "1.0.0")
+// ou: client := mcp.New(endpoint, mcp.WithHeader("Authorization", "Bearer "+tok))
+var tools []crewai.Tool
+for _, c := range clients {
+    ts, _ := c.ListTools(ctx)
+    for _, t := range ts {
+        tools = append(tools, mcp.NewToolAdapter(c, t))
+    }
+}
+agent.WithTools(tools...)
+```
+
+Veja [`docs/pt-BR/mcp.md`](docs/pt-BR/mcp.md) para configuracao, notas de
+seguranca (limites de tamanho, modelo de servidor confiavel, timeouts) e a
+API programatica.
+
+## Progresso e warnings
+
+**Progresso.** Exponha eventos de execucao em tempo real para um frontend
+via `Crew.WithProgress`. Eventos: `stage_started`, `stage_completed`,
+`task_started`, `task_completed`, `tool_invoked`. Os payloads carregam
+apenas metadados (nunca prompts, saidas ou inputs de tools). O callback
+deve ser seguro para goroutines; panics sao recuperados.
+
+```go
+crew.WithProgress(func(p crewai.Progress) {
+    fmt.Printf("%s %s/%s tool=%s\n", p.Event, p.Stage, p.Task, p.Tool)
+})
+```
+
+**Warnings.** Uma tarefa que sucede ainda pode registrar diagnosticos
+nao-fatais (`Task.AddWarning` / `crewai.AddWarningFromCtx`). Eles se
+agregam em `TaskOutput.Warnings` e `CrewOutput.Warnings` — distintos de
+`Stage.Optional`, que engole *falhas* de tarefa.
+
+```go
+crewai.AddWarningFromCtx(ctx, "fonte secundaria em timeout")
+```
+
+Detalhes em [`docs/pt-BR/crews.md`](docs/pt-BR/crews.md) e
+[`docs/pt-BR/tasks.md`](docs/pt-BR/tasks.md).
+
 ## Memória
 
 ```go
@@ -548,9 +603,11 @@ go run ./examples/xai_oauth
 | Tools | [PT](docs/pt-BR/tools.md) | [EN](docs/tools.md) |
 | LLMs | [PT](docs/pt-BR/llms.md) | [EN](docs/llms.md) |
 | Memory | [PT](docs/pt-BR/memory.md) | [EN](docs/memory.md) |
+| MCP | [PT](docs/pt-BR/mcp.md) | [EN](docs/en/mcp.md) |
 | Plano / Roadmap | [PT](Plan/PLAN.pt-BR.md) | [EN](Plan/PLAN.md) |
+| Politica de seguranca | — | [EN](SECURITY.md) |
 
-### Novidades da v0.4.0
+### Novidades da v0.4.x
 
 Todas as features são **backward compatible** — sem breaking changes.
 
@@ -558,6 +615,10 @@ Todas as features são **backward compatible** — sem breaking changes.
 |---------|-----------|-----------|-----------|
 | **Processo Staged** | Terceiro modo de orquestracao: estagios em sequencia, tarefas de um estagio em paralelo. Estagios opcionais continuam em caso de falha. | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) | [docs/crews.md](docs/crews.md) |
 | **Agentic loop** | Ciclo opcional Planejar-Executar-Avaliar-Refinar (`Agent.Loop` / `Task.Loop`). Autoavaliacao, avaliador independente, refinamentos limitados. | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) | [docs/agents.md](docs/agents.md) |
+| **MCP** | Cliente Streamable HTTP para o Model Context Protocol; tools expostas como `crewai.Tool` com schema preservado. | [docs/pt-BR/mcp.md](docs/pt-BR/mcp.md) | [docs/en/mcp.md](docs/en/mcp.md) |
+| **Progresso** | Callback `Crew.WithProgress` para eventos de stage/task/tool (apenas metadados). | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) | [docs/crews.md](docs/crews.md) |
+| **Warnings** | Diagnosticos nao-fatais por tarefa via `AddWarning` / `AddWarningFromCtx`. | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) | [docs/tasks.md](docs/tasks.md) |
+| **Structured via tool-call** | `WithToolCall()` extrai JSON via tool sintetica `emit_result` (amigavel ao Ollama Cloud). | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) | [docs/tasks.md](docs/tasks.md) |
 
 **Também na v0.3.0**: native tool calling, web search (agent-driven + model-driven), logging estruturado via `log/slog`, redacao de segredos.
 
@@ -602,7 +663,7 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 | **Output estruturado com loop de reparo** | ✅ validação JSON Schema com loop de reparo limitado (`RepairMax`, padrão 2) e `ErrRepairBudgetExceeded` | ⚠️ parcial — usa Pydantic, sem loop de reparo |
 | **Web search (agent-driven)** | ✅ interface `WebSearcher` + `SearchWeb(ctx, llm, query, max)` — busca direta do código Go via Ollama, OpenAI, Anthropic, xAI | ❌ sem API de busca direta; exige ferramentas |
 | **Web search (model-driven)** | ✅ `WebSearchTool` com 7 provedores plugáveis (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave) | ⚠️ exige SerperDev ou ferramenta externa similar |
-| **Proteção SSRF** | ✅ bloqueia esquemas não-http(s), loopback, IPs privados, link-local, IPs não-especificados; prevenção de DNS rebinding via `net.LookupIP` (fail-closed) | ❌ sem filtragem de URLs em resultados de busca |
+| **Proteção SSRF** | ✅ bloqueia não-http(s), userinfo, loopback, IPs privados/CGNAT/multicast, link-local, não-especificados, aliases de metadata; prevenção de DNS rebinding via `net.LookupIP` (fail-closed) | ❌ sem filtragem de URLs em resultados de busca |
 | **Redação de segredos em logs** | ✅ `redactError`/`redactString` mascara API keys, Bearer tokens, segredos em query-strings antes de logar | ❌ sem redação de logs |
 | **Logging estruturado** | ✅ `log/slog` — injete qualquer `*slog.Logger` com handler, nível e output customizados | ❌ módulo `logging` do Python, injeção de handler menos flexível |
 | **Limites de segurança em tool calls** | ✅ tamanho máximo de args, output, resposta, profundidade JSON, validação de args — todos configuráveis | ❌ sem limites de tamanho/profundidade em tool calls |

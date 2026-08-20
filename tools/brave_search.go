@@ -68,7 +68,8 @@ func (b *BraveSearch) Search(ctx context.Context, query string, maxResults int) 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("brave search: HTTP %d: %s", resp.StatusCode, string(body))
+		// Do not echo the body: upstream error payloads can restate tokens.
+		return nil, fmt.Errorf("brave search: HTTP %d", resp.StatusCode)
 	}
 
 	var result struct {

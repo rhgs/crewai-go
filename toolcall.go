@@ -253,9 +253,10 @@ func executeTaskWithTools(ctx context.Context, a *Agent, t *Task, contextText st
 				trace.Duration = time.Since(start)
 				traces = append(traces, trace)
 				messages = append(messages, Message{
-					Role:     RoleTool,
-					ToolName: tc.Function.Name,
-					Content:  trace.Output,
+					Role:       RoleTool,
+					ToolName:   tc.Function.Name,
+					ToolCallID: tc.ID,
+					Content:    trace.Output,
 				})
 				continue
 			}
@@ -268,9 +269,10 @@ func executeTaskWithTools(ctx context.Context, a *Agent, t *Task, contextText st
 				trace.Duration = time.Since(start)
 				traces = append(traces, trace)
 				messages = append(messages, Message{
-					Role:     RoleTool,
-					ToolName: tc.Function.Name,
-					Content:  trace.Output,
+					Role:       RoleTool,
+					ToolName:   tc.Function.Name,
+					ToolCallID: tc.ID,
+					Content:    trace.Output,
 				})
 				continue
 			}
@@ -298,9 +300,10 @@ func executeTaskWithTools(ctx context.Context, a *Agent, t *Task, contextText st
 			traces = append(traces, trace)
 
 			messages = append(messages, Message{
-				Role:     RoleTool,
-				ToolName: tc.Function.Name,
-				Content:  trace.Output,
+				Role:       RoleTool,
+				ToolName:   tc.Function.Name,
+				ToolCallID: tc.ID,
+				Content:    trace.Output,
 			})
 		}
 	}

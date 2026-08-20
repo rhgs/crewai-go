@@ -42,16 +42,23 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 | `Memory`       | `bool`         | Ativa a memória compartilhada. |
 | `ManagerLLM`   | `LLM`          | LLM do gerente (processo hierárquico). |
 | `ManagerAgent` | `*Agent`       | Gerente explícito (tem prioridade sobre `ManagerLLM`). |
+| `Guardrails`   | `[]Guardrail`  | Hooks de validação pós-saída no nível da crew. |
+| `progress`     | `ProgressFunc` | Interno — definido via `WithProgress`. |
 
 ## O resultado: `CrewOutput`
 
 ```go
 type CrewOutput struct {
 	Final       string        // saída da última tarefa
-	TasksOutput []TaskOutput  // saída de cada tarefa
+	TasksOutput []TaskOutput  // saída de cada tarefa (incl. Facts, ToolTraces, Warnings)
 	Duration    time.Duration // tempo total
+	Facts       []Fact        // facts coletados de tools FactSource (deduplicados)
+	Warnings    []string      // diagnósticos não-fatais de tarefas bem-sucedidas
 }
 ```
+
+`TaskOutput` também carrega `Facts`, `ToolTraces` (apenas native tool
+calling) e `Warnings` por tarefa.
 
 ## Processo sequencial
 

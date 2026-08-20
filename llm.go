@@ -26,6 +26,11 @@ type Message struct {
 	// ToolName identifies which tool produced this message (only on
 	// role:"tool" messages that carry a tool result back to the model).
 	ToolName string `json:"tool_name,omitempty"`
+	// ToolCallID is the provider-assigned identifier of the tool call this
+	// result answers (only on role:"tool" messages). Required by OpenAI
+	// (tool_call_id) and Anthropic (tool_use_id) to match a result back to
+	// the call. Empty for providers that do not assign IDs (e.g. Ollama).
+	ToolCallID string `json:"tool_call_id,omitempty"`
 }
 
 // LLM is the minimal abstraction that any language model provider must

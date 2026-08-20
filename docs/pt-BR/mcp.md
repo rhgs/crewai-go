@@ -94,7 +94,9 @@ falhas HTTP ou JSON-RPC viram erros de Go.
 
 ## Seguranca
 
-- Todos os corpos de resposta sao lidos com `io.LimitReader` (limite de 16 MiB).
+- Todos os corpos de resposta sao lidos com `io.LimitReader` (limite de
+  16 MiB, `MaxMCPResponseBytes`). A paginacao de `tools/list` e limitada
+  a 256 paginas.
 - Headers configurados via `WithHeader` e o `Mcp-Session-Id` nunca sao logados.
 - O parser de SSE extrai apenas linhas `data:`; nada e interpretado ou executado.
 - Erros de `LoadConfig` nomeiam o servidor que falhou (por `Name`), mas nunca
@@ -103,6 +105,13 @@ falhas HTTP ou JSON-RPC viram erros de Go.
   para nao deixar sessoes penduradas.
 - `Client.Close` envia HTTP DELETE com `Mcp-Session-Id` (teardown do
   Streamable HTTP) e e idempotente.
+- O transporte padrao e `http.DefaultClient` (sem timeout). Prefira
+  `mcp.WithHTTPClient(&http.Client{Timeout: 30 * time.Second})` em
+  producao.
+- Trate endpoints MCP como **confiaveis**. Um servidor comprometido pode
+  devolver descricoes de tools que jailbreakam o modelo, ou resultados
+  que exfiltram contexto previo. Restrinja as tools de cada agente ao
+  minimo necessario; nao anexe um catalogo inteiro nao confiavel.
 
 ## Cobertura
 

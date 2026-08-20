@@ -43,16 +43,23 @@ See [LLMs > Logging](llms.md#logging) for the full reference.
 | `Memory`       | `bool`         | Enables shared memory. |
 | `ManagerLLM`   | `LLM`          | The manager's LLM (hierarchical process). |
 | `ManagerAgent` | `*Agent`       | Explicit manager (takes precedence over `ManagerLLM`). |
+| `Guardrails`   | `[]Guardrail`  | Crew-level post-output validation hooks. |
+| `progress`     | `ProgressFunc` | Internal — set via `WithProgress`. |
 
 ## The result: `CrewOutput`
 
 ```go
 type CrewOutput struct {
 	Final       string        // output of the last task
-	TasksOutput []TaskOutput  // output of each task
+	TasksOutput []TaskOutput  // output of each task (incl. Facts, ToolTraces, Warnings)
 	Duration    time.Duration // total time
+	Facts       []Fact        // facts collected from FactSource tools (deduped)
+	Warnings    []string      // non-fatal diagnostics from successful tasks
 }
 ```
+
+`TaskOutput` also carries per-task `Facts`, `ToolTraces` (native tool
+calling only), and `Warnings`.
 
 ## Sequential process
 

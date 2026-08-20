@@ -148,19 +148,44 @@ func extractHost(rawURL string) string {
 	return u.Hostname()
 }
 
+// isBlockedIP reports whether ip is not safe to present as a crawlable
+// URL. Covers private, loopback, link-local (unicast and multicast),
+// unspecified (0.0.0.0 / ::), and CGNAT/shared-address space
+// (100.64.0.0/10, RFC 6598) which cloud metadata and internal meshes
+// sometimes use.
+func isBlockedIP(ip net.IP) bool {
+	if ip == nil {
+		return true
+	}
+	if ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast() {
+		return true
+	}
+	// CGNAT / shared address space (RFC 6598): 100.64.0.0/10.
+	if ip4 := ip.To4(); ip4 != nil {
+		if ip4[0] == 100 && ip4[1] >= 64 && ip4[1] <= 127 {
+			return true
+		}
+	}
+	return false
+}
+
 // isBlockedURL checks whether a URL points to a private, loopback,
-// link-local, or unspecified address. This prevents SSRF attacks where a
-// malicious search result could direct the agent to internal endpoints
-// (e.g. cloud metadata at 169.254.169.254).
+// link-local, unspecified, multicast, or CGNAT address. This prevents
+// SSRF attacks where a malicious search result could direct the agent
+// to internal endpoints (e.g. cloud metadata at 169.254.169.254).
 //
 // Checks:
 //   - Non-http(s) schemes are blocked.
-//   - Hostnames "localhost", "127.0.0.1", "::1" are blocked.
-//   - If the host is an IP literal, it is blocked if it is private,
-//     loopback, link-local unicast, or unspecified (0.0.0.0).
+//   - Userinfo (user:pass@host) is blocked — never useful for public
+//     search results and a common SSRF smuggling vector.
+//   - Hostnames "localhost", "127.0.0.1", "::1", and bare metadata
+//     aliases are blocked by name before DNS.
+//   - If the host is an IP literal, it is checked via isBlockedIP.
 //   - If the host is a domain name, it is resolved via DNS and all
 //     resolved IPs are checked. This prevents DNS rebinding attacks
-//     where a domain resolves to an internal IP.
+//     where a domain resolves to an internal IP. Fail-closed: an
+//     unresolvable host is blocked.
 func isBlockedURL(rawURL string) bool {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -169,22 +194,29 @@ func isBlockedURL(rawURL string) bool {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return true
 	}
+	if u.User != nil {
+		return true
+	}
 	host := u.Hostname()
-	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+	if host == "" {
+		return true
+	}
+	switch strings.ToLower(host) {
+	case "localhost", "localhost.localdomain", "metadata", "metadata.google.internal":
 		return true
 	}
 	// If the host is already an IP literal, check it directly.
 	if ip := net.ParseIP(host); ip != nil {
-		return ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified()
+		return isBlockedIP(ip)
 	}
 	// Host is a domain name. Resolve it to prevent DNS rebinding.
 	// If resolution fails, block by default (fail-closed).
 	ips, err := net.LookupIP(host)
-	if err != nil {
+	if err != nil || len(ips) == 0 {
 		return true // fail-closed: unresolved host is blocked
 	}
 	for _, ip := range ips {
-		if ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() {
+		if isBlockedIP(ip) {
 			return true
 		}
 	}

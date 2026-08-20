@@ -108,8 +108,21 @@ func TestCallWithTools_Coverage(t *testing.T) {
 	c := anthropic.New("m", anthropic.WithAPIKey("k"), anthropic.WithBaseURL(srv.URL), anthropic.WithMaxTokens(256))
 	resp, err := c.CallWithTools(context.Background(), []crewai.Message{
 		crewai.SystemMessage("sys"),
-		crewai.AssistantMessage("prev"),
-		{Role: crewai.RoleTool, Content: "2", ToolName: "calc"},
+		// Prior assistant turn that requested the tool, replayed with
+		// ToolCalls so the client emits a tool_use content block.
+		{
+			Role:    crewai.RoleAssistant,
+			Content: "prev",
+			ToolCalls: []crewai.ToolCall{{
+				ID: "tu1",
+				Function: crewai.ToolCallFunction{
+					Name:      "calc",
+					Arguments: json.RawMessage(`{"x":1}`),
+				},
+			}},
+		},
+		// Tool result keyed by the tool_use id.
+		{Role: crewai.RoleTool, Content: "2", ToolName: "calc", ToolCallID: "tu1"},
 		crewai.UserMessage("again"),
 	}, []crewai.ToolSpec{{
 		Type: "function",

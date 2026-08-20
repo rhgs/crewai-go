@@ -122,7 +122,10 @@ func executeTaskDefault(ctx context.Context, a *Agent, t *Task, contextText stri
 			if err != nil {
 				observation = fmt.Sprintf("Error running tool %q: %v", action, err)
 			} else {
-				observation = result
+				// Bound observation size the same way native tool calling
+				// does, so a single runaway tool cannot blow up the next
+				// prompt (or the process heap).
+				observation = truncateToolOutput(result)
 				// Collect facts from FactSource tools after a successful call.
 				if fs, ok := tool.(FactSource); ok {
 					collectedFacts = dedupFacts(collectedFacts, fs.Facts())

@@ -5,6 +5,31 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Seguranca
+
+- **Corpos de resposta dos provedores**: `Call` em OpenAI, Anthropic e
+  Ollama agora limita o body a `MaxProviderResponseBytes` (antes so
+  `CallWithTools` / `WebSearch` faziam isso). Erros nao-2xx nao ecoam
+  mais o body da resposta (provedores podem reexibir credenciais).
+- **Round-trip de native tools**: `Message.ToolCallID` e populado pelo
+  executor e mapeado para `tool_call_id` (OpenAI) e `tool_use_id`
+  (Anthropic). Definicoes de tools do Anthropic sao enviadas no formato
+  flat `{name, description, input_schema}` (nao no shape aninhado da
+  OpenAI), e turnos assistant/tool sao reenviados como content blocks
+  tipados para o loop multi-turno funcionar de ponta a ponta.
+- **Cap de observacao ReAct**: outputs de tools no loop ReAct em texto
+  sao truncados com o mesmo limite `MaxToolOutputBytes` do native tool
+  calling.
+- **Endurecimento SSRF** (`tools.WebSearchTool`): tambem bloqueia
+  userinfo, multicast, CGNAT (`100.64.0.0/10`), hosts vazios e aliases
+  de metadata (`metadata`, `metadata.google.internal`).
+- **Erros de provedores de busca**: Google, Brave, LangSearch e
+  Serpstack nao ecoam mais bodies de erro / URLs de request que
+  poderiam vazar API keys em logs.
+- **Caminhos OAuth xAI**: `SaveToken` / `LoadToken` expandem um
+  `~/...` inicial para o home do usuario (antes o til era tratado
+  literalmente).
+
 ### Adicionado
 
 - **Suporte a MCP** (`mcp/`): cliente padrao Go (somente stdlib) para o

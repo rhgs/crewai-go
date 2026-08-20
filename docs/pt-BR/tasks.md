@@ -25,8 +25,10 @@ tarefa := crewai.NewTask(
 | `Agent`          | `*crewai.Agent` | Responsável. Pode ser `nil` (a crew resolve). |
 | `Tools`          | `[]crewai.Tool` | Sobrepõe as ferramentas do agente nesta tarefa. |
 | `Context`        | `[]*crewai.Task`| Tarefas cujas saídas viram contexto desta. |
-| `OutputFile`     | `string`        | Se definido, grava a saída neste arquivo. |
+| `OutputFile`     | `string`        | Se definido, grava a saída neste arquivo (modo `0600`). Trate como caminho confiável — o framework não faz sandbox. |
 | `Structured`     | `*crewai.StructuredOutput` | Se definido, exige saida JSON validada contra um JSON Schema. |
+| `Guardrail`      | `crewai.Guardrail` | Validação pós-saída opcional no nível da tarefa. |
+| `Loop`           | `crewai.Loop`   | Estratégia de execução opcional por tarefa (sobrepõe `Agent.Loop`). |
 
 ## Contexto entre tarefas
 

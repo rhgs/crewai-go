@@ -28,6 +28,14 @@ We will acknowledge receipt within **72 hours** and aim to provide a fix or miti
 
 ## Scope
 
-This policy applies to the `crewai-go` core package and its bundled LLM providers (`llm/openai`, `llm/anthropic`, `llm/ollama`, `llm/xai`) and tools (`tools/`).
+This policy applies to the `crewai-go` core package and its bundled LLM providers (`llm/openai`, `llm/anthropic`, `llm/ollama`, `llm/xai`), tools (`tools/`), and the MCP client (`mcp/`).
 
-Issues related to third-party LLM APIs (OpenAI, Anthropic, xAI, Ollama) should be reported to their respective providers.
+Issues related to third-party LLM APIs (OpenAI, Anthropic, xAI, Ollama) or third-party MCP servers should be reported to their respective providers.
+
+## Hardening notes (operators)
+
+- **Secrets in logs.** Debug logs include full LLM outputs and tool inputs. Keep production log level at `LevelError` (or inject a redacting `slog.Handler`). Provider error messages are passed through `redactError` before being logged or surfaced via `Progress.Err`.
+- **SSRF.** `WebSearchTool` filters result URLs (non-http(s), userinfo, loopback/private/link-local/unspecified/multicast/CGNAT, DNS rebinding, fail-closed). It does **not** fetch those URLs — only presents them. Do not build a follow-up "fetch URL" tool without your own allowlist.
+- **MCP.** Treat remote MCP servers as trusted code. Cap HTTP client timeouts via `mcp.WithHTTPClient`. Protect JSON config files that hold bearer tokens (`0600`).
+- **Output files.** `Task.OutputFile` is written with mode `0600` to the path you supply; the framework does not sandbox paths.
+- **Native tool calling.** Argument size/depth and tool output size are capped (`MaxToolArgsBytes`, `MaxToolArgsDepth`, `MaxToolOutputBytes`). Provider response bodies are capped at `MaxProviderResponseBytes` (10 MiB).

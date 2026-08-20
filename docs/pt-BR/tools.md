@@ -101,8 +101,9 @@ proveniência).
 - **Como FactSource**: após cada `Call` bem-sucedida, os resultados são
   coletados como `Facts` com `SourceOrg`, `SourceURL` e `PayloadHash`.
 - **SSRF protection**: todas as URLs de resultados são filtradas por
-  `isBlockedURL`, que bloqueia esquemas não-http(s), IPs privados/loopback/
-  link-local, e resolve nomes de domínio via DNS para prevenir _DNS rebinding_.
+  `isBlockedURL`, que bloqueia esquemas não-http(s), userinfo, IPs
+  privados/loopback/link-local/multicast/CGNAT, aliases de metadata, e
+  resolve nomes de domínio via DNS para prevenir _DNS rebinding_ (fail-closed).
 
 ### Provedores de busca disponíveis
 
@@ -203,15 +204,22 @@ crew.Guardrails = []crewai.Guardrail{
 
 O `WebSearchTool` filtra todas as URLs de resultados com `isBlockedURL`:
 
-- **Esquemas** não-http(s) são bloqueados.
-- **IPs privados** (loopback, link-local, unspecified, `127.0.0.1`, `::1`,
-  `localhost`) são bloqueados.
+- **Esquemas** não-http(s) são bloqueados (`file://`, `ftp://`, etc.).
+- **Userinfo** (`user:pass@host`) é bloqueado.
+- **Loopback e aliases** (`localhost`, `localhost.localdomain`,
+  `127.0.0.1`, `::1`, `metadata`, `metadata.google.internal`) são
+  bloqueados por nome.
+- **IPs privados, link-local, unspecified, multicast e CGNAT**
+  (`100.64.0.0/10`, RFC 6598) são bloqueados — isso cobre _cloud
+  metadata_ em `169.254.169.254`.
 - **Nomes de domínio** são resolvidos via DNS; se algum IP resolvido for
-  privado, a URL é bloqueada. Isso previne ataques de **DNS rebinding**.
-- Se a resolução DNS falhar, a URL é bloqueada por padrão (_fail-closed_).
+  bloqueado, a URL é bloqueada. Isso previne ataques de **DNS rebinding**.
+- Se a resolução DNS falhar ou o host estiver vazio, a URL é bloqueada por
+  padrão (_fail-closed_).
 
 Isso impede que um resultado de busca malicioso direcione o agente para
-endpoints internos (ex.: _cloud metadata_ em `169.254.169.254`).
+endpoints internos. O tool **não busca** essas URLs — apenas as apresenta.
+Não construa um tool de "fetch URL" em cima sem a sua própria allowlist.
 
 ### WebSearcher vs WebSearchTool
 
