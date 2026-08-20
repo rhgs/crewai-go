@@ -664,20 +664,9 @@ go run ./examples/xai_oauth
 | Plan / Roadmap | [EN](Plan/PLAN.md) | [PT](Plan/PLAN.pt-BR.md) |
 | Security policy | [EN](SECURITY.md) | — |
 
-### What's new in v0.4.x
+### What's new in v0.5.0
 
 All features are **backward compatible** — no breaking changes.
-
-| Feature | Description | Docs (EN) | Docs (PT) |
-|---------|-------------|-----------|-----------|
-| **Staged process** | Third orchestration mode: stages run in sequence, tasks within a stage run concurrently. Optional stages continue on failure. | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
-| **Agentic loop** | Optional Plan-Execute-Evaluate-Refine cycle (`Agent.Loop` / `Task.Loop`). Self-evaluation, independent evaluator, bounded refinements. | [docs/agents.md](docs/agents.md) | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) |
-| **MCP** | Streamable HTTP client for the Model Context Protocol; tools exposed as `crewai.Tool` with schema preservation. | [docs/en/mcp.md](docs/en/mcp.md) | [docs/pt-BR/mcp.md](docs/pt-BR/mcp.md) |
-| **Progress** | `Crew.WithProgress` callback for stage/task/tool events (metadata only). | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
-| **Warnings** | Per-task non-fatal diagnostics via `AddWarning` / `AddWarningFromCtx`. | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
-| **Structured via tool-call** | `WithToolCall()` extracts JSON through a synthetic `emit_result` tool (Ollama Cloud-friendly). | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
-
-### Unreleased (this branch)
 
 | Feature | Description | Docs (EN) | Docs (PT) |
 |---------|-------------|-----------|-----------|
@@ -688,9 +677,12 @@ All features are **backward compatible** — no breaking changes.
 | **Schema keywords** | Expanded JSON Schema subset + `WithStrictSchema` / `WithAllowTools`. | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
 | **Delegation tool** | `delegate_to_coworker` + `EnableDelegationTool` (opt-in). | [docs/agents.md](docs/agents.md) | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) |
 
+**Also in v0.4.x**: staged process, agentic loop, MCP client, progress callbacks, per-task warnings, structured `emit_result`.
+
 **Also in v0.3.0**: native tool calling, web search (agent-driven + model-driven), structured logging via `log/slog`, secret redaction.
 
-See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.4.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.4.0) for details.
+See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.5.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.5.0) for details.
+
 
 ## Tests
 

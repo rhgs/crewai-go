@@ -5,6 +5,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [v0.5.0] — 2026-08-20
+
 ### Security
 
 - **Kickoff single-flight**: concurrent `Kickoff` on the same `*Crew`
@@ -306,3 +308,10 @@ First public release: an idiomatic Go port of the CrewAI framework core.
 - Known limitations of this version: simplified hierarchical delegation (no
   runtime inter-agent calls), no streaming, in-process memory only, no native
   function calling. See `Plan/PLAN.md` for the full roadmap.
+
+[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.5.0...HEAD
+[v0.5.0]: https://github.com/rhgs/crewai-go/compare/v0.4.0...v0.5.0
+[v0.4.0]: https://github.com/rhgs/crewai-go/compare/v0.3.0...v0.4.0
+[v0.3.0]: https://github.com/rhgs/crewai-go/compare/v0.2.0...v0.3.0
+[v0.2.0]: https://github.com/rhgs/crewai-go/compare/v0.1.0...v0.2.0
+[v0.1.0]: https://github.com/rhgs/crewai-go/releases/tag/v0.1.0
