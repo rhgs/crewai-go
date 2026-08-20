@@ -353,6 +353,17 @@ If no logger is injected, `Kickoff` creates a text-format logger on stderr. The 
 
 When `WithLogger` is used, the injected logger is used as-is — the caller controls the level and handler.
 
+To mask likely secrets in log attributes and messages (best-effort, opt-in):
+
+```go
+log := slog.New(crewai.RedactHandler(
+    slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}),
+))
+crew := crewai.NewCrew(agents, tasks).WithLogger(log)
+```
+
+See [`examples/logging/`](examples/logging/) for a full wiring sample. Prefer `LevelInfo` (or higher) in production; `LevelDebug` can include full LLM output and tool args.
+
 Example log line (JSON handler):
 
 ```json

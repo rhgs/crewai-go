@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- **Kickoff single-flight**: concurrent `Kickoff` on the same `*Crew`
+  returns `ErrCrewRunning` (fail fast; does not queue). Sequential reuse
+  remains supported.
+
 - **OutputFile path jail**: `Task.OutputFile` paths are cleaned; empty
   paths are rejected. Optional `Task.OutputDir` / `Crew.OutputDir` jails
   writes with symlink evaluation (`EvalSymlinks`, fail closed) and
@@ -44,6 +48,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   literally).
 
 ### Added
+
+- **`RedactHandler`**: opt-in `slog.Handler` wrapper in the root package
+  that applies the existing secret redaction rules to log messages and
+  string attributes. Default logger behavior is unchanged.
+  `examples/logging` now uses `crewai.RedactHandler`.
 
 - **MCP support** (`mcp/`): a stdlib-only client for the Model Context
   Protocol over Streamable HTTP (JSON-RPC 2.0, protocol version 2025-06-18).

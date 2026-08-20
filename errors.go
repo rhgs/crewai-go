@@ -52,4 +52,8 @@ var (
 	// cleaning, escapes an OutputDir jail, or fails symlink evaluation while
 	// a jail is configured (fail closed).
 	ErrOutputPathRejected = errors.New("crewai: output path rejected")
+	// ErrCrewRunning is returned when Kickoff is called on a Crew that
+	// is already executing. One Kickoff at a time per Crew value; use
+	// separate Crew instances for parallel runs.
+	ErrCrewRunning = errors.New("crewai: crew already running")
 )

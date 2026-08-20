@@ -7,6 +7,10 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Seguranca
 
+- **Single-flight do Kickoff**: `Kickoff` concorrente no mesmo `*Crew`
+  retorna `ErrCrewRunning` (fail fast; nao enfileira). Reuso sequencial
+  continua suportado.
+
 - **Jail de path do OutputFile**: paths de `Task.OutputFile` sao limpos;
   paths vazios sao rejeitados. `Task.OutputDir` / `Crew.OutputDir`
   opcionais prendem writes com avaliacao de symlink (`EvalSymlinks`,
@@ -44,6 +48,11 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   literalmente).
 
 ### Adicionado
+
+- **`RedactHandler`**: wrapper opt-in de `slog.Handler` no pacote raiz
+  que aplica as regras existentes de redacao de segredos a mensagens e
+  atributos string. O logger default nao muda.
+  `examples/logging` agora usa `crewai.RedactHandler`.
 
 - **Suporte a MCP** (`mcp/`): cliente padrao Go (somente stdlib) para o
   Model Context Protocol sobre Streamable HTTP (JSON-RPC 2.0, versao de

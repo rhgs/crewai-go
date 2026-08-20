@@ -60,6 +60,10 @@ type Crew struct {
 	// itself MAY be called from multiple goroutines and MUST be
 	// thread-safe. Panics inside the callback are recovered.
 	progress ProgressFunc
+
+	// runMu enforces a single in-flight Kickoff per Crew value. Concurrent
+	// Kickoff calls return ErrCrewRunning (fail fast; they do not queue).
+	runMu sync.Mutex
 }
 
 // WithProgress registers a progress callback invoked during Kickoff.
@@ -177,7 +181,16 @@ func defaultLogger(verbose bool) *slog.Logger {
 //
 // inputs is an optional map of variables interpolated into {key} in the tasks'
 // descriptions and expected outputs.
+//
+// Only one Kickoff may run at a time on a given *Crew. A concurrent call
+// returns ErrCrewRunning immediately (it does not wait). Create separate
+// Crew values for parallel runs. Sequential reuse of the same Crew is OK.
 func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutput, error) {
+	if !c.runMu.TryLock() {
+		return nil, ErrCrewRunning
+	}
+	defer c.runMu.Unlock()
+
 	if c.Process == "" {
 		c.Process = Sequential
 	}

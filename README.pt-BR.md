@@ -353,6 +353,17 @@ Se nenhum logger for injetado, `Kickoff` cria um logger de texto no stderr. O ni
 
 Quando `WithLogger` e usado, o logger injetado e usado como esta — o chamador controla o nivel e o handler. `Agent.Execute` (standalone, sem crew) usa `slog.Default()` a menos que `Agent.WithLogger` seja definido.
 
+Para mascarar segredos provaveis em mensagens e atributos de log (best-effort, opt-in):
+
+```go
+log := slog.New(crewai.RedactHandler(
+    slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}),
+))
+crew := crewai.NewCrew(agentes, tarefas).WithLogger(log)
+```
+
+Veja [`examples/logging/`](examples/logging/) para um exemplo completo. Prefira `LevelInfo` (ou mais alto) em producao; `LevelDebug` pode incluir output completo do LLM e args de tools.
+
 Os subpackages (`llm/*`, `tools/*`) nao logam internamente — eles retornam erros que o executor loga no nivel apropriado.
 
 ### Seguranca de logging

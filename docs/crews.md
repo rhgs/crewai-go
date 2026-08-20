@@ -5,6 +5,10 @@
 A **Crew** groups agents and tasks and orchestrates them according to a
 **Process**.
 
+## Kickoff concurrency
+
+Only **one** `Kickoff` may run at a time on a given `*Crew`. A concurrent call returns `ErrCrewRunning` immediately (fail fast — it does not queue). Create separate `Crew` values for parallel runs. Sequential reuse of the same Crew is supported.
+
 ## Creating and running
 
 ```go

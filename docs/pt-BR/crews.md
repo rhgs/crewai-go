@@ -4,6 +4,10 @@
 
 Uma **Crew** reúne agentes e tarefas e os orquestra segundo um **Process**.
 
+## Concorrencia do Kickoff
+
+Apenas **um** `Kickoff` pode rodar por vez em um dado `*Crew`. Uma chamada concorrente retorna `ErrCrewRunning` imediatamente (fail fast — nao enfileira). Crie valores `Crew` separados para runs paralelos. Reuso sequencial do mesmo Crew e suportado.
+
 ## Criando e executando
 
 ```go

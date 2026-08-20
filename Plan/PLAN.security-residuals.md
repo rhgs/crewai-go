@@ -635,8 +635,8 @@ not mergeable.
 - [x] R2-P0: threat model + operator checklist in MCP docs EN/PT + SECURITY.
 
 ### P1
-- [ ] R5: `RedactHandler` in core; example delegates to it; README snippet.
-- [ ] R6: concurrent Kickoff returns `ErrCrewRunning`; docs state single-flight.
+- [x] R5: `RedactHandler` in core; example delegates to it; README snippet.
+- [x] R6: concurrent Kickoff returns `ErrCrewRunning`; docs state single-flight.
 - [ ] R2-P1 (optional): description limit + name filter helpers.
 
 ### P2
@@ -878,7 +878,7 @@ Exact version numbers left to release process (see also: still-open
 | R2 MCP trust docs/guards | P0/P1 | C/F | **P0 docs implemented** (threat model); P1 guards pending |
 | R3 OutputFile policy | P0 | B | **Implemented** on branch (D2) |
 | R4 Schema keywords | P2 | G/H | **D7 decided** (bytes); impl pending |
-| R5 RedactHandler | P1 | D | **D3 decided** (root); impl pending |
-| R6 Kickoff single-flight | P1 | E | **D4 decided** (ErrCrewRunning); impl pending |
+| R5 RedactHandler | P1 | D | **Implemented** on branch (D3) |
+| R6 Kickoff single-flight | P1 | E | **Implemented** on branch (D4) |
 | R7 Delegation tool | P2 | J | **D5 decided** (EnableDelegationTool opt-in); impl pending |
 | R8 Structured+tools | P2 | I | **D6 decided** (warn+capture); impl pending |
