@@ -2,7 +2,7 @@
 
 > **Languages:** [English](PLAN.security-residuals.md) · **Português** (atual)
 >
-> **Status:** Rascunho para implementação (apenas plano — não implementar até ser agendado)
+> **Status:** **Implementado na v0.5.0** (PR #28). Este documento permanece como arquivo de design.
 > **Escopo:** Fechar os oito itens residuais do code/security review pós-merge
 > da branch `feature/mcp-tool-call-progress-warnings` (mergeada como PR #27 /
 > `a8f01b7`). Os itens vão de defaults de hardening a features maiores

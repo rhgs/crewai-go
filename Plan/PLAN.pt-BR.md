@@ -61,25 +61,31 @@ no framework CrewAI em Python:
 ## 4. Arquitetura (pacotes)
 
 ```
-crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor ReAct
-├── llm/openai         OpenAI e compatíveis (Groq, Azure…) + WithTokenSource (OAuth)
-├── llm/anthropic      Claude (system prompt separado)
-├── llm/ollama         Ollama local (sem auth) e cloud (Bearer) — API nativa /api/chat
+crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor ReAct/native,
+                       StructuredOutput, Guardrails, Facts, Progress, RedactHandler,
+                       DelegationTool
+├── llm/openai         OpenAI e compatíveis + ToolCallingLLM + WebSearcher
+├── llm/anthropic      Claude + ToolCallingLLM + WebSearcher
+├── llm/ollama         Ollama local/cloud — /api/chat + tools + web search
 ├── llm/xai            Grok: API key + OAuth de assinatura (Device Flow RFC 8628 + PKCE)
 ├── llm/mock           LLM determinístico para testes
-├── tools              Calculadora, hora atual, contador de palavras
-├── examples           basic, sequential, hierarchical, tools, custom_llm, ollama, xai_oauth
-└── docs               getting-started, agents, tasks, crews, tools, llms, memory
+├── mcp                Cliente MCP Streamable HTTP, LoadConfig, ToolAdapter, FilterTools
+├── tools              Calculadora, hora, contador, WebSearchTool + provedores de busca
+├── examples           basic, sequential, hierarchical, staged, tools, native_tools,
+                       agentic_loop, facts, guardrails, logging, delegation, mcp, …
+└── docs               getting-started, agents, tasks, crews, tools, llms, memory, mcp
 ```
 
 ### Fluxo de execução
 
-1. `Crew.Kickoff` interpola `{inputs}` nas tarefas.
-2. Sequencial: executa em ordem, encadeando contexto/memória.
-   Hierárquico: um gerente (ManagerLLM/ManagerAgent) delega cada tarefa.
-3. Por tarefa, o `executor` roda o laço ReAct: monta prompt (persona + tools),
-   chama o LLM, interpreta `Action`/`Final Answer`, executa ferramentas e
-   repete até a resposta final ou `MaxIterations`.
+1. `Crew.Kickoff` garante single-flight (`ErrCrewRunning` se reentrante),
+   anexa opcionalmente `delegate_to_coworker` se `EnableDelegationTool`,
+   interpola `{inputs}` e injeta progress + role do agent no `ctx`.
+2. Processo: Sequential | Hierarchical (manager escolhe agent) | Staged
+   (estágios em ordem; tasks do estágio em paralelo).
+3. Por tarefa: AgenticLoop (se houver) → StructuredOutput (AllowTools
+   gather→capture / emit_result) → native ToolCallingLLM → ReAct. Facts,
+   tool traces e warnings agregam em `CrewOutput`.
 
 ## 5. Status atual — ✅ CONCLUÍDO (fase 1)
 
@@ -90,54 +96,41 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor R
 - [x] OAuth de assinatura do xAI: Device Flow (RFC 8628) + PKCE + refresh + persistência.
 - [x] Ferramentas embutidas (calculadora com parser próprio, hora, contador).
 - [x] Testes herméticos (~90% núcleo; provedores via httptest) e `Example`s.
-- [x] **Saida estruturada** — `Task.Structured` (`*StructuredOutput`) com
-  validacao por JSON Schema e loop de reparo limitado. Validador minimalista
-  embutido (type, properties, required, enum, items); apenas stdlib, sem novas
-  dependencias. A interface `LLM.Call` nao foi alterada. Novas sentinelas
-  `ErrInvalidOutput` e `ErrRepairBudgetExceeded`. Cobertura 92.8% no pacote
-  raiz.
-- [x] Documentação: README + 7 guias + godoc; 7 exemplos executáveis.
+- [x] **Saida estruturada** — `Task.Structured` com validacao JSON Schema,
+  loop de reparo, `WithToolCall` (emit_result), `WithAllowTools`, keywords
+  expandidas (v0.5.0).
+- [x] Documentação: README + guias bilíngues + MCP + SECURITY; 14 exemplos.
 - [x] `go build`, `go vet` e `go test ./...` limpos.
 
-### Snapshot de maturidade (2026-08-04)
+### Snapshot de maturidade (2026-08-20 — v0.5.0)
 
 | Métrica | Valor |
 |---------|-------|
-| LOC Go (total) | 3.826 |
-| Arquivos `.go` | 41 |
+| Última release | **v0.5.0** (2026-08-20) |
+| LOC Go (aprox.) | ~23k |
+| Arquivos `.go` | ~111 |
 | Dependências externas | 0 (stdlib) |
-| Cobertura — núcleo (`crewai`) | 94.5% |
-| Cobertura — `tools` | 92.1% |
-| Cobertura — provedores `llm/*` | 71.7%–87.5% |
-| Exemplos executáveis | 7 |
-| Guias de documentação | 7 + README |
+| Cobertura — núcleo (`crewai`) | ~96.9% |
+| Cobertura — `mcp` / `tools` | ~92% / ~91% |
+| Cobertura — provedores `llm/*` | todos ≥ 90% |
+| Exemplos executáveis | 14 (+ espelhos pt-BR) |
+| Documentação | README + guias bilíngues + MCP + SECURITY |
+| CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
-### Limitações conhecidas da fase 1
+### Limitações conhecidas (ainda abertas após v0.5.0)
 
-- ~~**Sem git**~~ — **resolvido (2026-08-04):** repositório inicializado e publicado
-  em https://github.com/rhgs/crewai-go.git (branch `main`), `.gitignore` cobrindo
-  `.claude/`, tokens OAuth do xAI e `.env`; licença MIT mantida (remote trazia GPL
-  v3 do template do GitHub, resolvido em favor da MIT declarada no README). Falta
-  apenas configurar CI.
-- **Hierárquico simplificado** — o gerente escolhe um agente por tarefa via LLM, mas
-  não há delegação interagente em tempo de execução (um agente chamar outro
-  durante o raciocínio). O campo `Agent.AllowDelegation` é "informativo nesta
-  versão" (sem efeito prático).
-- **Sem streaming** — `LLM.Call` retorna a resposta completa; não há
-  `CallStream(ctx, messages) (<-chan StreamChunk, error)`.
-- **Memória apenas em processo** — sem persistência nem busca semântica.
-- **Sem function calling nativo** — todo uso de ferramentas passa pelo ReAct
-  textual, que funciona com qualquer provedor mas não aproveita tools nativas.
-- **Validador de saida estruturada e um subconjunto** — o validador embutido de
-  JSON Schema suporta apenas `type`, `properties`, `required`, `enum` e `items`.
-  Nao suporta `additionalProperties`, `oneOf`/`anyOf`, `pattern`,
-  `minimum`/`maximum`, `minItems`/`maxItems` nem outras palavras-chave. Isso e
-  suficiente para a maioria das tarefas dirigidas por LLM e esta documentado
-  como limitacao.
-- **Tarefas estruturadas ignoram ferramentas** — quando `Task.Structured` esta
-  definido, o executor segue direto para o caminho de saida estruturada e nao
-  usa o loop ReAct nem ferramentas configuradas. Uma extensao futura poderia
-  permitir uso de ferramentas antes de produzir a saida estruturada.
+- **Sem streaming** — `LLM.Call` retorna a resposta completa; ainda não há
+  `CallStream` / `StreamingLLM`.
+- **Memória apenas em processo** — sem persistência nem busca semântica/embeddings.
+- **JSON Schema ainda é um subconjunto** — núcleo + `additionalProperties`,
+  bounds, `pattern`, `oneOf`/`anyOf`/`allOf` (v0.5.0). Ainda sem `$ref`,
+  `if`/`then`/`else`, `format`, unevaluated*, etc.
+- **Servidores MCP são confiáveis** — descriptions/resultados entram no
+  contexto do modelo; use `FilterTools`, allowlists de rede e least privilege
+  (ver threat model MCP).
+- **Sem Flows event-driven / YAML / training** — roadmap P3.
+- **Async além do staged** — parallel-within-stage existe; `async_execution`
+  livre entre tasks arbitrárias não.
 
 ## 6. Roadmap — próximos passos (fora do escopo atual)
 
@@ -148,19 +141,29 @@ sugerida (maior impacto / menor esforço primeiro):
   Planejar-Executar-Avaliar-Refinar, opt-in via `Agent.Loop`/`Task.Loop`. Veja
   `PLAN.agentic-loop.md` para o design completo.
 
-- [ ] **Residuais de security & code review (pós PR #27)** — oito itens
-  restantes (timeout default do MCP, threat model trusted-server,
-  jail de `OutputFile`, expansão de keywords de schema, `RedactHandler`
-  no core, single-flight do Kickoff, tool real `delegate_to_coworker`,
-  híbrido structured+tools). Faseado P0/P1/P2 com esboços de API e
-  breakdown de PRs em
+- [x] **Residuais de security & code review (pós PR #27)** — **feitos na
+  v0.5.0** (PR #28): timeout MCP + guards de catálogo + threat model, jail
+  OutputFile, `RedactHandler`, single-flight do Kickoff, keywords de schema,
+  `WithAllowTools`, `delegate_to_coworker`. Arquivo de design:
   [`PLAN.security-residuals.pt-BR.md`](PLAN.security-residuals.pt-BR.md)
-  ([EN](PLAN.security-residuals.md)). **Apenas plano até ser agendado.**
+  ([EN](PLAN.security-residuals.md)).
+
+### Concluído até a v0.5.0 (não reabrir)
+
+- [x] **Processo Staged** + estágios opcionais.
+- [x] **Native function calling** (`ToolModeNative` + `ToolCallingLLM`) com fallback ReAct.
+- [x] **Web search** — agent-driven + model-driven + SSRF.
+- [x] **Cliente MCP** (`mcp/`) + SchemaProvider.
+- [x] **Progress** + warnings por tarefa.
+- [x] **Structured `emit_result`** + **`WithAllowTools`**.
+- [x] **JSON Schema expandido** + `WithStrictSchema`.
+- [x] **`RedactHandler`**, jail OutputFile, single-flight do Kickoff.
+- [x] **Tool de delegação** `delegate_to_coworker` + `EnableDelegationTool`.
+- [x] Tags **v0.1.0 … v0.5.0**; docs bilíngues; CI + CodeQL.
 
 ### P0 — Publicação e fundamentos
 
-- [ ] **`git init` + repositório público** — versionar, definir CI (lint, test,
-  build de exemplos), tag `v0.1.0`.
+- [x] **`git init` + repositório público** — versionar, CI, tags até **v0.5.0**.
   - [x] **`git init` + push** — feito em `https://github.com/rhgs/crewai-go.git`.
   - [x] **Module path corrigido** — `github.com/rodolphosa/crewai-go` →
     `github.com/rhgs/crewai-go` em `go.mod` + 27 arquivos (imports, docs,
@@ -170,9 +173,11 @@ sugerida (maior impacto / menor esforço primeiro):
     — **feito (2026-08-04):** `.github/workflows/ci.yml` (gofmt, vet, build, `go test -race`).
     Badges de teste adicionados ao README EN/PT.
   - [x] Tag `v0.1.0` — **publicada (2026-08-04)** com CHANGELOG bilíngue.
-  - [ ] **Upgrade toolchain para Go 1.24.9+** — govulncheck reporta 21 CVEs na
-    stdlib do Go 1.24.4 (crypto/x509 etc.), corrigidos em 1.24.9. Sem mudança de
-    código, só bumpar `go.mod`/CI.
+  - [x] **Pin de toolchain para CVEs da stdlib** — `go.mod` declara
+    `toolchain go1.24.9` (linguagem `go 1.24`). CI permanece em `1.24.x`.
+    SDK local 1.24.4 ainda compila com `GOTOOLCHAIN=auto` baixando a
+    toolchain pinada quando necessário. Reexecutar `govulncheck` após
+    upgrade do SDK local.
 - [x] **Confirmar module path** (`github.com/rodolphosa/crewai-go` → destino
   final) e atualizar import paths nos exemplos/docs. **Resolvido (2026-08-04).**
 - [x] **Documentar o `go vet` e `-race` no CI** (testes já usam concorrência).
@@ -196,19 +201,17 @@ sugerida (maior impacto / menor esforço primeiro):
 Não há diretivas `//nolint` no código (campo `Nosec: 0`). Decidido deixar os
 falsos positivos sem supressão para não mascarar findings reais no futuro.
 
-### govulncheck — 21 CVEs na stdlib (Go 1.24.4)
+### govulncheck — CVEs da stdlib (nota histórica Go 1.24.4)
 
-Todas em `crypto/x509` e afins, via caminhos TLS dos provedores (`ollama.NewCloud`
-→ `x509.ParseCertificate`, etc.). **Corrigidas em Go 1.24.9.** Não há vuln no
-código do projeto; basta bumpar a toolchain no `go.mod` e no CI.
+Scans em Go 1.24.4 reportaram várias issues na stdlib (crypto/tls, crypto/x509,
+etc.) nos caminhos TLS de providers/MCP. **Mitigação (higiene v0.5.0):**
+`toolchain go1.24.9` no `go.mod`; CI usa `1.24.x`. Sem vuln no código da
+aplicação. Re-scan após upgrades do SDK local.
 
 ### Code review manual — pontos de atenção
 
-- **`Crew.Kickoff` muta `Task.Description`/`ExpectedOutput` em `interpolate`
-  sem segurar `Task.mu`.** Seguro no uso normal (Kickoff é chamado uma vez, fluxo
-  single-threaded), mas **não é seguro para reusar a mesma `Crew` em goroutines
-  concorrentes**. Documentar ou proteger com lock se o P1 (async) for
-  implementado.
+- **`Crew.Kickoff` single-flight (v0.5.0)** — Kickoff concorrente no mesmo
+  `*Crew` retorna `ErrCrewRunning`. Reuso sequencial é suportado.
 - **OAuth Device Flow** (`llm/xai/oauth.go`): implementação correta — PKCE com
   `crypto/rand` (32 bytes), S256, polling honra `authorization_pending`/`slow_down`
   (RFC 8628 §3.5), `refreshingSource` com `sync.Mutex`, persistência `0600`.
@@ -231,13 +234,13 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 
 - [ ] **Streaming** — adicionar `CallStream(ctx, messages) (<-chan StreamChunk, error)`
   à interface `LLM` (ou interface opcional `StreamingLLM`) e propagar no executor.
-- [ ] **Function calling nativo** por provedor (OpenAI/Anthropic) como via
-  alternativa ao ReAct textual — mantém o ReAct como fallback universal.
+- [x] **Function calling nativo** por provedor (OpenAI/Anthropic/Ollama/xAI)
+  via `ToolModeNative` + `ToolCallingLLM` — ReAct continua default/fallback.
 - [ ] **Async/paralelismo** de tarefas (`async_execution`) com `sync.WaitGroup`
   / `errgroup`-like usando goroutines e canais.
-- [ ] **Delegação real** entre agentes — ferramenta "Delegate work to coworker"
-  que permite a um agente invocar outro durante o raciocínio (remove a
-  inércia do `AllowDelegation`).
+- [x] **Delegação real** entre agentes — `NewDelegationTool` /
+  `delegate_to_coworker` + `EnableDelegationTool` (v0.5.0). Atribuição do
+  manager hierárquico permanece separada.
 
 ### P2 — Persistência e observabilidade
 
@@ -259,9 +262,6 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   fonte, URL fonte, momento de coleta e hash do payload (SHA-256). Construtor
   `NewFactSourceTool`, helper `AllFactsProvenanced`, `dedupFacts` por
   PayloadHash. Cobertura 94.5% no pacote raiz.
-  estruturada (`Task.Structured` + `StructuredOutput.RepairMax`). O loop
-  reenvia ao modelo os erros de validacao e tenta ate um numero limitado de
-  tentativas. Nao transforma a saida (apenas valida).
 - [ ] **Extensoes da saida estruturada** — expandir o validador de JSON Schema
   para suportar mais palavras-chave (`additionalProperties`, `oneOf`/`anyOf`,
   `pattern`, `minimum`/`maximum`, `minItems`/`maxItems`); permitir uso de
@@ -272,7 +272,7 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 ### P3 — Avançado
 
 - [ ] **Flows** (orquestração event-driven com estado e roteamento).
-- [ ] Mais ferramentas (busca web, HTTP, arquivos, RAG).
+- [ ] Mais ferramentas (HTTP, arquivos, RAG) — **web search já existe** (v0.3+).
 - [ ] Definição declarativa via YAML (agents.yaml/tasks.yaml).
 - [ ] _Training_ (ajuste fino de prompts a partir de execuções).
 
