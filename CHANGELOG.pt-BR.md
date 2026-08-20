@@ -7,6 +7,14 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Seguranca
 
+- **Timeout HTTP padrao do MCP**: `mcp.New` nao usa mais
+  `http.DefaultClient`. Constroi um client com
+  `DefaultHTTPTimeout` (30s). Configure via `WithHTTPTimeout`,
+  `WithHTTPClient` (como esta, incl. `Timeout: 0`), ou JSON
+  `servers[].timeout` (duration string Go; omitido → 30s; `"0s"` →
+  desligado). Durations JSON invalidas falham o `LoadConfig` antes de
+  qualquer chamada de rede.
+
 - **Corpos de resposta dos provedores**: `Call` em OpenAI, Anthropic e
   Ollama agora limita o body a `MaxProviderResponseBytes` (antes so
   `CallWithTools` / `WebSearch` faziam isso). Erros nao-2xx nao ecoam

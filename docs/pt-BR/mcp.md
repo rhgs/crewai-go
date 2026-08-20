@@ -34,7 +34,11 @@ for _, t := range tools {
 ### Forma B — arquivo de configuracao JSON
 
 `mcp.LoadConfig` le um arquivo JSON, cria um cliente por entrada de servidor
-e os inicializa. O caminho do arquivo e fornecido pelo chamador.
+e os inicializa. O caminho do arquivo e fornecido pelo chamador. O campo opcional
+`timeout` por servidor e uma duration string do Go (`"30s"`, `"1m"`,
+`"0s"`). Omitido usa `DefaultHTTPTimeout` (30s); `"0s"` desliga o
+deadline do client.
+
 
 ```json
 {
@@ -42,12 +46,14 @@ e os inicializa. O caminho do arquivo e fornecido pelo chamador.
     {
       "name": "dados-contratos",
       "endpoint": "https://mcp.example.com/sse",
-      "headers": { "Authorization": "Bearer TOKEN_AQUI" }
+      "headers": { "Authorization": "Bearer TOKEN_AQUI" },
+      "timeout": "30s"
     },
     {
       "name": "db-compras",
       "endpoint": "https://mcp2.example.com/sse",
-      "headers": {}
+      "headers": {},
+      "timeout": "60s"
     }
   ]
 }
@@ -88,7 +94,8 @@ falhas HTTP ou JSON-RPC viram erros de Go.
 
 ## Opcoes
 
-- `mcp.WithHTTPClient(*http.Client)` — padrao `http.DefaultClient`.
+- `mcp.WithHTTPClient(*http.Client)` — usa um client custom como esta (incl. `Timeout: 0` para desligar o deadline do client).
+- `mcp.WithHTTPTimeout(time.Duration)` — define o timeout do client default da lib (ignorado se `WithHTTPClient` foi setado). Nao-positivo desliga o deadline do client.
 - `mcp.WithHeader(key, val)` — adicionado a cada requisicao. Valores de
   header nunca sao logados.
 
@@ -105,9 +112,10 @@ falhas HTTP ou JSON-RPC viram erros de Go.
   para nao deixar sessoes penduradas.
 - `Client.Close` envia HTTP DELETE com `Mcp-Session-Id` (teardown do
   Streamable HTTP) e e idempotente.
-- O transporte padrao e `http.DefaultClient` (sem timeout). Prefira
-  `mcp.WithHTTPClient(&http.Client{Timeout: 30 * time.Second})` em
-  producao.
+- O client HTTP padrao usa `DefaultHTTPTimeout` (30s). Sobrescreva com
+  `WithHTTPTimeout`, um `WithHTTPClient` custom, ou o campo JSON
+  `"timeout"` por servidor (`"0s"` desliga o deadline do client). Prefira
+  tambem um deadline explicito no `context`.
 - Trate endpoints MCP como **confiaveis**. Um servidor comprometido pode
   devolver descricoes de tools que jailbreakam o modelo, ou resultados
   que exfiltram contexto previo. Restrinja as tools de cada agente ao

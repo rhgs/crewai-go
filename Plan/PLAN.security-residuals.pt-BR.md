@@ -797,7 +797,7 @@ Números exatos ficam com o processo de release (inclui higiene
 
 | Residual | Fase | PR | Status |
 |---|---|---|---|
-| R1 timeout MCP | P0 | A | **D1 decidido** (30s + prog + JSON); impl pendente |
+| R1 timeout MCP | P0 | A | **Implementado** na branch (D1) |
 | R2 trust MCP docs/guards | P0/P1 | C/F | Planejado |
 | R3 política OutputFile | P0 | B | **D2 decidido** (EvalSymlinks on); impl pendente |
 | R4 keywords schema | P2 | G/H | **D7 decidido** (bytes); impl pendente |

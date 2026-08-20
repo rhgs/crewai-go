@@ -7,6 +7,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- **MCP default HTTP timeout**: `mcp.New` no longer uses
+  `http.DefaultClient`. It builds a client with
+  `DefaultHTTPTimeout` (30s). Configure via `WithHTTPTimeout`,
+  `WithHTTPClient` (as-is, including `Timeout: 0`), or JSON
+  `servers[].timeout` (Go duration string; omitted → 30s; `"0s"` →
+  disabled). Invalid JSON durations fail `LoadConfig` before any
+  network call.
+
 - **Provider response bodies**: `Call` on OpenAI, Anthropic, and Ollama
   now caps bodies at `MaxProviderResponseBytes` (previously only
   `CallWithTools` / `WebSearch` did). Non-2xx errors no longer echo the
@@ -37,7 +45,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Two configuration modes, both supplied programmatically by the caller:
   - **Programmatic**: `mcp.New(endpoint, opts...)` + `client.Initialize(ctx, name, version)`.
   - **JSON file**: `mcp.LoadConfig(ctx, path, name, version)` reads a config
-    with one or more server entries (Name, Endpoint, Headers), creates a
+    with one or more server entries (Name, Endpoint, Headers, optional Timeout), creates a
     client for each, calls `Initialize`, and returns the slice.
   Each MCP tool is exposed as a `crewai.Tool` via `mcp.NewToolAdapter`.
   The adapter implements `crewai.SchemaProvider`, so the original
@@ -45,7 +53,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   replaced with a placeholder. A tool-level `isError: true` is returned
   to the model as observation text (prefixed `[tool error]`), not as a
   Go error — only HTTP / JSON-RPC failures surface as `error`.
-  New helpers: `WithHTTPClient`, `WithHeader`, `Client.Close`
+  New helpers: `WithHTTPClient`, `WithHTTPTimeout`, `WithHeader`, `Client.Close`
   (HTTP DELETE session teardown; idempotent). `LoadConfig` closes
   already-initialized clients if a later server fails `Initialize`.
   New constant `MaxMCPResponseBytes = 16 MiB`. No new dependencies;

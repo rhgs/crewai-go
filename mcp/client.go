@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // MaxMCPResponseBytes caps the body size of any MCP HTTP response.
@@ -41,6 +42,12 @@ type Client struct {
 	httpClient *http.Client
 	headers    []headerPair
 
+	// Option bookkeeping for default-client construction. customHTTP is
+	// true when WithHTTPClient supplied a non-nil client (used as-is).
+	// timeout configures the library-built client only.
+	customHTTP bool
+	timeout    time.Duration
+
 	// sessionID is set during Initialize; subsequent requests must echo
 	// it back as the Mcp-Session-Id header. Protected by sessionMu.
 	sessionMu sync.Mutex
@@ -51,16 +58,38 @@ type headerPair struct {
 	key, val string
 }
 
+// DefaultHTTPTimeout is the HTTP client timeout used when New is called
+// without WithHTTPClient. Callers that need a different bound should pass
+// WithHTTPTimeout or a custom WithHTTPClient. A timeout of 0 disables the
+// client-level timeout (context deadlines still apply).
+const DefaultHTTPTimeout = 30 * time.Second
+
 // Option configures a Client.
 type Option func(*Client)
 
-// WithHTTPClient sets a custom *http.Client. When not supplied, the
-// client uses http.DefaultClient.
+// WithHTTPClient sets a custom *http.Client. When supplied (non-nil), it is
+// used as-is — including a zero Timeout, which disables the client-level
+// deadline. When not supplied, New builds a client with DefaultHTTPTimeout.
+// A nil argument is ignored.
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) {
 		if hc != nil {
 			c.httpClient = hc
+			c.customHTTP = true
 		}
+	}
+}
+
+// WithHTTPTimeout sets the timeout on the library-built default HTTP
+// client. It has no effect when the caller also supplies WithHTTPClient
+// (the custom client is used as-is). A non-positive duration disables the
+// client-level timeout (context deadlines still apply).
+func WithHTTPTimeout(d time.Duration) Option {
+	return func(c *Client) {
+		if d < 0 {
+			d = 0
+		}
+		c.timeout = d
 	}
 }
 
@@ -76,13 +105,21 @@ func WithHeader(key, val string) Option {
 }
 
 // New creates a Client for the given Streamable HTTP endpoint.
+//
+// By default the client uses an *http.Client with Timeout set to
+// DefaultHTTPTimeout (30s). Override with WithHTTPClient (full control)
+// or WithHTTPTimeout (default-client path only).
 func New(endpoint string, opts ...Option) *Client {
 	c := &Client{
-		endpoint:   endpoint,
-		httpClient: http.DefaultClient,
+		endpoint: endpoint,
+		timeout:  DefaultHTTPTimeout,
 	}
 	for _, opt := range opts {
 		opt(c)
+	}
+	if !c.customHTTP {
+		// Library-built client. WithHTTPTimeout may have changed c.timeout.
+		c.httpClient = &http.Client{Timeout: c.timeout}
 	}
 	return c
 }

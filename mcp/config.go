@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 )
 
 // Config is the top-level structure of an MCP configuration JSON file.
@@ -17,10 +18,16 @@ type Config struct {
 // ServerConfig describes a single MCP server connection. Headers are sent
 // on every request to this server; typical use is
 // `{"Authorization": "Bearer ..."}`.
+//
+// Timeout is an optional Go duration string (e.g. "30s", "1m", "0s")
+// applied via WithHTTPTimeout when building the client. Omitted or empty
+// uses DefaultHTTPTimeout (30s). "0" / "0s" disables the client-level
+// timeout. Invalid values make LoadConfig fail before any network call.
 type ServerConfig struct {
 	Name     string            `json:"name"`
 	Endpoint string            `json:"endpoint"`
 	Headers  map[string]string `json:"headers,omitempty"`
+	Timeout  string            `json:"timeout,omitempty"`
 }
 
 // LoadConfig reads a JSON MCP configuration file from the given path and
@@ -66,6 +73,13 @@ func LoadConfig(ctx context.Context, path, clientName, clientVersion string) ([]
 		opts := []Option{}
 		for k, v := range sc.Headers {
 			opts = append(opts, WithHeader(k, v))
+		}
+		if sc.Timeout != "" {
+			d, err := time.ParseDuration(sc.Timeout)
+			if err != nil {
+				return nil, fmt.Errorf("mcp: server %q: invalid timeout %q", identity, sc.Timeout)
+			}
+			opts = append(opts, WithHTTPTimeout(d))
 		}
 
 		c := New(sc.Endpoint, opts...)

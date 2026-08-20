@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func newTestServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server, func()) {
@@ -19,17 +20,97 @@ func newTestServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server, fu
 	return srv, srv.Close
 }
 
-func TestNew_DefaultHTTPClient(t *testing.T) {
+func TestNew_DefaultHTTPTimeout(t *testing.T) {
 	c := New("http://example")
-	if c.httpClient != http.DefaultClient {
-		t.Fatal("New must default to http.DefaultClient")
+	if c.httpClient == nil {
+		t.Fatal("New must set an http client")
+	}
+	if c.httpClient == http.DefaultClient {
+		t.Fatal("New must not use http.DefaultClient (no timeout)")
+	}
+	if c.httpClient.Timeout != DefaultHTTPTimeout {
+		t.Fatalf("default Timeout = %v, want %v", c.httpClient.Timeout, DefaultHTTPTimeout)
+	}
+	if c.customHTTP {
+		t.Fatal("default path must not mark customHTTP")
 	}
 }
 
 func TestWithHTTPClient_NilIgnored(t *testing.T) {
 	c := New("http://example", WithHTTPClient(nil))
-	if c.httpClient != http.DefaultClient {
-		t.Fatal("WithHTTPClient(nil) must not replace the default client")
+	if c.customHTTP {
+		t.Fatal("WithHTTPClient(nil) must not mark customHTTP")
+	}
+	if c.httpClient.Timeout != DefaultHTTPTimeout {
+		t.Fatalf("nil WithHTTPClient must keep default timeout, got %v", c.httpClient.Timeout)
+	}
+}
+
+func TestWithHTTPClient_CustomPreserved(t *testing.T) {
+	hc := &http.Client{Timeout: 0} // explicit disable
+	c := New("http://example", WithHTTPClient(hc))
+	if c.httpClient != hc {
+		t.Fatal("custom client must be used as-is")
+	}
+	if !c.customHTTP {
+		t.Fatal("customHTTP must be set")
+	}
+	if c.httpClient.Timeout != 0 {
+		t.Fatalf("custom Timeout=0 must be preserved, got %v", c.httpClient.Timeout)
+	}
+}
+
+func TestWithHTTPTimeout_AppliesToDefaultClient(t *testing.T) {
+	c := New("http://example", WithHTTPTimeout(45*time.Second))
+	if c.httpClient.Timeout != 45*time.Second {
+		t.Fatalf("Timeout = %v, want 45s", c.httpClient.Timeout)
+	}
+}
+
+func TestWithHTTPTimeout_ZeroDisables(t *testing.T) {
+	c := New("http://example", WithHTTPTimeout(0))
+	if c.httpClient.Timeout != 0 {
+		t.Fatalf("Timeout = %v, want 0", c.httpClient.Timeout)
+	}
+}
+
+func TestWithHTTPTimeout_NegativeTreatedAsZero(t *testing.T) {
+	c := New("http://example", WithHTTPTimeout(-5*time.Second))
+	if c.httpClient.Timeout != 0 {
+		t.Fatalf("negative timeout must become 0, got %v", c.httpClient.Timeout)
+	}
+}
+
+func TestWithHTTPTimeout_IgnoredWhenCustomClient(t *testing.T) {
+	hc := &http.Client{Timeout: 12 * time.Second}
+	c := New("http://example", WithHTTPClient(hc), WithHTTPTimeout(99*time.Second))
+	if c.httpClient != hc {
+		t.Fatal("custom client must win")
+	}
+	if c.httpClient.Timeout != 12*time.Second {
+		t.Fatalf("WithHTTPTimeout must not overlay custom client, got %v", c.httpClient.Timeout)
+	}
+}
+
+func TestClient_HTTPTimeout_Hang(t *testing.T) {
+	// Server accepts the connection but responds slowly. A short client
+	// timeout must surface an error well under the server's sleep.
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(2 * time.Second)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
+	})
+	defer cleanup()
+
+	c := New(srv.URL, WithHTTPTimeout(100*time.Millisecond))
+	start := time.Now()
+	err := c.Initialize(context.Background(), "test", "1.0")
+	elapsed := time.Since(start)
+	if err == nil {
+		t.Fatal("expected timeout error from slow server")
+	}
+	if elapsed > 1500*time.Millisecond {
+		t.Fatalf("timeout took too long: %v (client timeout should fire ~100ms)", elapsed)
 	}
 }
 

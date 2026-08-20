@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestLoadConfig_EmptyPath(t *testing.T) {
@@ -208,5 +209,96 @@ func TestLoadConfig_NoLeakOfHeaderValues(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "SECRET-TOKEN-VALUE") {
 		t.Fatalf("error leaked header value: %v", err)
+	}
+}
+
+func TestLoadConfig_TimeoutOmittedUsesDefault(t *testing.T) {
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
+	})
+	defer cleanup()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	cfg := Config{Servers: []ServerConfig{{Name: "a", Endpoint: srv.URL}}}
+	data, _ := json.Marshal(cfg)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	clients, err := LoadConfig(context.Background(), path, "c", "1")
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if len(clients) != 1 {
+		t.Fatalf("len=%d", len(clients))
+	}
+	if clients[0].httpClient.Timeout != DefaultHTTPTimeout {
+		t.Fatalf("Timeout=%v want %v", clients[0].httpClient.Timeout, DefaultHTTPTimeout)
+	}
+}
+
+func TestLoadConfig_TimeoutDuration(t *testing.T) {
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
+	})
+	defer cleanup()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	// Write raw JSON so we exercise the timeout field unmarshalling.
+	raw := []byte(`{"servers":[{"name":"a","endpoint":"` + srv.URL + `","timeout":"45s"}]}`)
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	clients, err := LoadConfig(context.Background(), path, "c", "1")
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if clients[0].httpClient.Timeout != 45*time.Second {
+		t.Fatalf("Timeout=%v want 45s", clients[0].httpClient.Timeout)
+	}
+}
+
+func TestLoadConfig_TimeoutZeroDisables(t *testing.T) {
+	srv, cleanup := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
+	})
+	defer cleanup()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	raw := []byte(`{"servers":[{"name":"a","endpoint":"` + srv.URL + `","timeout":"0s"}]}`)
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	clients, err := LoadConfig(context.Background(), path, "c", "1")
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if clients[0].httpClient.Timeout != 0 {
+		t.Fatalf("Timeout=%v want 0", clients[0].httpClient.Timeout)
+	}
+}
+
+func TestLoadConfig_TimeoutInvalid(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	raw := []byte(`{"servers":[{"name":"badto","endpoint":"http://127.0.0.1:9","timeout":"not-a-duration"}]}`)
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadConfig(context.Background(), path, "c", "1")
+	if err == nil {
+		t.Fatal("invalid timeout must error before network")
+	}
+	if !strings.Contains(err.Error(), "badto") {
+		t.Fatalf("error must name server: %v", err)
+	}
+	if !strings.Contains(err.Error(), "invalid timeout") {
+		t.Fatalf("error must mention invalid timeout: %v", err)
+	}
+	// Must not leak secrets-looking material; just sanity: no bearer.
+	if strings.Contains(err.Error(), "Bearer") {
+		t.Fatalf("error leaked unexpected content: %v", err)
 	}
 }
