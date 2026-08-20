@@ -49,6 +49,14 @@ type Crew struct {
 	// not set their own OutputDir. Same symlink-aware rules as Task.OutputDir.
 	OutputDir string
 
+	// EnableDelegationTool, when true, auto-attaches the delegate_to_coworker
+	// tool to each crew agent (and ManagerAgent, if set) at the start of
+	// Kickoff, unless the agent already has a tool with that name.
+	// Targets of delegation must still have AllowDelegation == true.
+	// Default false (no surprise tool surface). Explicit
+	// agent.WithTools(NewDelegationTool(crew)) always works regardless.
+	EnableDelegationTool bool
+
 	// logger is the structured logger used during Kickoff. Set via
 	// WithLogger before Kickoff. NOT CONCURRENT-SAFE: must be set before
 	// Kickoff starts and not mutated while Kickoff is running.
@@ -215,6 +223,10 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 	}
 	if c.Memory {
 		c.mem = NewMemory()
+	}
+
+	if c.EnableDelegationTool {
+		c.attachDelegationTools()
 	}
 
 	// Interpolate inputs into all tasks. In the staged process the tasks
@@ -522,6 +534,10 @@ type stageResult struct {
 // diagnostics via AddWarningFromCtx or by retrieving the sink from ctx
 // themselves.
 func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, []Fact, error) {
+	if agent != nil {
+		ctx = ContextWithAgentRole(ctx, agent.Role)
+	}
+
 	if task != nil {
 		ctx = ContextWithWarningSink(ctx, task)
 	}
@@ -641,4 +657,34 @@ func taskLabel(t *Task, i int) string {
 		return t.Name
 	}
 	return fmt.Sprintf("Task %d", i+1)
+}
+
+// PeerAgents implements DelegationRoster so a Crew can be passed to
+// NewDelegationTool. It returns the Crew.Agents field.
+func (c *Crew) PeerAgents() []*Agent {
+	if c == nil {
+		return nil
+	}
+	return c.Agents
+}
+
+// attachDelegationTools adds delegate_to_coworker to each agent that does
+// not already have it. Safe to call multiple times (idempotent per agent).
+func (c *Crew) attachDelegationTools() {
+	if c == nil {
+		return
+	}
+	tool := NewDelegationTool(c)
+	attach := func(a *Agent) {
+		if a == nil || hasDelegationTool(a.Tools) {
+			return
+		}
+		a.Tools = append(a.Tools, tool)
+	}
+	for _, a := range c.Agents {
+		attach(a)
+	}
+	if c.ManagerAgent != nil {
+		attach(c.ManagerAgent)
+	}
 }

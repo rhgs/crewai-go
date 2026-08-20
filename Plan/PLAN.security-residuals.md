@@ -642,7 +642,7 @@ not mergeable.
 ### P2
 - [x] R4: at least `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf` tested.
 - [x] R8: `WithAllowTools` two-phase path; facts preserved; default unchanged.
-- [ ] R7: `delegate_to_coworker` tool + depth/cycle guards; `AllowDelegation` meaning updated.
+- [x] R7: `delegate_to_coworker` tool + depth/cycle guards; `AllowDelegation` meaning updated.
 
 ### Global
 - [ ] `go test -race ./...` pass; bilingual docs; CHANGELOG updated; no new deps.
@@ -880,5 +880,5 @@ Exact version numbers left to release process (see also: still-open
 | R4 Schema keywords | P2 | G/H | **Implemented** on branch (D7) |
 | R5 RedactHandler | P1 | D | **Implemented** on branch (D3) |
 | R6 Kickoff single-flight | P1 | E | **Implemented** on branch (D4) |
-| R7 Delegation tool | P2 | J | **D5 decided** (EnableDelegationTool opt-in); impl pending |
+| R7 Delegation tool | P2 | J | **Implemented** on branch (D5) |
 | R8 Structured+tools | P2 | I | **Implemented** on branch (D6) |

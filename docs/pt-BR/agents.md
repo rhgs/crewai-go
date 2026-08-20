@@ -40,7 +40,7 @@ agente := &crewai.Agent{
 | `LLM`             | `crewai.LLM`  | Modelo de linguagem. **Obrigatório.** |
 | `Tools`           | `[]crewai.Tool` | Ferramentas disponíveis em qualquer tarefa. |
 | `MaxIterations`   | `int`         | Máx. de ciclos de raciocínio/ferramenta (padrão 15). |
-| `AllowDelegation` | `bool`        | Marca o agente como apto a gerenciar/delegar. |
+| `AllowDelegation` | `bool` | Marca o agent como **alvo elegivel** da tool `delegate_to_coworker` (e possivel manager hierarquico). Default false. |
 | `ToolMode`         | `ToolMode`    | `"react"` (padrão) ou `"native"` — seleciona entre ReAct baseado em texto ou function calling nativo. |
 | `Loop`             | `crewai.Loop` | Estratégia de execução opcional (ex. `AgenticLoop`) que substitui o executor ReAct padrão. |
 
@@ -123,3 +123,26 @@ Veja [examples/agentic_loop](../examples/agentic_loop) para um exemplo executáv
 - O **objetivo** deve ser mensurável e orientado ao resultado.
 - Use a **história** para calibrar tom e nível de detalhe.
 - Ajuste `MaxIterations` para tarefas que usam muitas ferramentas.
+
+## Delegacao entre agents (`delegate_to_coworker`)
+
+Para um agent pedir ajuda a um coworker **durante** o raciocinio (diferente
+do manager hierarquico, que so atribui a task inteira):
+
+```go
+researcher.AllowDelegation = true // precisa ser true no ALVO
+writer.WithTools(crewai.NewDelegationTool(crew))
+
+// ou auto-attach em todos os agents do crew:
+crew.EnableDelegationTool = true
+```
+
+A tool se chama `delegate_to_coworker` e espera JSON:
+`{"coworker":"<role>","request":"<texto>","context":"<opcional>"}`.
+
+Guardas: profundidade maxima `DefaultMaxDelegationDepth` (2), deteccao de
+ciclo, proibicao de auto-delegacao, alvo deve existir no roster e ter
+`AllowDelegation`. Erros voltam como observation de tool (nao panic).
+
+Veja `examples/delegation`.
+

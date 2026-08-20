@@ -35,3 +35,5 @@ go run ./examples/tools
 
 To use another provider (Anthropic, Ollama, Groq…), swap the LLM creation line.
 See [`../docs/llms.md`](../docs/llms.md).
+
+- `delegation` — inter-agent `delegate_to_coworker` tool (opt-in).

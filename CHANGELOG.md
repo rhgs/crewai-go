@@ -49,6 +49,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Inter-agent delegation tool**: `NewDelegationTool(roster)` exposes
+  `delegate_to_coworker` (JSON `coworker`/`request`/`context`). Targets must
+  set `AllowDelegation`. Nested calls honor `DefaultMaxDelegationDepth` (2)
+  with cycle/self guards. `Crew.EnableDelegationTool` (default false)
+  auto-attaches the tool at Kickoff; `Crew` implements `DelegationRoster`
+  via `PeerAgents()`.
+
 - **JSON Schema keywords (expanded)**: validator now supports
   `additionalProperties`, `minLength`/`maxLength` (bytes),
   `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum`,

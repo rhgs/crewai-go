@@ -565,7 +565,7 @@ não é mergeável.
 ### P2
 - [x] R4: ao menos `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf` testados.
 - [x] R8: `WithAllowTools` two-phase; facts preservados; default igual.
-- [ ] R7: tool `delegate_to_coworker` + depth/ciclo; semântica de `AllowDelegation` atualizada.
+- [x] R7: tool `delegate_to_coworker` + depth/ciclo; semântica de `AllowDelegation` atualizada.
 
 ### Global
 - [ ] `go test -race ./...`; docs bilíngues; CHANGELOG; zero deps novas.
@@ -803,5 +803,5 @@ Números exatos ficam com o processo de release (inclui higiene
 | R4 keywords schema | P2 | G/H | **Implementado** na branch (D7) |
 | R5 RedactHandler | P1 | D | **Implementado** na branch (D3) |
 | R6 single-flight Kickoff | P1 | E | **Implementado** na branch (D4) |
-| R7 tool de delegação | P2 | J | **D5 decidido** (EnableDelegationTool opt-in); impl pendente |
+| R7 tool de delegação | P2 | J | **Implementado** na branch (D5) |
 | R8 structured+tools | P2 | I | **Implementado** na branch (D6) |

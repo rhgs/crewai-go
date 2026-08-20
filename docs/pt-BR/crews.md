@@ -48,6 +48,7 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 | `ManagerAgent` | `*Agent`       | Gerente explícito (tem prioridade sobre `ManagerLLM`). |
 | `Guardrails`   | `[]Guardrail`  | Hooks de validação pós-saída no nível da crew. |
 | `OutputDir` | `string` | Jail opcional para `Task.OutputFile` quando a task nao define o seu. Symlink-aware; ver tasks. |
+| `EnableDelegationTool` | `bool` | Se true, anexa `delegate_to_coworker` a cada agent no Kickoff (default false). Alvos ainda precisam de `AllowDelegation`. |
 | `progress`     | `ProgressFunc` | Interno — definido via `WithProgress`. |
 
 ## O resultado: `CrewOutput`
