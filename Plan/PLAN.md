@@ -147,6 +147,14 @@ priority (highest impact / lowest effort first):
   execution strategy, opt-in via `Agent.Loop`/`Task.Loop`. See
   `PLAN.agentic-loop.md` for the full design.
 
+- [ ] **Security & code-review residuals (post PR #27)** — eight leftover
+  items (MCP default timeout, trusted-server threat model, `OutputFile`
+  path jail, schema keyword expansion, core `RedactHandler`, Kickoff
+  single-flight, real `delegate_to_coworker` tool, structured+tools
+  hybrid). Phased P0/P1/P2 with API sketches and PR breakdown in
+  [`PLAN.security-residuals.md`](PLAN.security-residuals.md)
+  ([PT](PLAN.security-residuals.pt-BR.md)). **Plan only until scheduled.**
+
 ### P0 — Publishing and fundamentals
 
 - [ ] **`git init` + public repository** — version, set up CI (lint, test,
@@ -264,7 +272,8 @@ and environment variable names in docs/README. The `.gitignore` protects
   support more keywords (`additionalProperties`, `oneOf`/`anyOf`, `pattern`,
   `minimum`/`maximum`, `minItems`/`maxItems`); allow tool use before
   structured output; optional native function calling for structured output
-  (OpenAI/Anthropic).
+  (OpenAI/Anthropic). Tracked as R4 + R8 in
+  [`PLAN.security-residuals.md`](PLAN.security-residuals.md).
 
 ### P3 — Advanced
 
