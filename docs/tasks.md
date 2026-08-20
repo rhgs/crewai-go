@@ -25,7 +25,8 @@ task := crewai.NewTask(
 | `Agent`          | `*crewai.Agent` | The assignee. Can be `nil` (the crew resolves it). |
 | `Tools`          | `[]crewai.Tool` | Overrides the agent's tools for this task. |
 | `Context`        | `[]*crewai.Task`| Tasks whose outputs become this task's context. |
-| `OutputFile`     | `string`        | If set, writes the output to this file (mode `0600`). Treat as a trusted path — the framework does not sandbox it. |
+| `OutputFile`     | `string`        | If set, writes the output to this file (mode `0600`). Path is cleaned; empty paths are rejected. |
+| `OutputDir`      | `string`        | Optional jail directory for `OutputFile`. Symlink-aware (`EvalSymlinks`, fail closed). Prefer when paths come from external config. |
 | `Structured`     | `*crewai.StructuredOutput` | If set, requires JSON output validated against a JSON Schema. |
 | `Guardrail`      | `crewai.Guardrail` | Optional task-level post-output validation. |
 | `Loop`           | `crewai.Loop`   | Optional per-task execution strategy (overrides `Agent.Loop`). |
@@ -61,10 +62,18 @@ crew.Kickoff(ctx, map[string]string{
 
 ```go
 task.OutputFile = "report.md"
+// Optional jail (recommended when the path comes from config/env):
+task.OutputDir = "/var/lib/myapp/outputs"
+// or: task.WithOutputDir("/var/lib/myapp/outputs")
+// Crew-level default for tasks without their own OutputDir:
+// crew.OutputDir = "/var/lib/myapp/outputs"
 ```
 
-After execution, the output is written to the file (in addition to being
-available via `task.Output()`).
+After execution, the output is written to the file (mode `0600`) in addition to
+being available via `task.Output()`. Paths are cleaned. When `OutputDir` (task
+or `Crew.OutputDir`) is set, the file must resolve inside that directory;
+symlinks are evaluated and escapes fail with `ErrOutputPathRejected`. Never
+pass unvalidated model output as `OutputFile`.
 
 ## Retrieving the output
 

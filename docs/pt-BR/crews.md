@@ -43,6 +43,7 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 | `ManagerLLM`   | `LLM`          | LLM do gerente (processo hierárquico). |
 | `ManagerAgent` | `*Agent`       | Gerente explícito (tem prioridade sobre `ManagerLLM`). |
 | `Guardrails`   | `[]Guardrail`  | Hooks de validação pós-saída no nível da crew. |
+| `OutputDir` | `string` | Jail opcional para `Task.OutputFile` quando a task nao define o seu. Symlink-aware; ver tasks. |
 | `progress`     | `ProgressFunc` | Interno — definido via `WithProgress`. |
 
 ## O resultado: `CrewOutput`

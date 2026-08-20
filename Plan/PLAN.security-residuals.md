@@ -631,8 +631,8 @@ not mergeable.
 
 ### P0
 - [ ] R1: default MCP client timeout 30s; escape hatch documented; tests green.
-- [ ] R3: path `Clean` always; optional `OutputDir` jail; `ErrOutputPathRejected`; tests for escape attempts.
-- [ ] R2-P0: threat model + operator checklist in MCP docs EN/PT + SECURITY.
+- [x] R3: path `Clean` always; optional `OutputDir` jail; `ErrOutputPathRejected`; tests for escape attempts.
+- [x] R2-P0: threat model + operator checklist in MCP docs EN/PT + SECURITY.
 
 ### P1
 - [ ] R5: `RedactHandler` in core; example delegates to it; README snippet.
@@ -875,8 +875,8 @@ Exact version numbers left to release process (see also: still-open
 | Residual | Phase | PR | Status |
 |---|---|---|---|
 | R1 MCP timeout | P0 | A | **Implemented** on branch (D1) |
-| R2 MCP trust docs/guards | P0/P1 | C/F | Planned (no open decision) |
-| R3 OutputFile policy | P0 | B | **D2 decided** (EvalSymlinks on); impl pending |
+| R2 MCP trust docs/guards | P0/P1 | C/F | **P0 docs implemented** (threat model); P1 guards pending |
+| R3 OutputFile policy | P0 | B | **Implemented** on branch (D2) |
 | R4 Schema keywords | P2 | G/H | **D7 decided** (bytes); impl pending |
 | R5 RedactHandler | P1 | D | **D3 decided** (root); impl pending |
 | R6 Kickoff single-flight | P1 | E | **D4 decided** (ErrCrewRunning); impl pending |

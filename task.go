@@ -2,7 +2,9 @@ package crewai
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -75,8 +77,19 @@ type Task struct {
 	// this task.
 	Context []*Task
 
-	// OutputFile, when set, causes the task output to be written to that file.
+	// OutputFile, when set, causes the task output to be written to that file
+	// with mode 0600. The path is cleaned; empty paths after trim/clean are
+	// rejected. When OutputDir (or Crew.OutputDir) is set, the path must
+	// resolve inside that directory (symlink-aware). Treat OutputFile as a
+	// trusted application path — never pass unvalidated model output here.
 	OutputFile string
+
+	// OutputDir, when set, jails OutputFile writes to that directory.
+	// Paths are resolved with filepath.Abs and filepath.EvalSymlinks
+	// (fail closed on eval errors). Relative OutputFile values are
+	// interpreted relative to the process working directory before the
+	// jail check. Empty means no task-level jail (Crew.OutputDir may still apply).
+	OutputDir string
 
 	// Structured, when non-nil, requires this task to produce JSON output
 	// validated against the embedded JSON Schema. The executor enters
@@ -127,6 +140,13 @@ func (t *Task) WithGuardrail(g Guardrail) *Task {
 	return t
 }
 
+// WithOutputDir sets a directory jail for OutputFile writes and returns
+// the task for fluent chaining. See OutputDir for symlink evaluation rules.
+func (t *Task) WithOutputDir(dir string) *Task {
+	t.OutputDir = dir
+	return t
+}
+
 // Output returns the output already produced by the task (empty if not yet
 // executed).
 func (t *Task) Output() string {
@@ -135,18 +155,109 @@ func (t *Task) Output() string {
 	return t.output
 }
 
-// setOutput records the task output and, if configured, writes it to a file.
+// setOutput records the task output and, if configured, writes it to a file
+// using the task-level OutputDir jail (if any).
 func (t *Task) setOutput(out string) error {
+	return t.setOutputWithJail(out, "")
+}
+
+// setOutputWithJail records the task output and writes OutputFile when set.
+// jail overrides or supplies the directory jail: if non-empty it is used;
+// otherwise the task's OutputDir is used. An empty jail means no path jail
+// (only Clean + empty rejection). Called by the crew with Crew.OutputDir
+// when the task has no OutputDir of its own.
+func (t *Task) setOutputWithJail(out, jail string) error {
 	t.mu.Lock()
 	t.output = out
 	t.done = true
 	file := t.OutputFile
+	taskJail := t.OutputDir
 	t.mu.Unlock()
 
-	if file != "" {
-		return os.WriteFile(file, []byte(out), 0o600)
+	if strings.TrimSpace(file) == "" {
+		return nil
 	}
-	return nil
+	if jail == "" {
+		jail = taskJail
+	}
+	return writeTaskOutputFile(file, jail, []byte(out))
+}
+
+// writeTaskOutputFile cleans path, optionally enforces a directory jail with
+// symlink evaluation (fail closed), and writes data with mode 0600.
+func writeTaskOutputFile(path, jail string, data []byte) error {
+	path = filepath.Clean(strings.TrimSpace(path))
+	if path == "" || path == "." {
+		return fmt.Errorf("%w: empty path", ErrOutputPathRejected)
+	}
+	if jail != "" {
+		resolved, err := resolveOutputPathInJail(path, jail)
+		if err != nil {
+			return err
+		}
+		path = resolved
+	}
+	return os.WriteFile(path, data, 0o600)
+}
+
+// resolveOutputPathInJail returns an absolute, symlink-resolved path that
+// must equal jail or live under jail+separator. EvalSymlinks is applied to
+// the jail and to the deepest existing ancestor of the target (so new files
+// can still be created). Any resolution error fails closed.
+func resolveOutputPathInJail(path, jail string) (string, error) {
+	absJail, err := filepath.Abs(strings.TrimSpace(jail))
+	if err != nil {
+		return "", fmt.Errorf("%w: jail abs: %v", ErrOutputPathRejected, err)
+	}
+	absJail, err = filepath.EvalSymlinks(absJail)
+	if err != nil {
+		return "", fmt.Errorf("%w: jail symlinks: %v", ErrOutputPathRejected, err)
+	}
+	absJail = filepath.Clean(absJail)
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("%w: path abs: %v", ErrOutputPathRejected, err)
+	}
+	resolved, err := evalSymlinksExisting(absPath)
+	if err != nil {
+		return "", fmt.Errorf("%w: path symlinks: %v", ErrOutputPathRejected, err)
+	}
+	resolved = filepath.Clean(resolved)
+
+	sep := string(filepath.Separator)
+	if resolved == absJail || strings.HasPrefix(resolved, absJail+sep) {
+		return resolved, nil
+	}
+	return "", fmt.Errorf("%w: %q escapes output dir", ErrOutputPathRejected, path)
+}
+
+// evalSymlinksExisting resolves symlinks for path. If path does not exist
+// yet, it resolves the deepest existing ancestor and rejoins the missing
+// trailing components (so OutputFile can create a new file inside the jail).
+func evalSymlinksExisting(path string) (string, error) {
+	if _, err := os.Lstat(path); err == nil {
+		return filepath.EvalSymlinks(path)
+	}
+	// Walk up until an existing ancestor is found.
+	var missing []string
+	cur := path
+	for {
+		parent := filepath.Dir(cur)
+		if parent == cur {
+			// Reached root without a resolvable ancestor.
+			return "", fmt.Errorf("no existing ancestor for %s", path)
+		}
+		missing = append([]string{filepath.Base(cur)}, missing...)
+		if _, err := os.Lstat(parent); err == nil {
+			resolvedParent, err := filepath.EvalSymlinks(parent)
+			if err != nil {
+				return "", err
+			}
+			return filepath.Join(append([]string{resolvedParent}, missing...)...), nil
+		}
+		cur = parent
+	}
 }
 
 // setToolTraces records the native tool call traces for this task.

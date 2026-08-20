@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- **OutputFile path jail**: `Task.OutputFile` paths are cleaned; empty
+  paths are rejected. Optional `Task.OutputDir` / `Crew.OutputDir` jails
+  writes with symlink evaluation (`EvalSymlinks`, fail closed) and
+  sentinel `ErrOutputPathRejected`. Mode remains `0600`.
+
 - **MCP default HTTP timeout**: `mcp.New` no longer uses
   `http.DefaultClient`. It builds a client with
   `DefaultHTTPTimeout` (30s). Configure via `WithHTTPTimeout`,

@@ -116,10 +116,30 @@ falhas HTTP ou JSON-RPC viram erros de Go.
   `WithHTTPTimeout`, um `WithHTTPClient` custom, ou o campo JSON
   `"timeout"` por servidor (`"0s"` desliga o deadline do client). Prefira
   tambem um deadline explicito no `context`.
-- Trate endpoints MCP como **confiaveis**. Um servidor comprometido pode
-  devolver descricoes de tools que jailbreakam o modelo, ou resultados
-  que exfiltram contexto previo. Restrinja as tools de cada agente ao
-  minimo necessario; nao anexe um catalogo inteiro nao confiavel.
+- Trate endpoints MCP como **confiaveis** — veja [Modelo de ameaca](#modelo-de-ameaca).
+
+
+## Modelo de ameaca
+
+Servidores MCP sao tratados como **codigo confiavel**, equivalente a um
+binario local de tool que voce escolheu rodar. A lib nao faz sandbox de
+descricoes ou resultados de tools antes de entrarem no prompt do LLM.
+
+| Ameaca | Impacto | Mitigacoes |
+|---|---|---|
+| **Description** maliciosa de tool | Prompt injection / jailbreak do agent | Anexe so as tools que cada agent precisa; prefira endpoints privados/conhecidos |
+| **Result** malicioso de tool | Exfiltracao de contexto previo em turnos seguintes | Catalogo least-privilege; allowlist de rede no deploy |
+| Respostas travadas ou enormes | DoS / pressao de memoria | Timeout HTTP default 30s; cap de body 16 MiB; cap de paginas em `tools/list` |
+| Tokens de config roubados | Abuso de auth | Arquivos de config modo `0600`; headers nunca logados |
+
+### Checklist do operador
+
+1. Prefira TLS e rede privada para endpoints MCP.
+2. Mantenha o timeout HTTP default (30s) ou defina `timeout` / `WithHTTPTimeout`.
+3. Passe sempre um deadline no `context` alem do timeout do client.
+4. Proteja arquivos JSON com bearer tokens (`0600`).
+5. Restrinja as tools de cada agent ao minimo — nao anexe o catalogo inteiro.
+6. Nao logue headers MCP ou session ids (o client ja evita isso).
 
 ## Cobertura
 

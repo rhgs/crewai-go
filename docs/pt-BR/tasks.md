@@ -25,7 +25,8 @@ tarefa := crewai.NewTask(
 | `Agent`          | `*crewai.Agent` | Responsável. Pode ser `nil` (a crew resolve). |
 | `Tools`          | `[]crewai.Tool` | Sobrepõe as ferramentas do agente nesta tarefa. |
 | `Context`        | `[]*crewai.Task`| Tarefas cujas saídas viram contexto desta. |
-| `OutputFile`     | `string`        | Se definido, grava a saída neste arquivo (modo `0600`). Trate como caminho confiável — o framework não faz sandbox. |
+| `OutputFile`     | `string`        | Se definido, grava a saida neste arquivo (modo `0600`). Path e limpo (`Clean`); paths vazios sao rejeitados. |
+| `OutputDir`      | `string`        | Jail opcional para `OutputFile`. Symlink-aware (`EvalSymlinks`, fail closed). Prefira quando o path vem de config externa. |
 | `Structured`     | `*crewai.StructuredOutput` | Se definido, exige saida JSON validada contra um JSON Schema. |
 | `Guardrail`      | `crewai.Guardrail` | Validação pós-saída opcional no nível da tarefa. |
 | `Loop`           | `crewai.Loop`   | Estratégia de execução opcional por tarefa (sobrepõe `Agent.Loop`). |
@@ -57,13 +58,23 @@ crew.Kickoff(ctx, map[string]string{
 })
 ```
 
-## Salvando a saída em arquivo
+## Salvando a saida em arquivo
 
 ```go
 tarefa.OutputFile = "relatorio.md"
+// Jail opcional (recomendado quando o path vem de config/env):
+tarefa.OutputDir = "/var/lib/meuapp/saidas"
+// ou: tarefa.WithOutputDir("/var/lib/meuapp/saidas")
+// Default no crew para tasks sem OutputDir proprio:
+// crew.OutputDir = "/var/lib/meuapp/saidas"
 ```
 
-Após a execução, a saída é gravada no arquivo (além de ficar em `tarefa.Output()`).
+Apos a execucao, a saida e gravada no arquivo (modo `0600`), alem de ficar
+disponivel via `tarefa.Output()`. Paths sao limpos. Quando `OutputDir` (task
+ou `Crew.OutputDir`) esta setado, o arquivo precisa resolver dentro desse
+diretorio; symlinks sao avaliados e escapes falham com `ErrOutputPathRejected`.
+Nunca passe output nao validado do modelo como `OutputFile`.
+
 
 ## Recuperando a saída
 

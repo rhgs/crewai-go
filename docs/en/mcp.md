@@ -114,10 +114,30 @@ failures surface as Go errors.
   `WithHTTPTimeout`, a custom `WithHTTPClient`, or per-server JSON
   `"timeout"` (`"0s"` disables the client deadline). Prefer an explicit
   `context` deadline as well.
-- Treat MCP endpoints as **trusted**. A compromised server can return
-  tool descriptions that jailbreak the model, or tool results that
-  exfiltrate prior context. Scope each agent's tools to the minimum
-  set it needs; do not attach an entire untrusted catalog.
+- Treat MCP endpoints as **trusted** — see [Threat model](#threat-model).
+
+
+## Threat model
+
+MCP servers are treated as **trusted code equivalent** to a local tool
+binary you chose to run. The library does not sandbox tool descriptions or
+results before they enter the LLM prompt.
+
+| Threat | Impact | Mitigations |
+|---|---|---|
+| Malicious tool **description** | Prompt injection / jailbreak of the agent | Attach only the tools each agent needs; prefer private/known endpoints |
+| Malicious tool **result** | Exfiltration of prior context into later model turns | Least-privilege tool catalog; network allowlists at deploy layer |
+| Hung or huge responses | DoS / memory pressure | Default 30s HTTP timeout; 16 MiB body cap; page cap on `tools/list` |
+| Stolen config tokens | Auth abuse | Config files mode `0600`; headers never logged |
+
+### Operator checklist
+
+1. Prefer TLS and private network placement for MCP endpoints.
+2. Keep the default HTTP timeout (30s) or set an explicit `timeout` / `WithHTTPTimeout`.
+3. Always pass a `context` deadline in addition to the client timeout.
+4. Protect JSON config files that hold bearer tokens (`0600`).
+5. Scope each agent's tools to the minimum set — do not attach an entire catalog.
+6. Do not log raw MCP headers or session ids (the client already avoids this).
 
 ## Coverage
 

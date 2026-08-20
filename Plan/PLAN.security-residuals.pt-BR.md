@@ -554,8 +554,8 @@ não é mergeável.
 
 ### P0
 - [ ] R1: timeout MCP default 30s; escape hatch documentado; testes OK.
-- [ ] R3: `Clean` sempre; `OutputDir` opt-in; `ErrOutputPathRejected`; testes de escape.
-- [ ] R2-P0: threat model + checklist em MCP docs EN/PT + SECURITY.
+- [x] R3: `Clean` sempre; `OutputDir` opt-in; `ErrOutputPathRejected`; testes de escape.
+- [x] R2-P0: threat model + checklist em MCP docs EN/PT + SECURITY.
 
 ### P1
 - [ ] R5: `RedactHandler` no core; example delega; snippet no README.
@@ -798,8 +798,8 @@ Números exatos ficam com o processo de release (inclui higiene
 | Residual | Fase | PR | Status |
 |---|---|---|---|
 | R1 timeout MCP | P0 | A | **Implementado** na branch (D1) |
-| R2 trust MCP docs/guards | P0/P1 | C/F | Planejado |
-| R3 política OutputFile | P0 | B | **D2 decidido** (EvalSymlinks on); impl pendente |
+| R2 trust MCP docs/guards | P0/P1 | C/F | **Docs P0 implementados** (threat model); guards P1 pendentes |
+| R3 política OutputFile | P0 | B | **Implementado** na branch (D2) |
 | R4 keywords schema | P2 | G/H | **D7 decidido** (bytes); impl pendente |
 | R5 RedactHandler | P1 | D | **D3 decidido** (root); impl pendente |
 | R6 single-flight Kickoff | P1 | E | **D4 decidido** (ErrCrewRunning); impl pendente |

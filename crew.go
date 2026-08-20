@@ -45,6 +45,10 @@ type Crew struct {
 	// non-nil error, Kickoff returns ErrBlockedByGuardrail.
 	Guardrails []Guardrail
 
+	// OutputDir, when set, jails Task.OutputFile writes for tasks that do
+	// not set their own OutputDir. Same symlink-aware rules as Task.OutputDir.
+	OutputDir string
+
 	// logger is the structured logger used during Kickoff. Set via
 	// WithLogger before Kickoff. NOT CONCURRENT-SAFE: must be set before
 	// Kickoff starts and not mutated while Kickoff is running.
@@ -520,7 +524,11 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, [
 	if err != nil {
 		return "", nil, err
 	}
-	if err := task.setOutput(result); err != nil {
+	jail := task.OutputDir
+	if jail == "" {
+		jail = c.OutputDir
+	}
+	if err := task.setOutputWithJail(result, jail); err != nil {
 		return "", nil, fmt.Errorf("writing task output: %w", err)
 	}
 	if c.mem != nil {
