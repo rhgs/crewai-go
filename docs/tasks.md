@@ -126,16 +126,32 @@ task.Structured = structured
   JSON or invents data.**
 - On success, `Task.Output()` returns the **canonicalized** (compacted,
   stable) JSON string.
-- When `Structured` is set, tools and the ReAct loop are bypassed; the
-  executor goes straight to the structured-output path.
+- When `Structured` is set **without** `AllowTools`, tools and the ReAct
+  loop are bypassed; the executor goes straight to the structured-output
+  path.
+- With `AllowTools` / `WithAllowTools()`, the executor first runs a bounded
+  **gather** phase (ReAct or native tools per `Agent.ToolMode`), then a
+  **capture** phase that validates JSON against the schema. Facts from
+  `FactSource` tools are preserved. If gather hits `MaxIterations` without
+  a clean stop, the task records a warning (`gather budget exhausted`) and
+  still proceeds to capture.
 
 ### Supported schema keywords
 
-The built-in validator supports a subset of JSON Schema: `type`,
-`properties`, `required`, `enum`, `items`. It is not a full JSON Schema
-implementation and intentionally omits keywords such as
-`additionalProperties`, `oneOf`/`anyOf`, `pattern`, `minimum`/`maximum`,
-and `minItems`/`maxItems`.
+The built-in validator is a **stdlib-only subset** of JSON Schema:
+
+| Keyword | Notes |
+|---|---|
+| `type`, `properties`, `required`, `enum`, `items` | Core (unchanged) |
+| `additionalProperties` | `false` rejects unknown keys; object schema validates extras |
+| `minLength`, `maxLength` | String length in **bytes** (`len(s)`), not runes |
+| `minimum`, `maximum` | Numbers as `float64` |
+| `exclusiveMinimum`, `exclusiveMaximum` | Bool (draft-04) or numeric (draft-06+) |
+| `minItems`, `maxItems` | Arrays |
+| `pattern` | Go `regexp`; pattern length capped at `MaxSchemaPatternLen` (512) |
+| `oneOf`, `anyOf`, `allOf` | Composition |
+
+**Not supported:** `$ref`, `if`/`then`/`else`, `format`, `unevaluated*`, and most draft 2020-12 keywords. Use `WithStrictSchema()` / `StrictSchema` on `NewStructuredOutput` to fail fast when an author-supplied schema contains unsupported keywords.
 
 ### Errors
 

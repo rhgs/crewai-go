@@ -35,6 +35,17 @@ type StructuredOutput struct {
 	// agent's LLM to implement ToolCallingLLM; otherwise
 	// ErrToolCallStructuredUnsupported is returned.
 	ToolCall bool
+
+	// AllowTools, when true, runs a bounded tool loop (ReAct or native
+	// per Agent.ToolMode) BEFORE the structured capture phase. Tool
+	// transcript and facts feed the capture prompt. Default false
+	// preserves the historical short-circuit that skips tools.
+	AllowTools bool
+
+	// StrictSchema, when true, makes NewStructuredOutput fail if the
+	// schema contains unsupported keywords ($ref, if/then/else, format,
+	// etc.). Default false: unknown keywords are ignored at validate time.
+	StrictSchema bool
 }
 
 // NewStructuredOutput creates a StructuredOutput from a schema (any value
@@ -47,6 +58,11 @@ func NewStructuredOutput(schema any, opts ...func(*StructuredOutput)) (*Structur
 	s := &StructuredOutput{Schema: raw}
 	for _, opt := range opts {
 		opt(s)
+	}
+	if s.StrictSchema {
+		if err := checkSchemaSupported(raw); err != nil {
+			return nil, fmt.Errorf("crewai: %w", err)
+		}
 	}
 	return s, nil
 }
@@ -61,6 +77,19 @@ func WithRepairMax(n int) func(*StructuredOutput) {
 // false (backward compatible JSON-only mode).
 func WithToolCall() func(*StructuredOutput) {
 	return func(s *StructuredOutput) { s.ToolCall = true }
+}
+
+// WithAllowTools enables a gather phase that may invoke the agent's
+// tools before structured JSON capture. Equivalent to setting
+// StructuredOutput.AllowTools = true.
+func WithAllowTools() func(*StructuredOutput) {
+	return func(s *StructuredOutput) { s.AllowTools = true }
+}
+
+// WithStrictSchema rejects schemas that contain unsupported keywords
+// at NewStructuredOutput time. Equivalent to StrictSchema = true.
+func WithStrictSchema() func(*StructuredOutput) {
+	return func(s *StructuredOutput) { s.StrictSchema = true }
 }
 
 // emitResultToolName is the fixed name of the synthetic tool used
@@ -87,9 +116,9 @@ const defaultRepairMax = 2
 //
 // It returns the canonicalized JSON string on success or a sentinel
 // error on failure.
-func executeStructured(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (string, error) {
+func executeStructured(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (string, []Fact, error) {
 	if a.LLM == nil {
-		return "", ErrNoLLM
+		return "", nil, ErrNoLLM
 	}
 
 	repairMax := t.Structured.RepairMax
@@ -99,19 +128,203 @@ func executeStructured(ctx context.Context, a *Agent, t *Task, contextText strin
 
 	schema := t.Structured.Schema
 	if len(schema) == 0 {
-		return "", fmt.Errorf("%w: empty schema", ErrInvalidOutput)
+		return "", nil, fmt.Errorf("%w: empty schema", ErrInvalidOutput)
 	}
 
 	// Pre-validate the schema itself; programmer error if invalid.
 	var probe any
 	if err := json.Unmarshal(schema, &probe); err != nil {
-		return "", fmt.Errorf("%w: invalid schema JSON: %v", ErrInvalidOutput, err)
+		return "", nil, fmt.Errorf("%w: invalid schema JSON: %v", ErrInvalidOutput, err)
+	}
+
+	var facts []Fact
+	captureCtx := contextText
+	if t.Structured.AllowTools {
+		transcript, f, exhausted, err := gatherForStructured(ctx, a, t, contextText, log)
+		if err != nil {
+			return "", f, err
+		}
+		facts = f
+		if transcript != "" {
+			if captureCtx != "" {
+				captureCtx = captureCtx + "\n\n" + transcript
+			} else {
+				captureCtx = transcript
+			}
+		}
+		if exhausted {
+			// D6: proceed to capture but surface a non-fatal warning.
+			t.AddWarning("gather budget exhausted")
+			log.DebugContext(ctx, "structured gather budget exhausted", "agent", a.Role)
+		}
 	}
 
 	if t.Structured.ToolCall {
-		return executeStructuredToolCall(ctx, a, t, contextText, schema, repairMax, log)
+		out, err := executeStructuredToolCall(ctx, a, t, captureCtx, schema, repairMax, log)
+		return out, facts, err
 	}
-	return executeStructuredJSON(ctx, a, t, contextText, schema, repairMax, log)
+	out, err := executeStructuredJSON(ctx, a, t, captureCtx, schema, repairMax, log)
+	return out, facts, err
+}
+
+// gatherForStructured runs a tool-enabled loop without requiring the final
+// answer to be JSON. It returns a compact transcript for the capture phase,
+// facts from FactSource tools, whether the iteration budget was exhausted
+// without a clean stop, and a hard error (LLM/ctx failures).
+//
+// Stop conditions (clean): model emits Final Answer (ReAct), model returns
+// content without tool_calls (native), or the model produces non-protocol
+// text treated as final (ReAct fallback). Exhaustion sets exhausted=true
+// and still returns whatever transcript/facts were collected.
+func gatherForStructured(ctx context.Context, a *Agent, t *Task, contextText string, log *slog.Logger) (transcript string, facts []Fact, exhausted bool, err error) {
+	tools := effectiveTools(a, t)
+	if len(tools) == 0 {
+		// Nothing to gather; capture proceeds with original context.
+		return "", nil, false, nil
+	}
+
+	if a.ToolMode == ToolModeNative {
+		return gatherNative(ctx, a, t, contextText, tools, log)
+	}
+	return gatherReact(ctx, a, t, contextText, tools, log)
+}
+
+func gatherReact(ctx context.Context, a *Agent, t *Task, contextText string, tools []Tool, log *slog.Logger) (string, []Fact, bool, error) {
+	maxIter := a.MaxIterations
+	if maxIter <= 0 {
+		maxIter = defaultMaxIterations
+	}
+	system := buildSystemPrompt(a) + buildToolInstructions(tools)
+	// Nudge: gather info then Final Answer with a brief summary (not JSON).
+	system += "\n\nYou are in a research/gather phase. Use tools as needed, then finish with Final Answer: containing a brief summary of findings (plain text, not JSON)."
+	messages := []Message{
+		SystemMessage(system),
+		UserMessage(buildTaskPrompt(t, contextText)),
+	}
+	var (
+		facts []Fact
+		steps []string
+	)
+	for i := 0; i < maxIter; i++ {
+		select {
+		case <-ctx.Done():
+			return strings.Join(steps, "\n"), facts, false, ctx.Err()
+		default:
+		}
+		out, err := a.LLM.Call(ctx, messages)
+		if err != nil {
+			return strings.Join(steps, "\n"), facts, false, fmt.Errorf("agent %q gather: %w", a.Role, err)
+		}
+		out = strings.TrimSpace(out)
+		if answer, ok := parseFinalAnswer(out); ok {
+			steps = append(steps, "Gather summary: "+strings.TrimSpace(answer))
+			return strings.Join(steps, "\n"), facts, false, nil
+		}
+		action, input, ok := parseAction(out)
+		if !ok {
+			// Non-protocol text: treat as summary and stop cleanly.
+			steps = append(steps, "Gather summary: "+out)
+			return strings.Join(steps, "\n"), facts, false, nil
+		}
+		messages = append(messages, AssistantMessage(out))
+		tool, found := findTool(tools, action)
+		var observation string
+		if !found {
+			observation = fmt.Sprintf("Error: tool %q does not exist.", action)
+		} else {
+			log.InfoContext(ctx, "tool invoked", "agent", a.Role, "tool", action, "phase", "gather")
+			result, callErr := tool.Call(ctx, input)
+			if callErr != nil {
+				observation = fmt.Sprintf("Error running tool %q: %v", action, callErr)
+			} else {
+				observation = truncateToolOutput(result)
+				if fs, ok := tool.(FactSource); ok {
+					facts = dedupFacts(facts, fs.Facts())
+				}
+			}
+			steps = append(steps, fmt.Sprintf("Tool %s => %s", action, truncateForGather(observation)))
+		}
+		messages = append(messages, UserMessage("Observation: "+observation))
+	}
+	// Budget exhausted — D6 caller adds warning.
+	return strings.Join(steps, "\n"), facts, true, nil
+}
+
+func gatherNative(ctx context.Context, a *Agent, t *Task, contextText string, tools []Tool, log *slog.Logger) (string, []Fact, bool, error) {
+	tcll, ok := a.LLM.(ToolCallingLLM)
+	if !ok {
+		return "", nil, false, ErrNativeToolsUnsupported
+	}
+	maxIter := a.MaxIterations
+	if maxIter <= 0 {
+		maxIter = defaultMaxIterations
+	}
+	specs := toToolSpecs(tools)
+	system := buildSystemPrompt(a) + "\n\nYou are in a research/gather phase. Call tools as needed, then respond with a brief plain-text summary and no further tool calls."
+	messages := []Message{
+		SystemMessage(system),
+		UserMessage(buildTaskPrompt(t, contextText)),
+	}
+	var (
+		facts []Fact
+		steps []string
+	)
+	for i := 0; i < maxIter; i++ {
+		select {
+		case <-ctx.Done():
+			return strings.Join(steps, "\n"), facts, false, ctx.Err()
+		default:
+		}
+		resp, err := tcll.CallWithTools(ctx, messages, specs)
+		if err != nil {
+			return strings.Join(steps, "\n"), facts, false, fmt.Errorf("agent %q gather: %w", a.Role, err)
+		}
+		if len(resp.ToolCalls) == 0 {
+			sum := strings.TrimSpace(resp.Content)
+			if sum != "" {
+				steps = append(steps, "Gather summary: "+sum)
+			}
+			return strings.Join(steps, "\n"), facts, false, nil
+		}
+		messages = append(messages, Message{Role: RoleAssistant, Content: resp.Content, ToolCalls: resp.ToolCalls})
+		for _, tc := range resp.ToolCalls {
+			name := tc.Function.Name
+			tool, found := findTool(tools, name)
+			var observation string
+			if !found {
+				observation = fmt.Sprintf("Error: tool %q does not exist.", name)
+			} else {
+				args := string(tc.Function.Arguments)
+				log.InfoContext(ctx, "tool invoked", "agent", a.Role, "tool", name, "phase", "gather")
+				result, callErr := tool.Call(ctx, args)
+				if callErr != nil {
+					observation = fmt.Sprintf("Error running tool %q: %v", name, callErr)
+				} else {
+					observation = truncateToolOutput(result)
+					if fs, ok := tool.(FactSource); ok {
+						facts = dedupFacts(facts, fs.Facts())
+					}
+				}
+				steps = append(steps, fmt.Sprintf("Tool %s => %s", name, truncateForGather(observation)))
+			}
+			messages = append(messages, Message{
+				Role:       RoleTool,
+				Content:    observation,
+				ToolName:   name,
+				ToolCallID: tc.ID,
+			})
+		}
+	}
+	return strings.Join(steps, "\n"), facts, true, nil
+}
+
+// truncateForGather keeps gather transcript steps bounded.
+func truncateForGather(s string) string {
+	const max = 512
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "…"
 }
 
 // executeStructuredJSON is the legacy path: instructions ask the

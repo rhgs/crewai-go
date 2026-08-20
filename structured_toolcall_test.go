@@ -75,7 +75,7 @@ func TestStructured_ToolCall_SchemaBecomesParameters(t *testing.T) {
 		Schema:   personSchema(t),
 		ToolCall: true,
 	}
-	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	out, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("executeStructured: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestStructured_ToolCall_FreeTextTriggersRepair(t *testing.T) {
 		Schema:   personSchema(t),
 		ToolCall: true,
 	}
-	if _, err := executeStructured(context.Background(), agent, task, "", testLogger()); err != nil {
+	if _, _, err := executeStructured(context.Background(), agent, task, "", testLogger()); err != nil {
 		t.Fatalf("repair must succeed: %v", err)
 	}
 	if stub.Calls() < 2 {
@@ -133,7 +133,7 @@ func TestStructured_ToolCall_BudgetExceeded(t *testing.T) {
 		RepairMax: 1,
 		ToolCall:  true,
 	}
-	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	_, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrRepairBudgetExceeded) {
 		t.Fatalf("expected ErrRepairBudgetExceeded, got %v", err)
 	}
@@ -153,7 +153,7 @@ func TestStructured_ToolCall_InvalidArgsTriggersRepair(t *testing.T) {
 	agent := NewAgent("X", "g", "b", stub)
 	task := NewTask("t", "y", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), ToolCall: true}
-	if _, err := executeStructured(context.Background(), agent, task, "", testLogger()); err != nil {
+	if _, _, err := executeStructured(context.Background(), agent, task, "", testLogger()); err != nil {
 		t.Fatalf("repair must succeed: %v", err)
 	}
 }
@@ -162,7 +162,7 @@ func TestStructured_ToolCall_RequiresToolCallingLLM(t *testing.T) {
 	agent := NewAgent("X", "g", "b", nonToolCallStub{})
 	task := NewTask("t", "y", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), ToolCall: true}
-	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	_, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrToolCallStructuredUnsupported) {
 		t.Fatalf("expected ErrToolCallStructuredUnsupported, got %v", err)
 	}
@@ -182,7 +182,7 @@ func TestStructured_ToolCall_EmptyArgumentsTreatedAsInvalid(t *testing.T) {
 	agent := NewAgent("X", "g", "b", stub)
 	task := NewTask("t", "y", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), ToolCall: true}
-	if _, err := executeStructured(context.Background(), agent, task, "", testLogger()); err != nil {
+	if _, _, err := executeStructured(context.Background(), agent, task, "", testLogger()); err != nil {
 		t.Fatalf("repair must succeed after empty args, got %v", err)
 	}
 }
@@ -199,7 +199,7 @@ func TestStructured_ToolCall_OtherToolsIgnored(t *testing.T) {
 	agent := NewAgent("X", "g", "b", stub)
 	task := NewTask("t", "y", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), ToolCall: true}
-	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	out, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("non-emit_result calls must be ignored: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestStructured_ToolCall_DefaultModeIsJSONOnly(t *testing.T) {
 	// invoked (verify via calls==0 for CallWithTools path).
 	jsonOnly := &jsonOnlyStub{}
 	agent.LLM = jsonOnly
-	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	out, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("default JSON-only path should accept valid JSON: %v", err)
 	}

@@ -127,8 +127,15 @@ tarefa.Structured = structured
   invalido ou inventa dados.**
 - Em caso de sucesso, `Task.Output()` retorna o JSON **canonizado**
   (compactado, estavel).
-- Quando `Structured` esta definido, as ferramentas e o loop ReAct sao
-  ignorados; o executor segue direto para o caminho de saida estruturada.
+- Quando `Structured` esta definido **sem** `AllowTools`, as ferramentas e o
+  loop ReAct sao ignorados; o executor vai direto para o path de saida
+  estruturada.
+- Com `AllowTools` / `WithAllowTools()`, o executor primeiro roda uma fase
+  **gather** limitada (ReAct ou native conforme `Agent.ToolMode`) e depois
+  a fase **capture** que valida JSON contra o schema. Facts de tools
+  `FactSource` sao preservados. Se o gather esgota `MaxIterations` sem
+  parada limpa, a task registra um warning (`gather budget exhausted`) e
+  ainda assim segue para o capture.
 
 ### Palavras-chave de schema suportadas
 

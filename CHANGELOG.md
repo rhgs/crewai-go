@@ -49,6 +49,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **JSON Schema keywords (expanded)**: validator now supports
+  `additionalProperties`, `minLength`/`maxLength` (bytes),
+  `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum`,
+  `minItems`/`maxItems`, `pattern`, and `oneOf`/`anyOf`/`allOf`.
+  `WithStrictSchema()` fails fast on unsupported keywords (`$ref`, etc.).
+- **`WithAllowTools`**: optional gather phase before structured capture;
+  preserves `FactSource` facts; gather budget exhaustion records a
+  warning and still captures JSON (D6).
+
 - **MCP catalog guards**: `mcp.FilterTools` (name allowlist, deny-by-default
   when filtering) and `mcp.WithDescriptionLimit` on `NewToolAdapter`
   (strip ASCII controls + truncate to N runes). Defaults unchanged without

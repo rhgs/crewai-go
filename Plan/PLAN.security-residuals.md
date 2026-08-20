@@ -640,8 +640,8 @@ not mergeable.
 - [x] R2-P1 (optional): description limit + name filter helpers.
 
 ### P2
-- [ ] R4: at least `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf` tested.
-- [ ] R8: `WithAllowTools` two-phase path; facts preserved; default unchanged.
+- [x] R4: at least `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf` tested.
+- [x] R8: `WithAllowTools` two-phase path; facts preserved; default unchanged.
 - [ ] R7: `delegate_to_coworker` tool + depth/cycle guards; `AllowDelegation` meaning updated.
 
 ### Global
@@ -877,8 +877,8 @@ Exact version numbers left to release process (see also: still-open
 | R1 MCP timeout | P0 | A | **Implemented** on branch (D1) |
 | R2 MCP trust docs/guards | P0/P1 | C/F | **Implemented** (threat model + catalog guards) |
 | R3 OutputFile policy | P0 | B | **Implemented** on branch (D2) |
-| R4 Schema keywords | P2 | G/H | **D7 decided** (bytes); impl pending |
+| R4 Schema keywords | P2 | G/H | **Implemented** on branch (D7) |
 | R5 RedactHandler | P1 | D | **Implemented** on branch (D3) |
 | R6 Kickoff single-flight | P1 | E | **Implemented** on branch (D4) |
 | R7 Delegation tool | P2 | J | **D5 decided** (EnableDelegationTool opt-in); impl pending |
-| R8 Structured+tools | P2 | I | **D6 decided** (warn+capture); impl pending |
+| R8 Structured+tools | P2 | I | **Implemented** on branch (D6) |

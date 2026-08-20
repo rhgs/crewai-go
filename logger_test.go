@@ -290,7 +290,7 @@ func TestStructuredLogs_ValidatedAndValidationFailed(t *testing.T) {
 
 	var buf bytes.Buffer
 	log := capturingLogger(&buf)
-	out, err := executeStructured(context.Background(), task.Agent, task, "", log)
+	out, _, err := executeStructured(context.Background(), task.Agent, task, "", log)
 	if err != nil {
 		t.Fatalf("executeStructured: %v", err)
 	}
@@ -307,7 +307,7 @@ func TestStructuredLogs_ValidatedAndValidationFailed(t *testing.T) {
 	badAgent := &Agent{Role: "a", LLM: &llmStub{responses: []string{`not json`}}}
 	badTask := NewTask("t", "e", badAgent)
 	badTask.Structured = st
-	if _, err := executeStructured(context.Background(), badAgent, badTask, "", log2); err == nil {
+	if _, _, err := executeStructured(context.Background(), badAgent, badTask, "", log2); err == nil {
 		t.Fatal("expected validation error")
 	}
 	if !strings.Contains(buf2.String(), "structured output validation failed") {

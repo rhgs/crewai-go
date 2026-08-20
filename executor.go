@@ -36,8 +36,8 @@ func executeTaskDefault(ctx context.Context, a *Agent, t *Task, contextText stri
 		return "", nil, ErrNoLLM
 	}
 	if t != nil && t.Structured != nil {
-		out, err := executeStructured(ctx, a, t, contextText, log)
-		return out, nil, err
+		out, facts, err := executeStructured(ctx, a, t, contextText, log)
+		return out, facts, err
 	}
 
 	// Native tool calling path.
