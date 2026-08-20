@@ -4,6 +4,10 @@
 
 Uma **Crew** reúne agentes e tarefas e os orquestra segundo um **Process**.
 
+## Concorrencia do Kickoff
+
+Apenas **um** `Kickoff` pode rodar por vez em um dado `*Crew`. Uma chamada concorrente retorna `ErrCrewRunning` imediatamente (fail fast — nao enfileira). Crie valores `Crew` separados para runs paralelos. Reuso sequencial do mesmo Crew e suportado.
+
 ## Criando e executando
 
 ```go
@@ -43,6 +47,8 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 | `ManagerLLM`   | `LLM`          | LLM do gerente (processo hierárquico). |
 | `ManagerAgent` | `*Agent`       | Gerente explícito (tem prioridade sobre `ManagerLLM`). |
 | `Guardrails`   | `[]Guardrail`  | Hooks de validação pós-saída no nível da crew. |
+| `OutputDir` | `string` | Jail opcional para `Task.OutputFile` quando a task nao define o seu. Symlink-aware; ver tasks. |
+| `EnableDelegationTool` | `bool` | Se true, anexa `delegate_to_coworker` a cada agent no Kickoff (default false). Alvos ainda precisam de `AllowDelegation`. |
 | `progress`     | `ProgressFunc` | Interno — definido via `WithProgress`. |
 
 ## O resultado: `CrewOutput`

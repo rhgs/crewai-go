@@ -31,8 +31,10 @@ type Agent struct {
 	// If <= 0, the default (15) is used.
 	MaxIterations int
 
-	// AllowDelegation enables this agent to be considered as a manager in the
-	// hierarchical process and to delegate work (informational in this version).
+	// AllowDelegation marks this agent as an eligible target for the
+	// delegate_to_coworker tool (and as a possible hierarchical manager).
+	// When false, peer agents cannot delegate sub-questions to this agent
+	// via NewDelegationTool / Crew.EnableDelegationTool.
 	AllowDelegation bool
 
 	// ToolMode controls how the executor runs tools. Empty or "react" uses
@@ -85,6 +87,9 @@ func (a *Agent) Execute(ctx context.Context, t *Task) (string, error) {
 	log := a.logger
 	if log == nil {
 		log = slog.Default()
+	}
+	if a != nil {
+		ctx = ContextWithAgentRole(ctx, a.Role)
 	}
 	out, _, err := executeTask(ctx, a, t, "", log)
 	return out, err

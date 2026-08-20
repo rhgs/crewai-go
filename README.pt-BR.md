@@ -353,6 +353,17 @@ Se nenhum logger for injetado, `Kickoff` cria um logger de texto no stderr. O ni
 
 Quando `WithLogger` e usado, o logger injetado e usado como esta — o chamador controla o nivel e o handler. `Agent.Execute` (standalone, sem crew) usa `slog.Default()` a menos que `Agent.WithLogger` seja definido.
 
+Para mascarar segredos provaveis em mensagens e atributos de log (best-effort, opt-in):
+
+```go
+log := slog.New(crewai.RedactHandler(
+    slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}),
+))
+crew := crewai.NewCrew(agentes, tarefas).WithLogger(log)
+```
+
+Veja [`examples/logging/`](examples/logging/) para um exemplo completo. Prefira `LevelInfo` (ou mais alto) em producao; `LevelDebug` pode incluir output completo do LLM e args de tools.
+
 Os subpackages (`llm/*`, `tools/*`) nao logam internamente — eles retornam erros que o executor loga no nivel apropriado.
 
 ### Seguranca de logging
@@ -454,9 +465,13 @@ Em caso de sucesso, `tarefa.Output()` retorna o JSON **canonizado**
 budget de reparo, a tarefa falha com `crewai.ErrRepairBudgetExceeded`. O
 executor nunca retorna JSON invalido ou inventa dados.
 
-O validador embutido suporta um subconjunto do JSON Schema (`type`,
-`properties`, `required`, `enum`, `items`) — apenas stdlib, sem
-dependencias externas. Detalhes em [`docs/pt-BR/tasks.md`](docs/pt-BR/tasks.md).
+O validador embutido e um subconjunto stdlib do JSON Schema: `type`,
+`properties`, `required`, `enum`, `items`, `additionalProperties`,
+`minLength`/`maxLength` (**bytes**), bounds numericos/de array, `pattern`
+e `oneOf`/`anyOf`/`allOf`. Use `WithStrictSchema()` para rejeitar keywords
+nao suportadas na construcao. `WithAllowTools()` opcional roda uma fase
+gather de tools antes do capture JSON. Detalhes em
+[`docs/pt-BR/tasks.md`](docs/pt-BR/tasks.md).
 
 ## Guardrails
 
@@ -515,20 +530,23 @@ como valores `crewai.Tool`. O `inputSchema` original e preservado
 import "github.com/rhgs/crewai-go/mcp"
 
 clients, err := mcp.LoadConfig(ctx, "/etc/mcp.json", "meu-app", "1.0.0")
-// ou: client := mcp.New(endpoint, mcp.WithHeader("Authorization", "Bearer "+tok))
+// ou: client := mcp.New(endpoint, mcp.WithHTTPTimeout(30*time.Second),
+//     mcp.WithHeader("Authorization", "Bearer "+tok))
 var tools []crewai.Tool
 for _, c := range clients {
     ts, _ := c.ListTools(ctx)
+    // Filtro opcional least-privilege (deny-by-default para nomes nao listados):
+    // ts = mcp.FilterTools(ts, map[string]struct{}{"search_docs": {}})
     for _, t := range ts {
-        tools = append(tools, mcp.NewToolAdapter(c, t))
+        tools = append(tools, mcp.NewToolAdapter(c, t, mcp.WithDescriptionLimit(500)))
     }
 }
 agent.WithTools(tools...)
 ```
 
-Veja [`docs/pt-BR/mcp.md`](docs/pt-BR/mcp.md) para configuracao, notas de
-seguranca (limites de tamanho, modelo de servidor confiavel, timeouts) e a
-API programatica.
+Timeout HTTP default e 30s (`DefaultHTTPTimeout`); o JSON aceita
+`"timeout"` por servidor. Veja [`docs/pt-BR/mcp.md`](docs/pt-BR/mcp.md) para
+configuracao, modelo de ameaca, guards de catalogo e a API programatica.
 
 ## Progresso e warnings
 
@@ -555,6 +573,18 @@ crewai.AddWarningFromCtx(ctx, "fonte secundaria em timeout")
 
 Detalhes em [`docs/pt-BR/crews.md`](docs/pt-BR/crews.md) e
 [`docs/pt-BR/tasks.md`](docs/pt-BR/tasks.md).
+
+## Delegacao entre agents
+
+```go
+researcher.AllowDelegation = true // alvo elegivel
+crew.EnableDelegationTool = true  // auto-anexa delegate_to_coworker
+// ou: writer.WithTools(crewai.NewDelegationTool(crew))
+```
+
+Guardas de profundidade/ciclo/auto (`DefaultMaxDelegationDepth` = 2). Veja
+[`docs/pt-BR/agents.md`](docs/pt-BR/agents.md) e
+[`examples/delegation`](examples/delegation).
 
 ## Memória
 
@@ -620,6 +650,17 @@ Todas as features são **backward compatible** — sem breaking changes.
 | **Warnings** | Diagnosticos nao-fatais por tarefa via `AddWarning` / `AddWarningFromCtx`. | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) | [docs/tasks.md](docs/tasks.md) |
 | **Structured via tool-call** | `WithToolCall()` extrai JSON via tool sintetica `emit_result` (amigavel ao Ollama Cloud). | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) | [docs/tasks.md](docs/tasks.md) |
 
+### Unreleased (esta branch)
+
+| Recurso | Descricao | Docs (PT) | Docs (EN) |
+|---------|-----------|-----------|-----------|
+| **MCP hardening** | Timeout HTTP default 30s; `WithHTTPTimeout`; JSON `timeout`; `FilterTools` + `WithDescriptionLimit`; threat model. | [docs/pt-BR/mcp.md](docs/pt-BR/mcp.md) | [docs/en/mcp.md](docs/en/mcp.md) |
+| **Jail OutputFile** | Clean de path + `OutputDir` opcional com symlink-aware (`ErrOutputPathRejected`). | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) | [docs/tasks.md](docs/tasks.md) |
+| **RedactHandler** | Wrapper opt-in de `slog.Handler` para mascarar segredos. | [README §Logging](#logging) | [README](README.md#logging) |
+| **Single-flight Kickoff** | `Kickoff` concorrente no mesmo `*Crew` retorna `ErrCrewRunning`. | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) | [docs/crews.md](docs/crews.md) |
+| **Keywords schema** | Subconjunto JSON Schema expandido + `WithStrictSchema` / `WithAllowTools`. | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) | [docs/tasks.md](docs/tasks.md) |
+| **Tool de delegacao** | `delegate_to_coworker` + `EnableDelegationTool` (opt-in). | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) | [docs/agents.md](docs/agents.md) |
+
 **Também na v0.3.0**: native tool calling, web search (agent-driven + model-driven), logging estruturado via `log/slog`, redacao de segredos.
 
 Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.4.0](https://github.com/rhgs/crewai-go/releases/tag/v0.4.0) para detalhes.
@@ -664,7 +705,7 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 | **Web search (agent-driven)** | ✅ interface `WebSearcher` + `SearchWeb(ctx, llm, query, max)` — busca direta do código Go via Ollama, OpenAI, Anthropic, xAI | ❌ sem API de busca direta; exige ferramentas |
 | **Web search (model-driven)** | ✅ `WebSearchTool` com 7 provedores plugáveis (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave) | ⚠️ exige SerperDev ou ferramenta externa similar |
 | **Proteção SSRF** | ✅ bloqueia não-http(s), userinfo, loopback, IPs privados/CGNAT/multicast, link-local, não-especificados, aliases de metadata; prevenção de DNS rebinding via `net.LookupIP` (fail-closed) | ❌ sem filtragem de URLs em resultados de busca |
-| **Redação de segredos em logs** | ✅ `redactError`/`redactString` mascara API keys, Bearer tokens, segredos em query-strings antes de logar | ❌ sem redação de logs |
+| **Redação de segredos em logs** | ✅ `redactError`/`redactString` + `RedactHandler` opt-in para mensagens/attrs do `slog` | ❌ sem redação de logs |
 | **Logging estruturado** | ✅ `log/slog` — injete qualquer `*slog.Logger` com handler, nível e output customizados | ❌ módulo `logging` do Python, injeção de handler menos flexível |
 | **Limites de segurança em tool calls** | ✅ tamanho máximo de args, output, resposta, profundidade JSON, validação de args — todos configuráveis | ❌ sem limites de tamanho/profundidade em tool calls |
 | **Tool traces** | ✅ `ToolTrace` em `TaskOutput` — observabilidade completa de cada chamada (nome, args, resultado, duração) | ❌ sem tipo de trace por chamada |

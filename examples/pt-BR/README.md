@@ -15,7 +15,8 @@ Cada subpasta é um programa executável independente.
 | `agentic_loop`  | Ciclo Planejar-Executar-Avaliar-Refinar (mock LLM)| ❌ Não                  |
 | `tools`         | Agente usando ferramentas via ReAct               | ✅ OpenAI               |
 | `xai_oauth`     | Grok por chave de API ou OAuth de assinatura      | ✅ xAI                  |
-| `logging`       | `*slog.Logger` customizado com wrapper de redação  | ❌ Não                  |
+| `logging`       | `*slog.Logger` customizado com `RedactHandler`     | ❌ Não                  |
+| `delegation`    | Tool inter-agent `delegate_to_coworker` (opt-in)   | ✅ OpenAI / so wiring   |
 
 ## Rodando
 
@@ -31,6 +32,8 @@ go run ./examples/hierarchical
 go run ./examples/staged
 go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
+go run ./examples/logging      # demo offline de redacao
+go run ./examples/delegation   # wiring; live com OPENAI_API_KEY
 ```
 
 Para usar outro provedor (Anthropic, Ollama, Groq…), troque a linha de criação

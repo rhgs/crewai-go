@@ -7,6 +7,23 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Security
 
+- **Kickoff single-flight**: concurrent `Kickoff` on the same `*Crew`
+  returns `ErrCrewRunning` (fail fast; does not queue). Sequential reuse
+  remains supported.
+
+- **OutputFile path jail**: `Task.OutputFile` paths are cleaned; empty
+  paths are rejected. Optional `Task.OutputDir` / `Crew.OutputDir` jails
+  writes with symlink evaluation (`EvalSymlinks`, fail closed) and
+  sentinel `ErrOutputPathRejected`. Mode remains `0600`.
+
+- **MCP default HTTP timeout**: `mcp.New` no longer uses
+  `http.DefaultClient`. It builds a client with
+  `DefaultHTTPTimeout` (30s). Configure via `WithHTTPTimeout`,
+  `WithHTTPClient` (as-is, including `Timeout: 0`), or JSON
+  `servers[].timeout` (Go duration string; omitted → 30s; `"0s"` →
+  disabled). Invalid JSON durations fail `LoadConfig` before any
+  network call.
+
 - **Provider response bodies**: `Call` on OpenAI, Anthropic, and Ollama
   now caps bodies at `MaxProviderResponseBytes` (previously only
   `CallWithTools` / `WebSearch` did). Non-2xx errors no longer echo the
@@ -32,12 +49,38 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Inter-agent delegation tool**: `NewDelegationTool(roster)` exposes
+  `delegate_to_coworker` (JSON `coworker`/`request`/`context`). Targets must
+  set `AllowDelegation`. Nested calls honor `DefaultMaxDelegationDepth` (2)
+  with cycle/self guards. `Crew.EnableDelegationTool` (default false)
+  auto-attaches the tool at Kickoff; `Crew` implements `DelegationRoster`
+  via `PeerAgents()`.
+
+- **JSON Schema keywords (expanded)**: validator now supports
+  `additionalProperties`, `minLength`/`maxLength` (bytes),
+  `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum`,
+  `minItems`/`maxItems`, `pattern`, and `oneOf`/`anyOf`/`allOf`.
+  `WithStrictSchema()` fails fast on unsupported keywords (`$ref`, etc.).
+- **`WithAllowTools`**: optional gather phase before structured capture;
+  preserves `FactSource` facts; gather budget exhaustion records a
+  warning and still captures JSON (D6).
+
+- **MCP catalog guards**: `mcp.FilterTools` (name allowlist, deny-by-default
+  when filtering) and `mcp.WithDescriptionLimit` on `NewToolAdapter`
+  (strip ASCII controls + truncate to N runes). Defaults unchanged without
+  options.
+
+- **`RedactHandler`**: opt-in `slog.Handler` wrapper in the root package
+  that applies the existing secret redaction rules to log messages and
+  string attributes. Default logger behavior is unchanged.
+  `examples/logging` now uses `crewai.RedactHandler`.
+
 - **MCP support** (`mcp/`): a stdlib-only client for the Model Context
   Protocol over Streamable HTTP (JSON-RPC 2.0, protocol version 2025-06-18).
   Two configuration modes, both supplied programmatically by the caller:
   - **Programmatic**: `mcp.New(endpoint, opts...)` + `client.Initialize(ctx, name, version)`.
   - **JSON file**: `mcp.LoadConfig(ctx, path, name, version)` reads a config
-    with one or more server entries (Name, Endpoint, Headers), creates a
+    with one or more server entries (Name, Endpoint, Headers, optional Timeout), creates a
     client for each, calls `Initialize`, and returns the slice.
   Each MCP tool is exposed as a `crewai.Tool` via `mcp.NewToolAdapter`.
   The adapter implements `crewai.SchemaProvider`, so the original
@@ -45,7 +88,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   replaced with a placeholder. A tool-level `isError: true` is returned
   to the model as observation text (prefixed `[tool error]`), not as a
   Go error — only HTTP / JSON-RPC failures surface as `error`.
-  New helpers: `WithHTTPClient`, `WithHeader`, `Client.Close`
+  New helpers: `WithHTTPClient`, `WithHTTPTimeout`, `WithHeader`, `Client.Close`
   (HTTP DELETE session teardown; idempotent). `LoadConfig` closes
   already-initialized clients if a later server fails `Initialize`.
   New constant `MaxMCPResponseBytes = 16 MiB`. No new dependencies;

@@ -57,7 +57,7 @@ func TestExecuteStructured_ValidJSON(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	out, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestExecuteStructured_RepairConverges(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), RepairMax: 2}
 
-	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	out, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestExecuteStructured_RepairBudgetExceeded(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), RepairMax: 2}
 
-	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	_, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrRepairBudgetExceeded) {
 		t.Fatalf("expected ErrRepairBudgetExceeded, got %v", err)
 	}
@@ -134,7 +134,7 @@ func TestExecuteStructured_RepairBudgetCustom1(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), RepairMax: 1}
 
-	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	out, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestExecuteStructured_RepairBudgetExceededCustom1(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), RepairMax: 1}
 
-	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	_, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrRepairBudgetExceeded) {
 		t.Fatalf("expected ErrRepairBudgetExceeded, got %v", err)
 	}
@@ -181,7 +181,7 @@ func TestExecuteStructured_MissingRequiredRepair(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t), RepairMax: 2}
 
-	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	out, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestExecuteStructured_Canonicalization(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	out, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestExecuteStructured_CodeFenceStripped(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	out, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	out, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -254,7 +254,7 @@ func TestExecuteStructured_NoLLM(t *testing.T) {
 	task := NewTask("t", "", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	if _, err := executeStructured(context.Background(), agent, task, "", testLogger()); err != ErrNoLLM {
+	if _, _, err := executeStructured(context.Background(), agent, task, "", testLogger()); err != ErrNoLLM {
 		t.Errorf("error = %v, want %v", err, ErrNoLLM)
 	}
 }
@@ -267,7 +267,7 @@ func TestExecuteStructured_ContextCancel(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)}
 
-	if _, err := executeStructured(ctx, agent, task, "", testLogger()); err != context.Canceled {
+	if _, _, err := executeStructured(ctx, agent, task, "", testLogger()); err != context.Canceled {
 		t.Errorf("error = %v, want context.Canceled", err)
 	}
 }
@@ -278,7 +278,7 @@ func TestExecuteStructured_InvalidSchema(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: json.RawMessage(`not valid json`)}
 
-	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	_, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrInvalidOutput) {
 		t.Errorf("expected ErrInvalidOutput, got %v", err)
 	}
@@ -290,7 +290,7 @@ func TestExecuteStructured_EmptySchema(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{}
 
-	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	_, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrInvalidOutput) {
 		t.Errorf("expected ErrInvalidOutput, got %v", err)
 	}
@@ -307,7 +307,7 @@ func TestExecuteStructured_DefaultRepairMax(t *testing.T) {
 	task := NewTask("Extract name and age.", "JSON", agent)
 	task.Structured = &StructuredOutput{Schema: personSchema(t)} // RepairMax=0 -> default 2
 
-	_, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	_, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
 	if !errors.Is(err, ErrRepairBudgetExceeded) {
 		t.Fatalf("expected ErrRepairBudgetExceeded, got %v", err)
 	}
@@ -442,5 +442,137 @@ func TestExtractJSON(t *testing.T) {
 		if got != c.want {
 			t.Errorf("extractJSON(%q) = %q, want %q", c.in, got, c.want)
 		}
+	}
+}
+
+func TestNewStructuredOutput_StrictSchema(t *testing.T) {
+	_, err := NewStructuredOutput(map[string]any{"$ref": "#/x"}, WithStrictSchema())
+	if err == nil {
+		t.Fatal("expected unsupported keyword error")
+	}
+	so, err := NewStructuredOutput(map[string]any{"type": "string"}, WithStrictSchema())
+	if err != nil || so == nil {
+		t.Fatalf("ok schema: %v", err)
+	}
+}
+
+func TestWithAllowTools_Option(t *testing.T) {
+	so, err := NewStructuredOutput(map[string]any{"type": "object"}, WithAllowTools(), WithToolCall())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !so.AllowTools || !so.ToolCall {
+		t.Fatal("options not applied")
+	}
+}
+
+// allowToolsStub sequences gather (ReAct tool use) then JSON capture.
+type allowToolsSeq struct {
+	responses []string
+	idx       int
+	calls     int
+}
+
+func (s *allowToolsSeq) Call(_ context.Context, _ []Message) (string, error) {
+	s.calls++
+	i := s.idx
+	if s.idx < len(s.responses)-1 {
+		s.idx++
+	}
+	return s.responses[i], nil
+}
+func (s *allowToolsSeq) Model() string { return "allow-tools-stub" }
+
+func TestExecuteStructured_AllowToolsGatherThenJSON(t *testing.T) {
+	ft := NewFactSourceTool(
+		"lookup",
+		"lookup tool",
+		func(context.Context, string) (string, error) { return "value=42", nil },
+		func(_ context.Context, output string) []Fact {
+			return []Fact{NewFact("value is 42", "test", "http://example.test", []byte(output))}
+		},
+	)
+	// Call 1: ReAct tool; Call 2: Final Answer summary; Call 3: JSON capture
+	llm := &allowToolsSeq{responses: []string{
+		"Thought: need data\nAction: lookup\nAction Input: q",
+		"Final Answer: found 42",
+		`{"name":"Alice","age":30}`,
+	}}
+	agent := NewAgent("Extractor", "extract", "", llm)
+	agent.Tools = []Tool{ft}
+	task := NewTask("Extract name and age using tools if needed.", "JSON", agent)
+	task.Structured = &StructuredOutput{Schema: personSchema(t), AllowTools: true}
+
+	out, facts, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if llm.calls < 3 {
+		t.Fatalf("expected gather+capture calls, got %d", llm.calls)
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(out), &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["name"] != "Alice" {
+		t.Fatalf("name=%v", m["name"])
+	}
+	if len(facts) != 1 {
+		t.Fatalf("facts=%d want 1", len(facts))
+	}
+}
+
+func TestExecuteStructured_AllowToolsFalseSkipsTools(t *testing.T) {
+	called := false
+	ft := NewTool("lookup", "t", func(context.Context, string) (string, error) {
+		called = true
+		return "x", nil
+	})
+	llm := &structuredStub{responses: []string{`{"name":"Bob","age":20}`}}
+	agent := NewAgent("E", "e", "", llm)
+	agent.Tools = []Tool{ft}
+	task := NewTask("x", "JSON", agent)
+	task.Structured = &StructuredOutput{Schema: personSchema(t), AllowTools: false}
+	if _, _, err := executeStructured(context.Background(), agent, task, "", testLogger()); err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("tool must not be called when AllowTools is false")
+	}
+}
+
+func TestExecuteStructured_AllowToolsGatherExhaustWarning(t *testing.T) {
+	// Always request a tool — exhaust MaxIterations, then still capture JSON.
+	llm := &allowToolsSeq{responses: []string{
+		"Action: lookup\nAction Input: a",
+		"Action: lookup\nAction Input: b",
+		"Action: lookup\nAction Input: c",
+		// after exhaust, capture phase uses Call again
+		`{"name":"Zed","age":1}`,
+	}}
+	ft := NewTool("lookup", "t", func(context.Context, string) (string, error) {
+		return "ok", nil
+	})
+	agent := NewAgent("E", "e", "", llm)
+	agent.MaxIterations = 2
+	agent.Tools = []Tool{ft}
+	task := NewTask("x", "JSON", agent)
+	task.Structured = &StructuredOutput{Schema: personSchema(t), AllowTools: true, RepairMax: 0}
+	out, _, err := executeStructured(context.Background(), agent, task, "", testLogger())
+	if err != nil {
+		t.Fatalf("should capture after exhaust: %v", err)
+	}
+	warns := task.Warnings()
+	found := false
+	for _, w := range warns {
+		if strings.Contains(w, "gather budget exhausted") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected gather warning, got %v", warns)
+	}
+	if !strings.Contains(out, "Zed") {
+		t.Fatalf("out=%s", out)
 	}
 }

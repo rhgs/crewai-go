@@ -48,4 +48,12 @@ var (
 	// ErrInvalidEvaluation is returned when the evaluator produces a response
 	// that cannot be parsed as a valid evaluation result.
 	ErrInvalidEvaluation = errors.New("crewai: evaluator returned an invalid response")
+	// ErrOutputPathRejected is returned when Task.OutputFile is empty after
+	// cleaning, escapes an OutputDir jail, or fails symlink evaluation while
+	// a jail is configured (fail closed).
+	ErrOutputPathRejected = errors.New("crewai: output path rejected")
+	// ErrCrewRunning is returned when Kickoff is called on a Crew that
+	// is already executing. One Kickoff at a time per Crew value; use
+	// separate Crew instances for parallel runs.
+	ErrCrewRunning = errors.New("crewai: crew already running")
 )

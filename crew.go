@@ -45,6 +45,18 @@ type Crew struct {
 	// non-nil error, Kickoff returns ErrBlockedByGuardrail.
 	Guardrails []Guardrail
 
+	// OutputDir, when set, jails Task.OutputFile writes for tasks that do
+	// not set their own OutputDir. Same symlink-aware rules as Task.OutputDir.
+	OutputDir string
+
+	// EnableDelegationTool, when true, auto-attaches the delegate_to_coworker
+	// tool to each crew agent (and ManagerAgent, if set) at the start of
+	// Kickoff, unless the agent already has a tool with that name.
+	// Targets of delegation must still have AllowDelegation == true.
+	// Default false (no surprise tool surface). Explicit
+	// agent.WithTools(NewDelegationTool(crew)) always works regardless.
+	EnableDelegationTool bool
+
 	// logger is the structured logger used during Kickoff. Set via
 	// WithLogger before Kickoff. NOT CONCURRENT-SAFE: must be set before
 	// Kickoff starts and not mutated while Kickoff is running.
@@ -56,6 +68,10 @@ type Crew struct {
 	// itself MAY be called from multiple goroutines and MUST be
 	// thread-safe. Panics inside the callback are recovered.
 	progress ProgressFunc
+
+	// runMu enforces a single in-flight Kickoff per Crew value. Concurrent
+	// Kickoff calls return ErrCrewRunning (fail fast; they do not queue).
+	runMu sync.Mutex
 }
 
 // WithProgress registers a progress callback invoked during Kickoff.
@@ -173,7 +189,16 @@ func defaultLogger(verbose bool) *slog.Logger {
 //
 // inputs is an optional map of variables interpolated into {key} in the tasks'
 // descriptions and expected outputs.
+//
+// Only one Kickoff may run at a time on a given *Crew. A concurrent call
+// returns ErrCrewRunning immediately (it does not wait). Create separate
+// Crew values for parallel runs. Sequential reuse of the same Crew is OK.
 func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutput, error) {
+	if !c.runMu.TryLock() {
+		return nil, ErrCrewRunning
+	}
+	defer c.runMu.Unlock()
+
 	if c.Process == "" {
 		c.Process = Sequential
 	}
@@ -198,6 +223,10 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 	}
 	if c.Memory {
 		c.mem = NewMemory()
+	}
+
+	if c.EnableDelegationTool {
+		c.attachDelegationTools()
 	}
 
 	// Interpolate inputs into all tasks. In the staged process the tasks
@@ -505,6 +534,10 @@ type stageResult struct {
 // diagnostics via AddWarningFromCtx or by retrieving the sink from ctx
 // themselves.
 func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, []Fact, error) {
+	if agent != nil {
+		ctx = ContextWithAgentRole(ctx, agent.Role)
+	}
+
 	if task != nil {
 		ctx = ContextWithWarningSink(ctx, task)
 	}
@@ -520,7 +553,11 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, [
 	if err != nil {
 		return "", nil, err
 	}
-	if err := task.setOutput(result); err != nil {
+	jail := task.OutputDir
+	if jail == "" {
+		jail = c.OutputDir
+	}
+	if err := task.setOutputWithJail(result, jail); err != nil {
 		return "", nil, fmt.Errorf("writing task output: %w", err)
 	}
 	if c.mem != nil {
@@ -620,4 +657,34 @@ func taskLabel(t *Task, i int) string {
 		return t.Name
 	}
 	return fmt.Sprintf("Task %d", i+1)
+}
+
+// PeerAgents implements DelegationRoster so a Crew can be passed to
+// NewDelegationTool. It returns the Crew.Agents field.
+func (c *Crew) PeerAgents() []*Agent {
+	if c == nil {
+		return nil
+	}
+	return c.Agents
+}
+
+// attachDelegationTools adds delegate_to_coworker to each agent that does
+// not already have it. Safe to call multiple times (idempotent per agent).
+func (c *Crew) attachDelegationTools() {
+	if c == nil {
+		return
+	}
+	tool := NewDelegationTool(c)
+	attach := func(a *Agent) {
+		if a == nil || hasDelegationTool(a.Tools) {
+			return
+		}
+		a.Tools = append(a.Tools, tool)
+	}
+	for _, a := range c.Agents {
+		attach(a)
+	}
+	if c.ManagerAgent != nil {
+		attach(c.ManagerAgent)
+	}
 }

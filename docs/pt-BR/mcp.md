@@ -34,7 +34,11 @@ for _, t := range tools {
 ### Forma B — arquivo de configuracao JSON
 
 `mcp.LoadConfig` le um arquivo JSON, cria um cliente por entrada de servidor
-e os inicializa. O caminho do arquivo e fornecido pelo chamador.
+e os inicializa. O caminho do arquivo e fornecido pelo chamador. O campo opcional
+`timeout` por servidor e uma duration string do Go (`"30s"`, `"1m"`,
+`"0s"`). Omitido usa `DefaultHTTPTimeout` (30s); `"0s"` desliga o
+deadline do client.
+
 
 ```json
 {
@@ -42,12 +46,14 @@ e os inicializa. O caminho do arquivo e fornecido pelo chamador.
     {
       "name": "dados-contratos",
       "endpoint": "https://mcp.example.com/sse",
-      "headers": { "Authorization": "Bearer TOKEN_AQUI" }
+      "headers": { "Authorization": "Bearer TOKEN_AQUI" },
+      "timeout": "30s"
     },
     {
       "name": "db-compras",
       "endpoint": "https://mcp2.example.com/sse",
-      "headers": {}
+      "headers": {},
+      "timeout": "60s"
     }
   ]
 }
@@ -61,8 +67,12 @@ var crewTools []crewai.Tool
 for _, c := range clients {
     tools, err := c.ListTools(ctx)
     if err != nil { return err }
+    // Filtro opcional least-privilege (deny-by-default para nomes nao listados):
+    // tools = mcp.FilterTools(tools, map[string]struct{}{"search_docs": {}, "get_ticket": {}})
     for _, t := range tools {
-        crewTools = append(crewTools, mcp.NewToolAdapter(c, t))
+        crewTools = append(crewTools, mcp.NewToolAdapter(c, t,
+            mcp.WithDescriptionLimit(500), // opcional; 0 = inalterado
+        ))
     }
 }
 ```
@@ -88,9 +98,16 @@ falhas HTTP ou JSON-RPC viram erros de Go.
 
 ## Opcoes
 
-- `mcp.WithHTTPClient(*http.Client)` — padrao `http.DefaultClient`.
+- `mcp.WithHTTPClient(*http.Client)` — usa um client custom como esta (incl. `Timeout: 0` para desligar o deadline do client).
+- `mcp.WithHTTPTimeout(time.Duration)` — define o timeout do client default da lib (ignorado se `WithHTTPClient` foi setado). Nao-positivo desliga o deadline do client.
 - `mcp.WithHeader(key, val)` — adicionado a cada requisicao. Valores de
   header nunca sao logados.
+- `mcp.WithDescriptionLimit(n int)` — opcao de `NewToolAdapter`; quando
+  `n > 0`, remove controles ASCII da description e trunca em `n` runes
+  (higiene de prompt, nao e sanitizer anti-jailbreak).
+- `mcp.FilterTools(tools, allow)` — mantem so tools cujos nomes estao em
+  `allow` (deny-by-default ao filtrar). Prefira isso a anexar o catalogo
+  inteiro de `ListTools` a um agent.
 
 ## Seguranca
 
@@ -105,13 +122,35 @@ falhas HTTP ou JSON-RPC viram erros de Go.
   para nao deixar sessoes penduradas.
 - `Client.Close` envia HTTP DELETE com `Mcp-Session-Id` (teardown do
   Streamable HTTP) e e idempotente.
-- O transporte padrao e `http.DefaultClient` (sem timeout). Prefira
-  `mcp.WithHTTPClient(&http.Client{Timeout: 30 * time.Second})` em
-  producao.
-- Trate endpoints MCP como **confiaveis**. Um servidor comprometido pode
-  devolver descricoes de tools que jailbreakam o modelo, ou resultados
-  que exfiltram contexto previo. Restrinja as tools de cada agente ao
-  minimo necessario; nao anexe um catalogo inteiro nao confiavel.
+- O client HTTP padrao usa `DefaultHTTPTimeout` (30s). Sobrescreva com
+  `WithHTTPTimeout`, um `WithHTTPClient` custom, ou o campo JSON
+  `"timeout"` por servidor (`"0s"` desliga o deadline do client). Prefira
+  tambem um deadline explicito no `context`.
+- Trate endpoints MCP como **confiaveis** — veja [Modelo de ameaca](#modelo-de-ameaca).
+
+
+## Modelo de ameaca
+
+Servidores MCP sao tratados como **codigo confiavel**, equivalente a um
+binario local de tool que voce escolheu rodar. A lib nao faz sandbox de
+descricoes ou resultados de tools antes de entrarem no prompt do LLM.
+
+| Ameaca | Impacto | Mitigacoes |
+|---|---|---|
+| **Description** maliciosa de tool | Prompt injection / jailbreak do agent | Anexe so as tools que cada agent precisa; prefira endpoints privados/conhecidos |
+| **Result** malicioso de tool | Exfiltracao de contexto previo em turnos seguintes | Catalogo least-privilege; allowlist de rede no deploy |
+| Respostas travadas ou enormes | DoS / pressao de memoria | Timeout HTTP default 30s; cap de body 16 MiB; cap de paginas em `tools/list` |
+| Tokens de config roubados | Abuso de auth | Arquivos de config modo `0600`; headers nunca logados |
+
+### Checklist do operador
+
+1. Prefira TLS e rede privada para endpoints MCP.
+2. Mantenha o timeout HTTP default (30s) ou defina `timeout` / `WithHTTPTimeout`.
+3. Passe sempre um deadline no `context` alem do timeout do client.
+4. Proteja arquivos JSON com bearer tokens (`0600`).
+5. Restrinja as tools de cada agent ao minimo — use `FilterTools` e nao anexe o catalogo inteiro.
+6. Opcionalmente limite o tamanho da description com `WithDescriptionLimit`.
+7. Nao logue headers MCP ou session ids (o client ja evita isso).
 
 ## Cobertura
 

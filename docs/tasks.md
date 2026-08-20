@@ -25,7 +25,8 @@ task := crewai.NewTask(
 | `Agent`          | `*crewai.Agent` | The assignee. Can be `nil` (the crew resolves it). |
 | `Tools`          | `[]crewai.Tool` | Overrides the agent's tools for this task. |
 | `Context`        | `[]*crewai.Task`| Tasks whose outputs become this task's context. |
-| `OutputFile`     | `string`        | If set, writes the output to this file (mode `0600`). Treat as a trusted path — the framework does not sandbox it. |
+| `OutputFile`     | `string`        | If set, writes the output to this file (mode `0600`). Path is cleaned; empty paths are rejected. |
+| `OutputDir`      | `string`        | Optional jail directory for `OutputFile`. Symlink-aware (`EvalSymlinks`, fail closed). Prefer when paths come from external config. |
 | `Structured`     | `*crewai.StructuredOutput` | If set, requires JSON output validated against a JSON Schema. |
 | `Guardrail`      | `crewai.Guardrail` | Optional task-level post-output validation. |
 | `Loop`           | `crewai.Loop`   | Optional per-task execution strategy (overrides `Agent.Loop`). |
@@ -61,10 +62,18 @@ crew.Kickoff(ctx, map[string]string{
 
 ```go
 task.OutputFile = "report.md"
+// Optional jail (recommended when the path comes from config/env):
+task.OutputDir = "/var/lib/myapp/outputs"
+// or: task.WithOutputDir("/var/lib/myapp/outputs")
+// Crew-level default for tasks without their own OutputDir:
+// crew.OutputDir = "/var/lib/myapp/outputs"
 ```
 
-After execution, the output is written to the file (in addition to being
-available via `task.Output()`).
+After execution, the output is written to the file (mode `0600`) in addition to
+being available via `task.Output()`. Paths are cleaned. When `OutputDir` (task
+or `Crew.OutputDir`) is set, the file must resolve inside that directory;
+symlinks are evaluated and escapes fail with `ErrOutputPathRejected`. Never
+pass unvalidated model output as `OutputFile`.
 
 ## Retrieving the output
 
@@ -117,16 +126,32 @@ task.Structured = structured
   JSON or invents data.**
 - On success, `Task.Output()` returns the **canonicalized** (compacted,
   stable) JSON string.
-- When `Structured` is set, tools and the ReAct loop are bypassed; the
-  executor goes straight to the structured-output path.
+- When `Structured` is set **without** `AllowTools`, tools and the ReAct
+  loop are bypassed; the executor goes straight to the structured-output
+  path.
+- With `AllowTools` / `WithAllowTools()`, the executor first runs a bounded
+  **gather** phase (ReAct or native tools per `Agent.ToolMode`), then a
+  **capture** phase that validates JSON against the schema. Facts from
+  `FactSource` tools are preserved. If gather hits `MaxIterations` without
+  a clean stop, the task records a warning (`gather budget exhausted`) and
+  still proceeds to capture.
 
 ### Supported schema keywords
 
-The built-in validator supports a subset of JSON Schema: `type`,
-`properties`, `required`, `enum`, `items`. It is not a full JSON Schema
-implementation and intentionally omits keywords such as
-`additionalProperties`, `oneOf`/`anyOf`, `pattern`, `minimum`/`maximum`,
-and `minItems`/`maxItems`.
+The built-in validator is a **stdlib-only subset** of JSON Schema:
+
+| Keyword | Notes |
+|---|---|
+| `type`, `properties`, `required`, `enum`, `items` | Core (unchanged) |
+| `additionalProperties` | `false` rejects unknown keys; object schema validates extras |
+| `minLength`, `maxLength` | String length in **bytes** (`len(s)`), not runes |
+| `minimum`, `maximum` | Numbers as `float64` |
+| `exclusiveMinimum`, `exclusiveMaximum` | Bool (draft-04) or numeric (draft-06+) |
+| `minItems`, `maxItems` | Arrays |
+| `pattern` | Go `regexp`; pattern length capped at `MaxSchemaPatternLen` (512) |
+| `oneOf`, `anyOf`, `allOf` | Composition |
+
+**Not supported:** `$ref`, `if`/`then`/`else`, `format`, `unevaluated*`, and most draft 2020-12 keywords. Use `WithStrictSchema()` / `StrictSchema` on `NewStructuredOutput` to fail fast when an author-supplied schema contains unsupported keywords.
 
 ### Errors
 
@@ -167,6 +192,28 @@ Tool-call mode requires the agent's LLM to implement
 `ToolCallingLLM`; otherwise the task fails with
 `ErrToolCallStructuredUnsupported`. The default JSON-only mode is
 preserved for backward compatibility — opt in with `WithToolCall()`.
+
+### Tools before structured output (`WithAllowTools`)
+
+When the agent must call tools (search, connectors) before emitting JSON:
+
+```go
+structured, _ := crewai.NewStructuredOutput(
+    schema,
+    crewai.WithAllowTools(),
+    crewai.WithRepairMax(3),
+)
+task.Structured = structured
+```
+
+Pipeline:
+
+1. **Gather** — tool loop (ReAct or native) until Final Answer / no tool
+   calls, or `MaxIterations` exhausted.
+2. **Capture** — existing JSON or `emit_result` path with the gather
+   transcript in context.
+
+Default remains `AllowTools == false` (backward compatible).
 
 ## Graceful degradation: per-task warnings
 

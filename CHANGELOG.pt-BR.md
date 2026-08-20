@@ -7,6 +7,23 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Seguranca
 
+- **Single-flight do Kickoff**: `Kickoff` concorrente no mesmo `*Crew`
+  retorna `ErrCrewRunning` (fail fast; nao enfileira). Reuso sequencial
+  continua suportado.
+
+- **Jail de path do OutputFile**: paths de `Task.OutputFile` sao limpos;
+  paths vazios sao rejeitados. `Task.OutputDir` / `Crew.OutputDir`
+  opcionais prendem writes com avaliacao de symlink (`EvalSymlinks`,
+  fail closed) e sentinela `ErrOutputPathRejected`. Modo permanece `0600`.
+
+- **Timeout HTTP padrao do MCP**: `mcp.New` nao usa mais
+  `http.DefaultClient`. Constroi um client com
+  `DefaultHTTPTimeout` (30s). Configure via `WithHTTPTimeout`,
+  `WithHTTPClient` (como esta, incl. `Timeout: 0`), ou JSON
+  `servers[].timeout` (duration string Go; omitido → 30s; `"0s"` →
+  desligado). Durations JSON invalidas falham o `LoadConfig` antes de
+  qualquer chamada de rede.
+
 - **Corpos de resposta dos provedores**: `Call` em OpenAI, Anthropic e
   Ollama agora limita o body a `MaxProviderResponseBytes` (antes so
   `CallWithTools` / `WebSearch` faziam isso). Erros nao-2xx nao ecoam
@@ -32,13 +49,39 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 
+- **Tool de delegacao entre agents**: `NewDelegationTool(roster)` expoe
+  `delegate_to_coworker` (JSON `coworker`/`request`/`context`). Alvos devem
+  ter `AllowDelegation`. Chamadas aninhadas respeitam
+  `DefaultMaxDelegationDepth` (2) com guardas de ciclo/auto.
+  `Crew.EnableDelegationTool` (default false) anexa a tool no Kickoff;
+  `Crew` implementa `DelegationRoster` via `PeerAgents()`.
+
+- **Keywords JSON Schema (expandidas)**: o validador agora suporta
+  `additionalProperties`, `minLength`/`maxLength` (bytes),
+  `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum`,
+  `minItems`/`maxItems`, `pattern` e `oneOf`/`anyOf`/`allOf`.
+  `WithStrictSchema()` falha cedo em keywords nao suportadas (`$ref`, etc.).
+- **`WithAllowTools`**: fase gather opcional antes do capture structured;
+  preserva facts de `FactSource`; esgotar o budget de gather registra
+  warning e ainda captura JSON (D6).
+
+- **Guards de catalogo MCP**: `mcp.FilterTools` (allowlist por nome,
+  deny-by-default ao filtrar) e `mcp.WithDescriptionLimit` em
+  `NewToolAdapter` (strip de controles ASCII + truncar em N runes).
+  Defaults inalterados sem options.
+
+- **`RedactHandler`**: wrapper opt-in de `slog.Handler` no pacote raiz
+  que aplica as regras existentes de redacao de segredos a mensagens e
+  atributos string. O logger default nao muda.
+  `examples/logging` agora usa `crewai.RedactHandler`.
+
 - **Suporte a MCP** (`mcp/`): cliente padrao Go (somente stdlib) para o
   Model Context Protocol sobre Streamable HTTP (JSON-RPC 2.0, versao de
   protocolo 2025-06-18). Dois modos de configuracao, ambos informados
   programaticamente pelo chamador:
   - **Programatica**: `mcp.New(endpoint, opts...)` + `client.Initialize(ctx, name, version)`.
   - **Arquivo JSON**: `mcp.LoadConfig(ctx, path, name, version)` le um
-    arquivo com uma ou mais entradas de servidor (Name, Endpoint, Headers),
+    arquivo com uma ou mais entradas de servidor (Name, Endpoint, Headers, Timeout opcional),
     cria um cliente para cada, chama `Initialize` e retorna o slice.
   Cada ferramenta MCP e exposta como `crewai.Tool` via `mcp.NewToolAdapter`.
   O adapter implementa `crewai.SchemaProvider`, entao o `inputSchema`
@@ -46,8 +89,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   substituido por um placeholder. Um `isError: true` no nivel da
   ferramenta e retornado ao modelo como texto de observacao (prefixado
   com `[tool error]`), nao como erro de Go — apenas falhas HTTP /
-  JSON-RPC viram `error`. Novos helpers: `WithHTTPClient`, `WithHeader`,
-  `Client.Close` (teardown de sessao via HTTP DELETE; idempotente).
+  JSON-RPC viram `error`. Novos helpers: `WithHTTPClient`, `WithHTTPTimeout`,
+  `WithHeader`, `Client.Close` (teardown de sessao via HTTP DELETE; idempotente).
   `LoadConfig` fecha os clients ja inicializados se um servidor
   posterior falha no `Initialize`. Nova constante
   `MaxMCPResponseBytes = 16 MiB`. Sem novas dependencias;

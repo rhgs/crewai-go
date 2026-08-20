@@ -39,7 +39,7 @@ agent := &crewai.Agent{
 | `LLM`             | `crewai.LLM`   | The language model. **Required.** |
 | `Tools`           | `[]crewai.Tool`| Tools available for any task. |
 | `MaxIterations`   | `int`          | Max reasoning/tool cycles per task (default 15). |
-| `AllowDelegation` | `bool`         | Marks the agent as eligible to manage/delegate. |
+| `AllowDelegation` | `bool` | Marks the agent as an **eligible target** for the `delegate_to_coworker` tool (and a possible hierarchical manager). Default false. |
 | `ToolMode`         | `ToolMode`    | `"react"` (default) or `"native"` — selects text-based ReAct or native function calling. |
 | `Loop`             | `crewai.Loop` | Optional execution strategy (e.g. `AgenticLoop`) replacing the default ReAct executor. |
 
@@ -122,3 +122,26 @@ See [examples/agentic_loop](../examples/agentic_loop) for a runnable example.
 - The **goal** should be measurable and outcome-oriented.
 - Use the **backstory** to calibrate tone and level of detail.
 - Tune `MaxIterations` for tasks that use many tools.
+
+## Inter-agent delegation (`delegate_to_coworker`)
+
+To let an agent ask a coworker for help **during** reasoning (unlike the
+hierarchical manager, which only assigns the whole task once):
+
+```go
+researcher.AllowDelegation = true // must be true on the TARGET
+writer.WithTools(crewai.NewDelegationTool(crew))
+
+// or auto-attach on every crew agent at Kickoff:
+crew.EnableDelegationTool = true
+```
+
+The tool is named `delegate_to_coworker` and expects JSON:
+`{"coworker":"<role>","request":"<text>","context":"<optional>"}`.
+
+Guards: max depth `DefaultMaxDelegationDepth` (2), cycle detection,
+no self-delegation, target must exist on the roster and have
+`AllowDelegation`. Failures return as tool observation text (no panic).
+
+See `examples/delegation`.
+

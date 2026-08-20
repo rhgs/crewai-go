@@ -302,6 +302,17 @@ are safe for concurrent use.
 
 ## Logging
 
+To mask likely secrets in log messages and string attributes (best-effort, opt-in):
+
+```go
+log := slog.New(crewai.RedactHandler(
+    slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}),
+))
+crew.WithLogger(log)
+```
+
+
+
 The executor emits structured logs through `*log/slog`. Inject a logger on
 `Crew` (and optionally `Agent`) before calling `Kickoff`:
 

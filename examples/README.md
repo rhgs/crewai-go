@@ -15,7 +15,8 @@ Each subfolder is a standalone executable program.
 | `agentic_loop`  | Plan-Execute-Evaluate-Refine cycle (mock LLM)      | ❌ No                   |
 | `tools`         | An agent using tools via ReAct                     | ✅ OpenAI               |
 | `xai_oauth`     | Grok via API key or subscription OAuth             | ✅ xAI                  |
-| `logging`       | Custom `*slog.Logger` with redaction wrapper       | ❌ No                   |
+| `logging`       | Custom `*slog.Logger` with `RedactHandler`           | ❌ No                   |
+| `delegation`    | Inter-agent `delegate_to_coworker` tool (opt-in)   | ✅ OpenAI / wiring only |
 
 ## Running
 
@@ -31,7 +32,10 @@ go run ./examples/hierarchical
 go run ./examples/staged
 go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
+go run ./examples/logging      # offline redaction demo
+go run ./examples/delegation   # wiring; live with OPENAI_API_KEY
 ```
 
 To use another provider (Anthropic, Ollama, Groq…), swap the LLM creation line.
 See [`../docs/llms.md`](../docs/llms.md).
+

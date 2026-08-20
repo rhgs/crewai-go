@@ -224,3 +224,162 @@ func TestValidationErrors_Multiple(t *testing.T) {
 		t.Error("expected non-empty error string")
 	}
 }
+
+func TestValidateSchema_AdditionalPropertiesFalse(t *testing.T) {
+	schema := mustRaw(t, map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"name": map[string]any{"type": "string"},
+		},
+		"additionalProperties": false,
+	})
+	if err := validateSchema(mustRaw(t, map[string]any{"name": "a"}), schema); err != nil {
+		t.Fatalf("ok doc: %v", err)
+	}
+	err := validateSchema(mustRaw(t, map[string]any{"name": "a", "extra": 1}), schema)
+	if err == nil {
+		t.Fatal("expected additional property error")
+	}
+}
+
+func TestValidateSchema_AdditionalPropertiesSchema(t *testing.T) {
+	schema := mustRaw(t, map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"name": map[string]any{"type": "string"},
+		},
+		"additionalProperties": map[string]any{"type": "integer"},
+	})
+	if err := validateSchema(mustRaw(t, map[string]any{"name": "a", "n": float64(1)}), schema); err != nil {
+		t.Fatal(err)
+	}
+	err := validateSchema(mustRaw(t, map[string]any{"name": "a", "n": "x"}), schema)
+	if err == nil {
+		t.Fatal("expected type error on additional prop")
+	}
+}
+
+func TestValidateSchema_StringLengthBytes(t *testing.T) {
+	// "á" is 2 bytes in UTF-8; minLength/maxLength count bytes (D7).
+	schema := mustRaw(t, map[string]any{"type": "string", "minLength": 2, "maxLength": 2})
+	if err := validateSchema(mustRaw(t, "á"), schema); err != nil {
+		t.Fatalf("á is 2 bytes: %v", err)
+	}
+	if err := validateSchema(mustRaw(t, "a"), schema); err == nil {
+		t.Fatal("single byte should fail minLength 2")
+	}
+	schema2 := mustRaw(t, map[string]any{"type": "string", "maxLength": 1})
+	if err := validateSchema(mustRaw(t, "á"), schema2); err == nil {
+		t.Fatal("2-byte char should fail maxLength 1")
+	}
+}
+
+func TestValidateSchema_NumberBounds(t *testing.T) {
+	schema := mustRaw(t, map[string]any{"type": "number", "minimum": 1, "maximum": 10})
+	if err := validateSchema(mustRaw(t, float64(1)), schema); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSchema(mustRaw(t, float64(0.5)), schema); err == nil {
+		t.Fatal("below minimum")
+	}
+	if err := validateSchema(mustRaw(t, float64(10.5)), schema); err == nil {
+		t.Fatal("above maximum")
+	}
+	// exclusive numeric form
+	schema = mustRaw(t, map[string]any{"type": "number", "exclusiveMinimum": 1, "exclusiveMaximum": 10})
+	if err := validateSchema(mustRaw(t, float64(1)), schema); err == nil {
+		t.Fatal("exclusive min")
+	}
+	if err := validateSchema(mustRaw(t, float64(5)), schema); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSchema(mustRaw(t, float64(10)), schema); err == nil {
+		t.Fatal("exclusive max")
+	}
+}
+
+func TestValidateSchema_ArrayBounds(t *testing.T) {
+	schema := mustRaw(t, map[string]any{"type": "array", "minItems": 1, "maxItems": 2, "items": map[string]any{"type": "string"}})
+	if err := validateSchema(mustRaw(t, []any{}), schema); err == nil {
+		t.Fatal("minItems")
+	}
+	if err := validateSchema(mustRaw(t, []any{"a", "b", "c"}), schema); err == nil {
+		t.Fatal("maxItems")
+	}
+	if err := validateSchema(mustRaw(t, []any{"a"}), schema); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateSchema_Pattern(t *testing.T) {
+	schema := mustRaw(t, map[string]any{"type": "string", "pattern": "^[a-z]+$"})
+	if err := validateSchema(mustRaw(t, "abc"), schema); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSchema(mustRaw(t, "A1"), schema); err == nil {
+		t.Fatal("pattern should fail")
+	}
+	// invalid pattern
+	schema = mustRaw(t, map[string]any{"type": "string", "pattern": "["})
+	if err := validateSchema(mustRaw(t, "a"), schema); err == nil {
+		t.Fatal("invalid pattern should error")
+	}
+}
+
+func TestValidateSchema_OneOfAnyOfAllOf(t *testing.T) {
+	// oneOf: string or integer, exactly one
+	schema := mustRaw(t, map[string]any{
+		"oneOf": []any{
+			map[string]any{"type": "string"},
+			map[string]any{"type": "integer"},
+		},
+	})
+	if err := validateSchema(mustRaw(t, "hi"), schema); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSchema(mustRaw(t, float64(3)), schema); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSchema(mustRaw(t, true), schema); err == nil {
+		t.Fatal("bool matches neither")
+	}
+
+	// anyOf
+	schema = mustRaw(t, map[string]any{
+		"anyOf": []any{
+			map[string]any{"type": "string", "minLength": 3},
+			map[string]any{"type": "integer"},
+		},
+	})
+	if err := validateSchema(mustRaw(t, "ab"), schema); err == nil {
+		t.Fatal("short string fails anyOf")
+	}
+	if err := validateSchema(mustRaw(t, "abcd"), schema); err != nil {
+		t.Fatal(err)
+	}
+
+	// allOf
+	schema = mustRaw(t, map[string]any{
+		"allOf": []any{
+			map[string]any{"type": "object"},
+			map[string]any{"required": []any{"x"}},
+		},
+	})
+	if err := validateSchema(mustRaw(t, map[string]any{"x": 1}), schema); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSchema(mustRaw(t, map[string]any{"y": 1}), schema); err == nil {
+		t.Fatal("missing x")
+	}
+}
+
+func TestCheckSchemaSupported(t *testing.T) {
+	ok := mustRaw(t, map[string]any{"type": "object", "properties": map[string]any{"a": map[string]any{"type": "string", "pattern": "^x$"}}})
+	if err := checkSchemaSupported(ok); err != nil {
+		t.Fatal(err)
+	}
+	bad := mustRaw(t, map[string]any{"$ref": "#/definitions/x"})
+	if err := checkSchemaSupported(bad); err == nil {
+		t.Fatal("expected unsupported")
+	}
+}

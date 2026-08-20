@@ -148,6 +148,15 @@ sugerida (maior impacto / menor esforço primeiro):
   Planejar-Executar-Avaliar-Refinar, opt-in via `Agent.Loop`/`Task.Loop`. Veja
   `PLAN.agentic-loop.md` para o design completo.
 
+- [ ] **Residuais de security & code review (pós PR #27)** — oito itens
+  restantes (timeout default do MCP, threat model trusted-server,
+  jail de `OutputFile`, expansão de keywords de schema, `RedactHandler`
+  no core, single-flight do Kickoff, tool real `delegate_to_coworker`,
+  híbrido structured+tools). Faseado P0/P1/P2 com esboços de API e
+  breakdown de PRs em
+  [`PLAN.security-residuals.pt-BR.md`](PLAN.security-residuals.pt-BR.md)
+  ([EN](PLAN.security-residuals.md)). **Apenas plano até ser agendado.**
+
 ### P0 — Publicação e fundamentos
 
 - [ ] **`git init` + repositório público** — versionar, definir CI (lint, test,
@@ -257,7 +266,8 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   para suportar mais palavras-chave (`additionalProperties`, `oneOf`/`anyOf`,
   `pattern`, `minimum`/`maximum`, `minItems`/`maxItems`); permitir uso de
   ferramentas antes da saida estruturada; function calling nativo opcional
-  para saida estruturada (OpenAI/Anthropic).
+  para saida estruturada (OpenAI/Anthropic). Rastreado como R4 + R8 em
+  [`PLAN.security-residuals.pt-BR.md`](PLAN.security-residuals.pt-BR.md).
 
 ### P3 — Avançado
 

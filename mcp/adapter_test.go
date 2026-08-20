@@ -150,3 +150,100 @@ func TestToolAdapter_Call_ConcatenatesMultipleTextBlocks(t *testing.T) {
 		t.Fatalf("got %q", out)
 	}
 }
+
+func TestFilterTools_EmptyInputs(t *testing.T) {
+	if got := FilterTools(nil, map[string]struct{}{"a": {}}); got != nil {
+		t.Fatalf("nil tools: %v", got)
+	}
+	if got := FilterTools([]Tool{{Name: "a"}}, nil); got != nil {
+		t.Fatalf("nil allow: %v", got)
+	}
+	if got := FilterTools([]Tool{{Name: "a"}}, map[string]struct{}{}); got != nil {
+		t.Fatalf("empty allow: %v", got)
+	}
+}
+
+func TestFilterTools_KeepsAllowedInOrder(t *testing.T) {
+	in := []Tool{
+		{Name: "z"},
+		{Name: "a"},
+		{Name: "b"},
+		{Name: ""},
+		{Name: "a"},
+	}
+	allow := map[string]struct{}{"a": {}, "b": {}}
+	got := FilterTools(in, allow)
+	if len(got) != 3 {
+		t.Fatalf("len=%d want 3: %+v", len(got), got)
+	}
+	if got[0].Name != "a" || got[1].Name != "b" || got[2].Name != "a" {
+		t.Fatalf("order/names: %+v", got)
+	}
+}
+
+func TestFilterTools_DropsUnknown(t *testing.T) {
+	in := []Tool{{Name: "keep"}, {Name: "drop"}}
+	got := FilterTools(in, map[string]struct{}{"keep": {}})
+	if len(got) != 1 || got[0].Name != "keep" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestWithDescriptionLimit_NoOpWhenZeroOrNegative(t *testing.T) {
+	raw := "hello\x00world"
+	for _, n := range []int{0, -1} {
+		a := NewToolAdapter(New("http://x"), Tool{Name: "t", Description: raw}, WithDescriptionLimit(n))
+		if a.Description() != raw {
+			t.Fatalf("n=%d: got %q, want unchanged", n, a.Description())
+		}
+	}
+}
+
+func TestWithDescriptionLimit_StripsControlsAndTruncates(t *testing.T) {
+	raw := "abcdefghij\x00\x07"
+	a := NewToolAdapter(New("http://x"), Tool{Name: "t", Description: raw}, WithDescriptionLimit(5))
+	got := a.Description()
+	if got != "abcde" {
+		t.Fatalf("got %q, want abcde", got)
+	}
+}
+
+func TestWithDescriptionLimit_UnicodeRunes(t *testing.T) {
+	raw := "你好世界" // 4 runes
+	a := NewToolAdapter(New("http://x"), Tool{Name: "t", Description: raw}, WithDescriptionLimit(2))
+	got := a.Description()
+	if got != "你好" {
+		t.Fatalf("got %q, want 你好", got)
+	}
+	a2 := NewToolAdapter(New("http://x"), Tool{Name: "t", Description: raw}, WithDescriptionLimit(10))
+	if a2.Description() != raw {
+		t.Fatalf("under limit: got %q", a2.Description())
+	}
+}
+
+func TestWithDescriptionLimit_KeepsTab(t *testing.T) {
+	raw := "a\tb\nc" // newline stripped, tab kept
+	a := NewToolAdapter(New("http://x"), Tool{Name: "t", Description: raw}, WithDescriptionLimit(10))
+	got := a.Description()
+	if got != "a\tbc" {
+		t.Fatalf("got %q, want a\\tbc", got)
+	}
+}
+
+func TestNewToolAdapter_NilOptionIgnored(t *testing.T) {
+	a := NewToolAdapter(New("http://x"), Tool{Name: "t", Description: "d"}, nil, WithDescriptionLimit(1))
+	if a.descLimit != 1 {
+		t.Fatalf("descLimit=%d", a.descLimit)
+	}
+	if a.Description() != "d" {
+		t.Fatalf("got %q", a.Description())
+	}
+}
+
+func TestNewToolAdapter_NoOptionsUnchanged(t *testing.T) {
+	raw := "x\x01y"
+	a := NewToolAdapter(New("http://x"), Tool{Name: "t", Description: raw})
+	if a.Description() != raw {
+		t.Fatalf("default must not strip: got %q", a.Description())
+	}
+}

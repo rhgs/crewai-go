@@ -1,7 +1,10 @@
 package crewai
 
 import (
+	"bytes"
+	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 )
@@ -122,5 +125,77 @@ func TestRedactString_MultipleSecrets(t *testing.T) {
 	got := redactString(in)
 	if strings.Count(got, "[REDACTED]") != 2 {
 		t.Fatalf("expected two redactions, got: %q", got)
+	}
+}
+
+func TestRedactHandler_NilInner(t *testing.T) {
+	if RedactHandler(nil) != nil {
+		t.Fatal("RedactHandler(nil) must be nil")
+	}
+}
+
+func TestRedactHandler_MasksMessageAndStringAttrs(t *testing.T) {
+	var buf bytes.Buffer
+	h := RedactHandler(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	log := slog.New(h)
+	log.Info("leak sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789",
+		"token", "Bearer abcdefghijklmnopqrstuvwxyz0123456789",
+		"url", "https://api.example.com?api_key=sksecret1234567890abcdef",
+		"n", 42,
+	)
+	got := buf.String()
+	if strings.Contains(got, "AbCdEfGhIjKlMn") {
+		t.Fatalf("message key leaked: %s", got)
+	}
+	if strings.Contains(got, "abcdefghijklmnopqrstuvwxyz") {
+		t.Fatalf("bearer leaked: %s", got)
+	}
+	if strings.Contains(got, "sksecret1234567890") {
+		t.Fatalf("api_key leaked: %s", got)
+	}
+	if !strings.Contains(got, "[REDACTED]") {
+		t.Fatalf("expected redaction marker: %s", got)
+	}
+	if !strings.Contains(got, "n=42") && !strings.Contains(got, "n=42") {
+		// text handler prints n=42
+		if !strings.Contains(got, "42") {
+			t.Fatalf("non-string attr should pass through: %s", got)
+		}
+	}
+}
+
+func TestRedactHandler_EnabledDelegates(t *testing.T) {
+	h := RedactHandler(slog.NewTextHandler(&bytes.Buffer{}, &slog.HandlerOptions{Level: slog.LevelError}))
+	if h.Enabled(context.Background(), slog.LevelDebug) {
+		t.Fatal("debug must be disabled when inner is Error")
+	}
+	if !h.Enabled(context.Background(), slog.LevelError) {
+		t.Fatal("error must be enabled")
+	}
+}
+
+func TestRedactHandler_WithAttrsAndGroup(t *testing.T) {
+	var buf bytes.Buffer
+	base := RedactHandler(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	h := base.WithAttrs([]slog.Attr{slog.String("k", "sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz9999")})
+	h = h.WithGroup("g")
+	log := slog.New(h)
+	log.Info("hi", "inner", "Bearer zyxwvutsrqponmlkjihgfedcba9876543210")
+	got := buf.String()
+	if strings.Contains(got, "AbCdEfGhIjKlMn") || strings.Contains(got, "zyxwvutsrqponmlkjihgfedcba") {
+		t.Fatalf("WithAttrs/Group leaked secret: %s", got)
+	}
+	if !strings.Contains(got, "[REDACTED]") {
+		t.Fatalf("expected redaction: %s", got)
+	}
+}
+
+func TestRedactHandler_ErrorAttr(t *testing.T) {
+	var buf bytes.Buffer
+	log := slog.New(RedactHandler(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	log.Info("x", "err", errors.New("openai key sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0001"))
+	got := buf.String()
+	if strings.Contains(got, "AbCdEfGhIjKlMn") {
+		t.Fatalf("error attr leaked: %s", got)
 	}
 }

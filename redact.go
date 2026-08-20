@@ -1,7 +1,9 @@
 package crewai
 
 import (
+	"context"
 	"errors"
+	"log/slog"
 	"regexp"
 	"strings"
 )
@@ -63,4 +65,86 @@ func redactString(s string) string {
 		s = s[:157] + "..."
 	}
 	return s
+}
+
+// RedactHandler wraps inner and applies redactString to the record message
+// and to every string attribute before forwarding. Non-string attributes are
+// passed through unchanged. Groups and nested attrs from WithAttrs on the
+// inner handler are not re-walked — wrap at the outermost handler.
+//
+// Redaction is best-effort, not a confidentiality boundary. Opt-in: the
+// default Crew logger does not use RedactHandler.
+//
+// Typical wiring:
+//
+//	log := slog.New(crewai.RedactHandler(
+//		slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}),
+//	))
+//	crew.WithLogger(log)
+func RedactHandler(inner slog.Handler) slog.Handler {
+	if inner == nil {
+		return nil
+	}
+	return &redactHandler{inner: inner}
+}
+
+type redactHandler struct {
+	inner slog.Handler
+}
+
+func (h *redactHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.inner.Enabled(ctx, level)
+}
+
+func (h *redactHandler) Handle(ctx context.Context, r slog.Record) error {
+	msg := redactString(r.Message)
+	out := slog.NewRecord(r.Time, r.Level, msg, r.PC)
+	r.Attrs(func(a slog.Attr) bool {
+		out.AddAttrs(redactAttr(a))
+		return true
+	})
+	return h.inner.Handle(ctx, out)
+}
+
+func (h *redactHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	masked := make([]slog.Attr, len(attrs))
+	for i, a := range attrs {
+		masked[i] = redactAttr(a)
+	}
+	return &redactHandler{inner: h.inner.WithAttrs(masked)}
+}
+
+func (h *redactHandler) WithGroup(name string) slog.Handler {
+	return &redactHandler{inner: h.inner.WithGroup(name)}
+}
+
+func redactAttr(a slog.Attr) slog.Attr {
+	switch a.Value.Kind() {
+	case slog.KindString:
+		return slog.String(a.Key, redactString(a.Value.String()))
+	case slog.KindGroup:
+		group := a.Value.Group()
+		if len(group) == 0 {
+			return a
+		}
+		masked := make([]slog.Attr, len(group))
+		for i, ga := range group {
+			masked[i] = redactAttr(ga)
+		}
+		return slog.Group(a.Key, attrsToAny(masked)...)
+	default:
+		// Also redact error values rendered as strings when KindAny holds error.
+		if err, ok := a.Value.Any().(error); ok && err != nil {
+			return slog.Any(a.Key, redactError(err))
+		}
+		return a
+	}
+}
+
+func attrsToAny(attrs []slog.Attr) []any {
+	out := make([]any, len(attrs))
+	for i, a := range attrs {
+		out[i] = a
+	}
+	return out
 }
