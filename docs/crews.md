@@ -245,6 +245,24 @@ on no-tools paths. Concurrent tasks may invoke the callback in parallel —
 it MUST be concurrency-safe. Chunks carry `Task` and `Agent` for demux.
 Panics are recovered. See [llms.md](llms.md#streaming).
 
+## Lifecycle events (`WithEvents`)
+
+Register an `EventFunc` with `WithEvents` for exportable metadata-only
+lifecycle records (`CrewEvent`): kickoff, task/stage/wave, `llm_call_*`,
+`react_iteration`, `structured_repair`, `loop_phase`, `guardrail_blocked`.
+
+```go
+crew.WithEvents(func(ev crewai.CrewEvent) {
+    // JSON-serializable; concurrent-safe; panics recovered
+    fmt.Println(ev.Type, ev.Task, ev.KickoffID)
+})
+```
+
+- Works alongside `WithProgress` (dual-emit for Progress-shaped events).
+- **No prompt bodies** by default (same posture as Progress). Stream text
+  stays on `WithStream`.
+- See `examples/events`.
+
 ## Progress observability
 
 `Kickoff` is a black box until it returns. To surface real-time events

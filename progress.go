@@ -58,14 +58,19 @@ func ContextWithProgress(ctx context.Context, fn ProgressFunc) context.Context {
 // from the callback are recovered and logged via slog.Default().
 func emitProgress(ctx context.Context, p Progress) {
 	fn, ok := ctx.Value(progressKey{}).(ProgressFunc)
-	if !ok || fn == nil {
-		return
+	if ok && fn != nil {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Default().WarnContext(ctx, "progress callback panicked",
+						"event", p.Event, "panic", r)
+				}
+			}()
+			fn(p)
+		}()
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			slog.Default().WarnContext(ctx, "progress callback panicked",
-				"event", p.Event, "panic", r)
-		}
-	}()
-	fn(p)
+	// Dual-emit to EventFunc when configured (D-C2).
+	if eventFuncFromCtx(ctx) != nil {
+		emitEvent(ctx, progressToEvent(p))
+	}
 }

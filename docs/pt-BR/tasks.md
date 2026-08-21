@@ -239,6 +239,20 @@ Pipeline:
 
 Default continua `AllowTools == false` (backward compatible).
 
+
+### Keywords de JSON Schema (validador stdlib)
+
+Suportados (v0.8+): `type`, `properties`, `required`, `enum`, `const`, `items`,
+`additionalProperties`, bounds, `pattern`, `format` (date-time, date, email,
+uri, uri-reference, uuid, ipv4, ipv6), `oneOf`/`anyOf`/`allOf`, `not`,
+`if`/`then`/`else`, `minProperties`/`maxProperties`, `uniqueItems`, `$ref`
+local (`#/$defs/...`, `#/definitions/...` — sem rede).
+
+`WithStrictSchema` ainda rejeita keywords não suportadas como
+`unevaluatedProperties` / `unevaluatedItems`, `dependent*`, `prefixItems`,
+`contains`, `propertyNames`.
+
+
 ## Degradacao graciosa: warnings por tarefa
 
 Uma tarefa que **sucedeu** ainda pode registrar diagnosticos nao

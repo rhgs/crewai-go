@@ -446,9 +446,17 @@ func TestExtractJSON(t *testing.T) {
 }
 
 func TestNewStructuredOutput_StrictSchema(t *testing.T) {
-	_, err := NewStructuredOutput(map[string]any{"$ref": "#/x"}, WithStrictSchema())
+	_, err := NewStructuredOutput(map[string]any{"unevaluatedProperties": false}, WithStrictSchema())
 	if err == nil {
 		t.Fatal("expected unsupported keyword error")
+	}
+	// $ref is supported under StrictSchema
+	soRef, err := NewStructuredOutput(map[string]any{
+		"$defs": map[string]any{"x": map[string]any{"type": "string"}},
+		"$ref":  "#/$defs/x",
+	}, WithStrictSchema())
+	if err != nil || soRef == nil {
+		t.Fatalf("$ref schema: %v", err)
 	}
 	so, err := NewStructuredOutput(map[string]any{"type": "string"}, WithStrictSchema())
 	if err != nil || so == nil {

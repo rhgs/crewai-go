@@ -45,7 +45,9 @@ func runTaskGuardrail(ctx context.Context, task *Task, label, result string) err
 		}},
 	}
 	if err := task.Guardrail(ctx, out); err != nil {
-		return fmt.Errorf("%w: task %q: %v", ErrBlockedByGuardrail, label, err)
+		blocked := fmt.Errorf("%w: task %q: %v", ErrBlockedByGuardrail, label, err)
+		emitEventErr(ctx, CrewEvent{Type: EventGuardrailBlocked, Task: label}, blocked)
+		return blocked
 	}
 	return nil
 }
@@ -56,7 +58,9 @@ func runTaskGuardrail(ctx context.Context, task *Task, label, result string) err
 func runCrewGuardrails(ctx context.Context, guards []Guardrail, out *CrewOutput) error {
 	for _, g := range guards {
 		if err := g(ctx, out); err != nil {
-			return fmt.Errorf("%w: %v", ErrBlockedByGuardrail, err)
+			blocked := fmt.Errorf("%w: %v", ErrBlockedByGuardrail, err)
+			emitEventErr(ctx, CrewEvent{Type: EventGuardrailBlocked}, blocked)
+			return blocked
 		}
 	}
 	return nil

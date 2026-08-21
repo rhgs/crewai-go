@@ -282,17 +282,13 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf`/`allOf`,
   `WithStrictSchema`; `WithAllowTools` gather→capture; `WithToolCall`
   emit_result.
-- [ ] **Callbacks e telemetria** — além de `WithProgress` / slog: hooks de
-  início/fim de tarefa e iteração ReAct, eventos estruturados exportáveis
-  (logs, métricas, OpenTelemetry opcional depois). Manter posture de metadata
-  (sem corpos de prompt por padrão; mesma redação do Progress).
-  **Plano de design:** [`PLAN.p2-callbacks-schema.pt-BR.md`](PLAN.p2-callbacks-schema.pt-BR.md)
-  ([EN](PLAN.p2-callbacks-schema.md)) — Parte C (D-C1–D-C10); ainda sem código.
-- [ ] **Remainder de JSON Schema** — `$ref` (só local na v1),
-  `if`/`then`/`else`, allowlist de `format`, `const`/`not`, contagens de
-  properties, `uniqueItems`; `unevaluated*` adiado. Zero deps; fail closed
-  nas keywords ainda não suportadas com `WithStrictSchema`. Completa o
-  trabalho parcial da v0.5.0. **Mesmo plano de design** (Parte J, D-J1–D-J12).
+- [x] **Callbacks e telemetria** — `CrewEvent` + `WithEvents`; eventos llm_call /
+  react_iteration / structured_repair / loop_phase / guardrail / wave;
+  metadata-safe; dual-emit com Progress. **Na main (tag v0.8.0 pendente).**
+  Design: [`PLAN.p2-callbacks-schema.pt-BR.md`](PLAN.p2-callbacks-schema.pt-BR.md) Parte C.
+- [x] **Remainder de JSON Schema** — `$ref` local, allowlist de format, `const`/
+  `not`/`if`/`then`/`else`, contagens de properties, `uniqueItems`;
+  `unevaluated*` ainda strict-fail. **Na main (tag v0.8.0 pendente).** Parte J.
 
 ### P3 — Orquestração avançada, tools e packaging
 
@@ -322,8 +318,8 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 |---|---|---|
 | P1 | **Streaming** | **Entregue na v0.7.0** (PRs #35/#36): [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md) — `StreamingLLM` + `WithStream` |
 
-| P2 | **Callbacks / telemetria** | Design: [`PLAN.p2-callbacks-schema.pt-BR.md`](PLAN.p2-callbacks-schema.pt-BR.md) Parte C — não iniciado |
-| P2 | **Remainder de JSON Schema** | Design: mesmo plano Parte J (`$ref` local, format, …) — não iniciado |
+| P2 | **Callbacks / telemetria** | **Implementado** (tag pendente): [`PLAN.p2-callbacks-schema.pt-BR.md`](PLAN.p2-callbacks-schema.pt-BR.md) Parte C |
+| P2 | **Remainder de JSON Schema** | **Implementado** (tag pendente): mesmo plano Parte J |
 | P3 | **Flows** | Estado event-driven + roteamento |
 | P3 | **Tools: HTTP, arquivos, padrões RAG** | SSRF/jail; RAG ≠ vector DB no core |
 | P3 | **Definições YAML de crew** | agents.yaml / tasks.yaml → tipos Go |

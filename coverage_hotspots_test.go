@@ -89,9 +89,13 @@ func TestWalkSchemaKeywords_NestedUnsupported(t *testing.T) {
 	if err := checkSchemaSupported(json.RawMessage(`not-json`)); err == nil {
 		t.Fatal("invalid schema JSON")
 	}
-	arr := mustRaw(t, []any{map[string]any{"$ref": "#/y"}})
+	arr := mustRaw(t, []any{map[string]any{"unevaluatedItems": false}})
 	if err := checkSchemaSupported(arr); err == nil {
-		t.Fatal("array with $ref should fail")
+		t.Fatal("array with unevaluatedItems should fail")
+	}
+	// $ref is supported even nested in arrays
+	if err := checkSchemaSupported(mustRaw(t, []any{map[string]any{"$ref": "#/y"}})); err != nil {
+		t.Fatalf("$ref in array should be supported: %v", err)
 	}
 }
 

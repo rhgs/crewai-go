@@ -378,8 +378,12 @@ func TestCheckSchemaSupported(t *testing.T) {
 	if err := checkSchemaSupported(ok); err != nil {
 		t.Fatal(err)
 	}
-	bad := mustRaw(t, map[string]any{"$ref": "#/definitions/x"})
+	bad := mustRaw(t, map[string]any{"unevaluatedProperties": false})
 	if err := checkSchemaSupported(bad); err == nil {
 		t.Fatal("expected unsupported")
+	}
+	// $ref is now supported
+	if err := checkSchemaSupported(mustRaw(t, map[string]any{"$ref": "#/definitions/x"})); err != nil {
+		t.Fatalf("$ref should be supported: %v", err)
 	}
 }

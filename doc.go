@@ -76,6 +76,13 @@
 //
 //	crew.WithStream(func(c crewai.StreamChunk) { fmt.Print(c.Delta) })
 //
+// # Lifecycle events
+//
+// Crew.WithEvents delivers metadata-only CrewEvent records (kickoff, task,
+// llm_call, react_iteration, …) for telemetry. See examples/events.
+//
+//	crew.WithEvents(func(ev crewai.CrewEvent) { ... })
+//
 // # Structured output
 //
 // When a task needs typed, trustworthy data, set Task.Structured to a
