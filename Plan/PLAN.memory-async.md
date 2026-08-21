@@ -84,7 +84,7 @@ Implications:
 ┌─────────────────────────────────────────────────────────┐
 │ Crew / executor                                         │
 │  - MemoryPolicy (when/how to inject & save)             │
-│  - MemorySession (run-scoped handle bound to Kickoff)   │
+│  - wave buffer (internal; D-M7 — not a public type)     │
 └──────────────────────────┬──────────────────────────────┘
                            │ uses
 ┌──────────────────────────▼──────────────────────────────┐
@@ -166,11 +166,16 @@ type MemoryPolicy struct {
 }
 
 // On Crew:
-//   Store MemoryStore      // optional; if nil && Memory bool → InMemoryStore
-//   MemoryPolicy *MemoryPolicy
-//   Embed EmbeddingFunc    // optional
-//   Memory bool            // DEPRECATED alias: true ⇒ ensure InMemoryStore for this Kickoff
+//   MemoryStore MemoryStore  // optional; if nil && Memory bool → InMemoryStore
+//   MemoryPolicy *MemoryPolicy // nil ⇒ NewMemoryPolicy() defaults
+//   Embed EmbeddingFunc      // optional
+//   Memory bool              // permanent v0.x alias (G4): true ⇒ ensure InMemoryStore for this Kickoff
 ```
+
+**Zero-value / constructors (Go):**
+- `NewMemoryPolicy()` (and `MemoryPolicy == nil` at Kickoff) sets `AutoSave=true`, `InjectWhenEmptyContext=true`, `DefaultLimit`/`DefaultMaxChars` to library defaults. A literal `MemoryPolicy{}` is **not** those defaults (`bool` zero is false).
+- `DefaultAsyncMaxWorkers = 8`. `NewCrew` sets `AsyncMaxWorkers=8`. A composite literal `Crew{AsyncMaxWorkers: 0}` is **unlimited** by design (D-A4 escape hatch). There is no sentinel that makes `0` mean “use 8”.
+
 
 **Compatibility bridge:**
 
@@ -189,7 +194,7 @@ Recommended: evolve `*Memory` to implement `MemoryStore` with `Put`/`Query` mapp
 | Store | Package location | Persistence | Search |
 |---|---|---|---|
 | **InMemoryStore** | root (`memory.go` / `memory_store.go`) | Process lifetime | substring (and cosine if embeddings present in entries) |
-| **FileStore** | root or `memory/filestore` subfolder **same module** | Directory of JSONL + small JSON index | substring on load/index; cosine if embeddings on entries |
+| **FileStore** | root (`filestore.go`) — **D-M2=A** | Directory of JSONL + small JSON index | substring on load/index; cosine if embeddings on entries |
 
 **FileStore format (v1):**
 
@@ -223,17 +228,21 @@ func cosine(a, b []float32) float64 // stdlib only; reject dim mismatch
 
 ### 2.6 Prompt injection policy
 
-Replace blind `c.mem.String()` with:
+Replace blind `c.mem.String()` with a **Crew-owned committed snapshot** (D-M7), not a live `store.Query` mid-wave:
 
 ```go
-hits, err := store.Query(ctx, MemoryQuery{
+// queryCommitted is the orchestrator's view: entries folded at the last
+// barrier (plus earlier Kickoffs). It must NOT observe in-flight sibling Puts.
+hits, err := queryCommitted(ctx, MemoryQuery{
     Scope: policy.Scope,
-    Text: injectionQueryFromTask(task), // see D-M4
+    Text: injectionQueryFromTask(task), // see D-M4 — empty ⇒ latest N committed
     Limit: policy.DefaultLimit,
     MaxChars: policy.DefaultMaxChars,
 })
 contextText = formatMemoryBlock(hits) // bounded, labeled
 ```
+
+`MemoryStore.Put`/`Query` may still be immediately visible (persistence). The **prompt path** only reads the snapshot. Raw `store.Query` during Kickoff is not the merge channel (same invariant as “don’t use Memory as sibling bus”).
 
 Format sketch:
 
@@ -245,7 +254,7 @@ Format sketch:
 
 Hard caps (constants):
 - `MaxMemoryQueryLimit = 32`
-- `MaxMemoryEntryBytes = 32 << 10` (reject/truncate oversized Content on Put)
+- `MaxMemoryEntryBytes = 32 << 10` (**reject** oversized Content on Put — G11; no silent truncate)
 - `DefaultMemoryMaxChars = 4000`
 
 **Visibility (see D-M7):** automatic inject/`Query` used by the orchestrator MUST only see entries **committed** at a prior wave/stage barrier (or from earlier Kickoffs). In-flight sibling writes are invisible to prompt assembly. “Latest N” (**D-M4-A**) means latest N **committed** entries with **stable order** `(CommittedSeq or declaration index, then ID)` — never raw completion/append order of a still-open wave.
@@ -301,6 +310,8 @@ Do **not** auto-copy Facts into MemoryStore in v1 (apps may do so explicitly).
 | Memory as cross-Kickoff / debug log | May be chronological | Outside hot prompt path; document separately |
 
 Public docs must promote the DEV caveat to an **invariant**: *do not use Memory as the merge channel for parallel siblings — use `WithContext`.*
+
+**G12 implementation:** validate cycle / same-**wave** `Task.Context` at Kickoff start against the **planned waves**, not “any Context pointing at a later slice index”. Sequential with no `Async` still allows `WithContext` of an earlier task (today). Same-stage Context under Staged becomes a **hard error** (may break anyone relying on the race — that is intended).
 
 ---
 
@@ -504,19 +515,21 @@ Copied/adapted from security residuals:
 
 ```
 Phase 0  ~~Close open decisions D-M1–D-M7 and D-A1–D-A6~~ **done 2026-08-21** (gaps G1–G12 closed in the same pass)
-Phase 1  A1 extract runTaskGroup          } can parallelize with
-Phase 1  M1 MemoryStore interface         } independent file ownership
-Phase 2  A2 DAG planner
-Phase 2  M2 Crew MemoryPolicy wiring
-Phase 3  A3 Sequential/Hierarchical Async
-Phase 3  M3 FileStore
-Phase 4  A4 + M4 docs/examples/embeddings
+Phase 1  A1 extract runTaskGroup  ∥  M1 MemoryStore interface
+         (disjoint files: A1 touches crew.go; M1 touches memory.go only)
+Phase 2  M2 MemoryPolicy + D-M7 buffer **on runTaskGroup**  (requires A1 merged)
+         A2 DAG planner may start after A1; do **not** land M2 before A1
+Phase 3  A3 Sequential/Hierarchical Async  ∥  M3 FileStore
+Phase 4  A4 docs/examples; M4 embeddings (can split)
 Phase 5  Optional M5 memory tools / A5 Process sugar
 ```
 
-File ownership to avoid conflicts:
-- Engineer/async: `crew.go`, `process.go`, new `schedule.go`, crew tests.
-- Engineer/memory: `memory.go`, new `memory_store.go` / `memory_file.go`, memory tests, docs/memory.
+**Why A1 before M2:** D-M7/G9 commit lives in the stage/wave barrier. If M2 ships first, the buffer is copied into `runStaged` and then rewritten when A1 extracts `runTaskGroup`. M1 is free to parallelize with A1.
+
+File ownership:
+- Async: `crew.go`, `process.go`, new `schedule.go`, crew tests — **A1 then A2/A3**.
+- Memory types: `memory.go`, `memory_store.go`, `filestore.go` — M1/M3/M4.
+- M2 is the **handoff**: policy + wave buffer in `runTaskGroup` (touches `crew.go` after A1).
 
 ---
 
@@ -569,9 +582,12 @@ File ownership to avoid conflicts:
 | FileStore growth | Document compaction later; entry size cap |
 | Hierarchical manager bottleneck | Serial pre-resolve agents |
 | Scope creep into RAG product | Embeddings are hooks only; no chunking pipeline in core |
-| Import cycles Crew ↔ memory file | Keep interfaces in root; file impl same package or thin subpackage |
-| Semantic race via Memory completion order | **D-M7=B** buffer+fold; inject only committed; tests like Staged deterministic order |
+| Import cycles Crew ↔ memory file | **D-M2=A:** FileStore in root `filestore.go`; no subpackage unless a cycle appears |
+| Semantic race via Memory completion order | **D-M7=B** Crew-owned buffer+fold; inject only committed snapshot; tests like Staged deterministic order. Raw `store.Query` is not the prompt path |
 | Users treating Memory as sibling merge bus | Docs invariant + prefer `WithContext`; default inject policy conservative (D-M3) |
+| `crew.go` dual-owner (A1 vs M2) | **A1 before M2**; M1 parallel OK |
+| Go zero-value vs D-A4/policy defaults | `NewCrew` ⇒ MaxWorkers 8; literal `0` = unlimited. `NewMemoryPolicy()` / nil policy for bool defaults |
+| Same-wave Context false positive | G12 uses **wave plan**, not slice order (Sequential serial `WithContext` stays valid) |
 
 ---
 

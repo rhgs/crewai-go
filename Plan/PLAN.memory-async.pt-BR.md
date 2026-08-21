@@ -84,7 +84,7 @@ Implicações:
 ┌─────────────────────────────────────────────────────────┐
 │ Crew / executor                                         │
 │  - MemoryPolicy (quando/como injetar e salvar)          │
-│  - MemorySession (handle de run no Kickoff)             │
+│  - buffer de wave (interno; D-M7 — não é tipo público)  │
 └──────────────────────────┬──────────────────────────────┘
                            │ usa
 ┌──────────────────────────▼──────────────────────────────┐
@@ -142,18 +142,22 @@ type EmbeddingFunc func(ctx context.Context, texts []string) ([][]float32, error
 type MemoryPolicy struct {
     AutoSave               bool
     AutoEmbed              bool
-    InjectWhenEmptyContext bool // default true = comportamento atual
+    InjectWhenEmptyContext bool // default true via NewMemoryPolicy / nil, NÃO via zero-value
     DefaultLimit           int
     DefaultMaxChars        int
     Scope                  MemoryScope
 }
 
 // Em Crew:
-//   Store MemoryStore
-//   MemoryPolicy *MemoryPolicy
+//   MemoryStore MemoryStore  // opcional; nil && Memory bool ⇒ InMemoryStore
+//   MemoryPolicy *MemoryPolicy // nil ⇒ NewMemoryPolicy()
 //   Embed EmbeddingFunc
-//   Memory bool   // alias: true ⇒ garante InMemoryStore neste Kickoff
+//   Memory bool   // alias permanente v0.x (G4): true ⇒ garante InMemoryStore neste Kickoff
 ```
+
+**Zero-value / construtores (Go):**
+- `NewMemoryPolicy()` (e `MemoryPolicy == nil` no Kickoff) define `AutoSave=true`, `InjectWhenEmptyContext=true`, limites default. Literal `MemoryPolicy{}` **não** é isso (`bool` zero = false).
+- `DefaultAsyncMaxWorkers = 8`. `NewCrew` seta 8. Literal `Crew{AsyncMaxWorkers: 0}` é **ilimitado** de propósito (escape D-A4). `0` nunca significa “usar 8”.
 
 **Ponte de compatibilidade:** fazer `*Memory` implementar `MemoryStore` (`Put`/`Query` ↔ `Save`/`Search`, `Close` no-op) para testes atuais continuarem verdes.
 
@@ -162,7 +166,7 @@ type MemoryPolicy struct {
 | Store | Onde | Persistência | Busca |
 |---|---|---|---|
 | **InMemoryStore** | root | Vida do processo | substring (+ cosseno se houver embedding) |
-| **FileStore** | root (ou subpacote sem ciclo) | Diretório JSONL + índice | substring; cosseno se embeddings |
+| **FileStore** | root (`filestore.go`) — **D-M2=A** | Diretório JSONL + índice | substring; cosseno se embeddings |
 
 **Formato FileStore (v1):**
 
@@ -189,11 +193,18 @@ type MemoryPolicy struct {
 
 ### 2.6 Política de injeção no prompt
 
-Substituir `c.mem.String()` cego por `store.Query` + bloco formatado e limitado.
+Substituir `c.mem.String()` cego por um **snapshot commitado do Crew** (D-M7), não um `store.Query` ao vivo no meio da wave:
+
+```go
+hits, err := queryCommitted(ctx, MemoryQuery{ /* latest N commitado — D-M4 */ })
+contextText = formatMemoryBlock(hits)
+```
+
+`MemoryStore.Put`/`Query` podem ser visíveis na hora (persistência). O **caminho de prompt** só lê o snapshot. `store.Query` cru durante o Kickoff não é o canal de merge.
 
 Constantes:
 - `MaxMemoryQueryLimit = 32`
-- `MaxMemoryEntryBytes = 32 KiB`
+- `MaxMemoryEntryBytes = 32 KiB` (**reject** no Put — G11; sem truncate silencioso)
 - `DefaultMemoryMaxChars = 4000`
 
 **Visibilidade (ver D-M7):** inject/`Query` usados pelo orquestrador SÓ veem entries **commitadas** em barreira de wave/stage anterior (ou Kickoffs anteriores). Writes de siblings em voo são invisíveis na montagem do prompt. “Latest N” (**D-M4-A**) = últimos N do **snapshot commitado**, ordem estável `(seq de commit / índice de declaração, ID)` — nunca append/completion order da wave aberta.
@@ -248,6 +259,8 @@ Não copiar Facts automaticamente para MemoryStore na v1.
 | Memory como log cross-Kickoff / debug | Pode ser cronológico | Fora do caminho quente do prompt; documentar à parte |
 
 Docs públicas elevam o caveat do DEV a **invariante**: *não use Memory como canal de merge de siblings paralelos — use `WithContext`.*
+
+**G12 na implementação:** validar ciclo / `Task.Context` da mesma **wave** no início do Kickoff contra o **plano de waves**, não “qualquer Context apontando para índice posterior no slice”. Sequential sem `Async` continua permitindo `WithContext` da task anterior (hoje). Context same-stage no Staged passa a **erro duro** (pode quebrar quem dependia da race — é intencional).
 
 ---
 
@@ -431,16 +444,21 @@ Recomendação: **pré-resolver agents em série** (chamadas ao manager), depois
 
 ```
 Fase 0  ~~Fechar D-M1–D-M7 e D-A1–D-A6~~ **feito 2026-08-21** (gaps G1–G12 no mesmo passe)
-Fase 1  A1 runTaskGroup  ||  M1 MemoryStore    (arquivos disjuntos)
-Fase 2  A2 DAG           ||  M2 MemoryPolicy
-Fase 3  A3 wire Async    ||  M3 FileStore
-Fase 4  A4 + M4 docs/examples/embeddings
+Fase 1  A1 extrair runTaskGroup  ∥  M1 interface MemoryStore
+        (arquivos disjuntos: A1 em crew.go; M1 só memory.go)
+Fase 2  M2 MemoryPolicy + buffer D-M7 **em runTaskGroup**  (exige A1 mergeado)
+        A2 planejador DAG pode começar após A1; **não** pousar M2 antes de A1
+Fase 3  A3 Sequential/Hierarchical Async  ∥  M3 FileStore
+Fase 4  A4 docs/examples; M4 embeddings (pode fatiar)
 Fase 5  Opcionais M5/A5
 ```
 
+**Por que A1 antes de M2:** o commit D-M7/G9 vive na barreira de stage/wave. Se M2 sair primeiro, o buffer é copiado em `runStaged` e reescrito quando A1 extrai `runTaskGroup`. M1 pode paralelizar com A1.
+
 Partição de arquivos:
-- Async: `crew.go`, `schedule.go` (novo), testes de crew/staged.
-- Memory: `memory.go`, `memory_store.go`, `memory_file.go`, testes, `docs/memory.md`.
+- Async: `crew.go`, `schedule.go` (novo), testes de crew/staged — **A1 depois A2/A3**.
+- Tipos de memória: `memory.go`, `memory_store.go`, `filestore.go` — M1/M3/M4.
+- M2 é o **handoff**: policy + buffer de wave em `runTaskGroup` (toca `crew.go` depois de A1).
 
 ---
 
@@ -493,9 +511,12 @@ Partição de arquivos:
 | Crescimento FileStore | Cap de entry; compactação depois |
 | Gargalo do manager | Pré-resolve serial |
 | Scope creep RAG | Só hook de embedding; sem pipeline de chunk no core |
-| Ciclo de import | Interfaces no root |
-| Race semântica via completion order da Memory | **D-M7=B** buffer+fold; inject só commitado; testes como ordem determinística do Staged |
+| Ciclo de import | **D-M2=A:** FileStore no root `filestore.go`; subpacote só se aparecer ciclo |
+| Race semântica via completion order da Memory | **D-M7=B** buffer+fold no Crew; inject só snapshot commitado; testes como ordem determinística do Staged. `store.Query` cru não é o caminho de prompt |
 | Users usando Memory como bus de merge de siblings | Invariante nas docs + preferir `WithContext`; policy de inject conservadora (D-M3) |
+| `crew.go` dono duplo (A1 vs M2) | **A1 antes de M2**; M1 paralelo OK |
+| Zero-value Go vs defaults D-A4/policy | `NewCrew` ⇒ MaxWorkers 8; literal `0` = ilimitado. `NewMemoryPolicy()` / nil para bools |
+| Falso positivo de Context same-wave | G12 usa **plano de waves**, não ordem do slice (Sequential serial com `WithContext` continua válido) |
 
 ---
 
