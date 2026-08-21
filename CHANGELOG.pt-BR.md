@@ -5,6 +5,13 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Documentation
+
+- **Plano de design P2**: `Plan/PLAN.p2-callbacks-schema.md` (+ PT) —
+  callbacks/telemetria (`CrewEvent`/`WithEvents`) + remainder de JSON Schema
+  (`$ref` local, allowlist de format, …); D-C1–D-C10 / D-J1–D-J12; linkado no
+  P2 do roadmap (ainda não implementado).
+
 ## [v0.7.0] — 2026-08-21
 
 ### Adicionado

@@ -296,11 +296,13 @@ and environment variable names in docs/README. The `.gitignore` protects
   task and ReAct-iteration start/end hooks, exportable structured events
   (logs, metrics, optional OpenTelemetry later). Must stay metadata-safe
   (no prompt bodies by default; same redaction posture as Progress).
-  **Separate plan when scheduled.**
-- [ ] **JSON Schema remainder** — `$ref` (and remote/`$id` policy),
-  `if`/`then`/`else`, `format`, `unevaluatedProperties` / `unevaluatedItems`,
-  fuller draft 2020-12. Keep zero deps; fail closed on unsupported keywords
-  under `WithStrictSchema`. Completes the partial v0.5.0 work above.
+  **Design plan:** [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md)
+  ([PT](PLAN.p2-callbacks-schema.pt-BR.md)) — Part C (D-C1–D-C10); not coded.
+- [ ] **JSON Schema remainder** — `$ref` (local only in v1),
+  `if`/`then`/`else`, `format` allowlist, `const`/`not`, property counts,
+  `uniqueItems`; `unevaluated*` deferred. Keep zero deps; fail closed on
+  still-unsupported keywords under `WithStrictSchema`. Completes partial
+  v0.5.0 work. **Same design plan** (Part J, D-J1–D-J12).
 
 ### P3 — Advanced orchestration, tools, and packaging
 
@@ -330,8 +332,8 @@ unless explicitly accepted).
 |---|---|---|
 | P1 | **Streaming** | **Shipped v0.7.0** (PRs #35/#36): [`PLAN.streaming.md`](PLAN.streaming.md) — `StreamingLLM` + `WithStream` |
 
-| P2 | **Callbacks / telemetry** | Lifecycle hooks beyond `WithProgress` |
-| P2 | **JSON Schema `$ref` / `format` / …** | Finish subset → practical 2020-12 slice |
+| P2 | **Callbacks / telemetry** | Design: [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) Part C — not started |
+| P2 | **JSON Schema remainder** | Design: same plan Part J (`$ref` local, format, …) — not started |
 | P3 | **Flows** | Event-driven state + routing |
 | P3 | **Tools: HTTP, files, RAG patterns** | SSRF/jail; RAG not a core vector DB |
 | P3 | **YAML crew definitions** | agents.yaml / tasks.yaml → Go types |

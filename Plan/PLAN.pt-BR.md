@@ -285,12 +285,14 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 - [ ] **Callbacks e telemetria** — além de `WithProgress` / slog: hooks de
   início/fim de tarefa e iteração ReAct, eventos estruturados exportáveis
   (logs, métricas, OpenTelemetry opcional depois). Manter posture de metadata
-  (sem corpos de prompt por padrão; mesma redação do Progress). **Plano
-  separado quando agendado.**
-- [ ] **Remainder de JSON Schema** — `$ref` (e política remote/`$id`),
-  `if`/`then`/`else`, `format`, `unevaluatedProperties` / `unevaluatedItems`,
-  fatia prática do draft 2020-12. Zero deps; fail closed em keywords não
-  suportadas com `WithStrictSchema`. Completa o trabalho parcial da v0.5.0.
+  (sem corpos de prompt por padrão; mesma redação do Progress).
+  **Plano de design:** [`PLAN.p2-callbacks-schema.pt-BR.md`](PLAN.p2-callbacks-schema.pt-BR.md)
+  ([EN](PLAN.p2-callbacks-schema.md)) — Parte C (D-C1–D-C10); ainda sem código.
+- [ ] **Remainder de JSON Schema** — `$ref` (só local na v1),
+  `if`/`then`/`else`, allowlist de `format`, `const`/`not`, contagens de
+  properties, `uniqueItems`; `unevaluated*` adiado. Zero deps; fail closed
+  nas keywords ainda não suportadas com `WithStrictSchema`. Completa o
+  trabalho parcial da v0.5.0. **Mesmo plano de design** (Parte J, D-J1–D-J12).
 
 ### P3 — Orquestração avançada, tools e packaging
 
@@ -320,8 +322,8 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 |---|---|---|
 | P1 | **Streaming** | **Entregue na v0.7.0** (PRs #35/#36): [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md) — `StreamingLLM` + `WithStream` |
 
-| P2 | **Callbacks / telemetria** | Hooks de lifecycle além de `WithProgress` |
-| P2 | **JSON Schema `$ref` / `format` / …** | Fechar subconjunto → fatia 2020-12 |
+| P2 | **Callbacks / telemetria** | Design: [`PLAN.p2-callbacks-schema.pt-BR.md`](PLAN.p2-callbacks-schema.pt-BR.md) Parte C — não iniciado |
+| P2 | **Remainder de JSON Schema** | Design: mesmo plano Parte J (`$ref` local, format, …) — não iniciado |
 | P3 | **Flows** | Estado event-driven + roteamento |
 | P3 | **Tools: HTTP, arquivos, padrões RAG** | SSRF/jail; RAG ≠ vector DB no core |
 | P3 | **Definições YAML de crew** | agents.yaml / tasks.yaml → tipos Go |
