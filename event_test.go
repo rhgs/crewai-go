@@ -179,3 +179,20 @@ func TestEvents_AsyncWave(t *testing.T) {
 
 // ensure callOnlyLLM available - defined in stream_test.go same package
 var _ = strings.Contains
+
+func TestEmitEvent_ClonesAttrs(t *testing.T) {
+	attrs := map[string]any{"model": "m"}
+	var seen map[string]any
+	ctx := ContextWithEvents(context.Background(), func(ev CrewEvent) {
+		seen = ev.Attrs
+		ev.Attrs["model"] = "mutated"
+	})
+	emitEvent(ctx, CrewEvent{Type: "x", Attrs: attrs})
+	if attrs["model"] != "m" {
+		t.Fatalf("caller map mutated: %v", attrs)
+	}
+	if seen["model"] != "mutated" {
+		// sink can mutate its copy
+		t.Fatalf("sink copy %#v", seen)
+	}
+}

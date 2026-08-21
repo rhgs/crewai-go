@@ -90,6 +90,7 @@ func newKickoffID() string {
 
 // emitEvent invokes the EventFunc on ctx, if any. Fills Time and KickoffID
 // when empty. Err strings should already be safe; empty Err is fine.
+// Attrs is shallow-cloned so a sink cannot mutate the caller's map.
 func emitEvent(ctx context.Context, ev CrewEvent) {
 	fn := eventFuncFromCtx(ctx)
 	if fn == nil {
@@ -100,6 +101,13 @@ func emitEvent(ctx context.Context, ev CrewEvent) {
 	}
 	if ev.KickoffID == "" {
 		ev.KickoffID = kickoffIDFromCtx(ctx)
+	}
+	if len(ev.Attrs) > 0 {
+		cp := make(map[string]any, len(ev.Attrs))
+		for k, v := range ev.Attrs {
+			cp[k] = v
+		}
+		ev.Attrs = cp
 	}
 	defer func() {
 		if r := recover(); r != nil {

@@ -63,12 +63,16 @@ fmt.Println(m.String())
 ## Context vs Memory
 
 - **Context** (`WithContext`) is **explicit and directed**: you say exactly
-  which outputs feed into a task.
-- **Memory** is **implicit and cumulative**: it is available to all following
-  tasks that have not defined their own context.
+  which outputs feed into a task. This is the **merge channel** for parallel
+  siblings (Staged peers or Async waves).
+- **Memory** is **implicit and cumulative**: budgeted recall of the
+  **committed** past for tasks with empty context (`InjectWhenEmptyContext`).
 
-Use context for precise dependencies; use memory to give the team a general
-"awareness" of what has been done.
+Use context for precise dependencies; use memory for general awareness — **not**
+as a side channel to order sibling outputs. During parallel groups, AutoSave is
+buffered and committed at the barrier in declaration order (**D-M7**); inject
+never sees in-flight siblings. Details:
+[Concurrency model](concurrency.md#memory-the-historical-caveat-and-d-m7).
 
 ## Custom `MemoryStore` backends
 

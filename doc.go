@@ -62,7 +62,9 @@
 // order). Cycles, self-dependencies, and duplicate task pointers fail fast at
 // Kickoff with ErrTaskDependencyCycle. NewCrew applies
 // AsyncMaxWorkers = DefaultAsyncMaxWorkers (8) and AsyncFailFast = true;
-// override with Crew.WithAsyncMaxWorkers (0 = unlimited).
+// override with Crew.WithAsyncMaxWorkers (0 = unlimited). Parallel groups are
+// independent mid-flight; Memory AutoSave commits at the barrier (D-M7).
+// See docs/concurrency.md for data races vs semantic races.
 //
 //	research := crewai.NewTask("research", "notes", agent).WithAsync()
 //	write := crewai.NewTask("write", "markdown", agent).WithContext(research)

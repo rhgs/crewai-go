@@ -19,6 +19,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Documentation
 
+- **Concurrency guide**: new `docs/concurrency.md` (+ PT) — data races vs
+  semantic races, barrier/fold, D-M7 Memory, Streaming/Events under
+  parallelism; answers the [dev.to concurrency thread](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm#comments).
+  README Why + crews/memory cross-links; `emitEvent` shallow-clones Attrs.
 - **P2 design plan** was linked earlier; implementation docs: crews `WithEvents`,
   tasks schema keyword table, SECURITY events + local `$ref`, examples READMEs.
 

@@ -64,13 +64,21 @@
 - 🔧 **Native tool calling** — use provider-native function calling (OpenAI, Anthropic, Ollama) instead of text-based ReAct, with automatic fallback and full trace observability.
 - 🔎 **Web search** — agent-driven search via the `WebSearcher` interface (Ollama, OpenAI, Anthropic, xAI) or model-driven search via `WebSearchTool` with 7 providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave). SSRF-protected.
 - 📝 **Structured logging via `log/slog`** — inject a custom `*slog.Logger` on `Crew` and `Agent`, with backward-compatible `Verbose` fallback.
-- ⚡ **Async waves (v0.6)**: independent `Task.Async` tasks run in parallel under
-  Sequential/Hierarchical, honoring `Task.Context` dependencies, always folding
-  by declaration order. `NewCrew` defaults to `AsyncMaxWorkers = 8`.
+- ⚡ **Async waves (v0.6)** — independent `Task.Async` tasks overlap under
+  Sequential/Hierarchical; `Task.Context` is the DAG; **declaration-order fold
+  after each wave barrier** (never completion order). `NewCrew` defaults
+  `AsyncMaxWorkers = 8`.
+- 🧱 **Semantic-race safe parallelism** — Staged/Async groups are independent
+  mid-flight; barrier + slot-by-index merge; Memory AutoSave commits at the
+  barrier in declaration order (D-M7). `-race` is necessary, not sufficient —
+  see [docs/concurrency.md](docs/concurrency.md).
 - 🧠 **Memory** between tasks and chainable **context** — pluggable
   `MemoryStore`, durable `FileStore` (JSONL), optional embeddings + cosine recall.
+  Prefer `WithContext` to merge parallel siblings; Memory inject sees the
+  **committed** snapshot only.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
-- 🪜 **Staged process** — stages run in sequence, tasks within a stage run in parallel.
+- 🪜 **Staged process** — stages in sequence, tasks within a stage in parallel;
+  same barrier/fold contract as Async waves.
 - 🔁 **Agentic loop** — optional Plan-Execute-Evaluate-Refine cycle with self-evaluation and iterative refinement.
 - 🔌 **MCP** — connect to Model Context Protocol servers and expose their tools as `crewai.Tool` (schema-preserving).
 - 📡 **Progress & warnings** — real-time `WithProgress` callbacks and per-task non-fatal warnings.
@@ -97,6 +105,7 @@
 | **ToolCallingLLM** | Optional LLM interface for native function calling. |
 | **StreamingLLM** | Optional LLM interface for token/delta streaming (`CallStream`). |
 | **StreamChunk** | One streaming unit: `Delta`, `Task`, `Agent`, `Done`, `Err`. |
+| **CrewEvent** | Metadata lifecycle record for `WithEvents` telemetry. |
 | **ToolTrace** | Records each native tool invocation (name, args, output, duration). |
 
 ## Installation

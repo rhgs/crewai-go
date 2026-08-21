@@ -64,14 +64,22 @@
 - 🔧 **Native tool calling** — use function calling nativa do provedor (OpenAI, Anthropic, Ollama) em vez de ReAct baseado em texto, com fallback automático e observabilidade de traces.
 - 🔍 **Web search** — busque a web via `WebSearcher` (Ollama, OpenAI, Anthropic, xAI) com `crewai.SearchWeb`, ou via `WebSearchTool` no loop ReAct com 7 provedores (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave) e proteção SSRF.
 - 📝 **Logging estruturado** via `log/slog` da stdlib — injetar `*slog.Logger` customizado em `Crew` e `Agent`, com fallback para o `Verbose` legado.
-- ⚡ **Waves assíncronas (v0.6)**: tarefas independentes com `Task.Async` rodam em
-  paralelo sob Sequential/Hierarchical, respeitando dependências `Task.Context`
-  e sempre agregando na ordem de declaração. `NewCrew` usa
-  `AsyncMaxWorkers = 8` por padrão.
+- ⚡ **Waves assíncronas (v0.6)** — `Task.Async` se sobrepõe em
+  Sequential/Hierarchical; `Task.Context` é a DAG; **fold por ordem de
+  declaração após a barreira da wave** (nunca ordem de conclusão). `NewCrew`
+  usa `AsyncMaxWorkers = 8`.
+- 🧱 **Paralelismo seguro a semantic races** — grupos Staged/Async são
+  independentes em voo; barreira + merge por índice de declaração; AutoSave de
+  Memory commita na barreira em ordem de declaração (D-M7). `-race` é
+  necessário, não suficiente — veja
+  [docs/pt-BR/concurrency.md](docs/pt-BR/concurrency.md).
 - 🧠 **Memória** entre tarefas e **contexto** encadeável — `MemoryStore`
-  plugável, `FileStore` durável (JSONL), embeddings opcionais + recall por cosseno.
+  plugável, `FileStore` durável (JSONL), embeddings opcionais + recall por
+  cosseno. Prefira `WithContext` para merge de irmãos paralelos; inject de
+  Memory vê só o snapshot **commitado**.
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
-- 🪜 **Processo em estágios (Staged)** — estágios em sequência, tarefas de um estágio em paralelo.
+- 🪜 **Processo em estágios (Staged)** — estágios em sequência, tarefas do
+  estágio em paralelo; mesmo contrato de barreira/fold das waves Async.
 - 🔁 **Agentic loop** — ciclo opcional Planejar-Executar-Avaliar-Refinar com autoavaliação e refinamento iterativo.
 - 🔌 **MCP** — conecte a servidores Model Context Protocol e exponha as tools como `crewai.Tool` (schema preservado).
 - 📡 **Progresso e warnings** — callbacks `WithProgress` em tempo real e warnings não-fatais por tarefa.
@@ -98,6 +106,7 @@
 | **ToolCallingLLM** | Interface LLM opcional para function calling nativo. |
 | **StreamingLLM** | Interface opcional de LLM para streaming de tokens (`CallStream`). |
 | **StreamChunk** | Unidade de stream: `Delta`, `Task`, `Agent`, `Done`, `Err`. |
+| **CrewEvent** | Registro de lifecycle (só metadados) para telemetria `WithEvents`. |
 | **ToolTrace** | Registra cada chamada nativa de tool (nome, args, output, duracao). |
 
 ## Instalação

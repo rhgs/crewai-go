@@ -8,6 +8,8 @@ Uma **Crew** reúne agentes e tarefas e os orquestra segundo um **Process**.
 
 Apenas **um** `Kickoff` pode rodar por vez em um dado `*Crew`. Uma chamada concorrente retorna `ErrCrewRunning` imediatamente (fail fast — nao enfileira). Crie valores `Crew` separados para runs paralelos. Reuso sequencial do mesmo Crew e suportado.
 
+Para **semantic races** (ordem de conclusão vs ordem de fold), Memory D-M7 e como grupos Staged/Async ficam determinísticos, veja o **[modelo de concorrência](concurrency.md)** — inclusive a discussão no [fio do dev.to](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm#comments).
+
 ## Criando e executando
 
 ```go
@@ -56,6 +58,7 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 | `OutputDir` | `string` | Jail opcional para `Task.OutputFile` quando a task nao define o seu. Symlink-aware; ver tasks. |
 | `EnableDelegationTool` | `bool` | Se true, anexa `delegate_to_coworker` a cada agent no Kickoff (default false). Alvos ainda precisam de `AllowDelegation`. |
 | `stream`       | `StreamFunc`   | Interno — set via `WithStream` (deltas de texto do LLM). |
+| `events`       | `EventFunc`    | Interno — set via `WithEvents` (lifecycle só metadados). |
 | `progress`     | `ProgressFunc` | Interno — definido via `WithProgress`. |
 
 ## O resultado: `CrewOutput`
@@ -136,8 +139,12 @@ out, _ := crew.Kickoff(ctx, nil)
 
 O processo `Staged` agrupa tarefas em **estágios**: os estágios rodam em
 sequência, mas as tarefas dentro de um mesmo estágio rodam concorrentemente.
-A saída de cada estágio fica disponível como contexto para as tarefas dos
-estágios seguintes (via `Task.Context`).
+Pares no mesmo estágio são **independentes em voo** (sem merge via outputs
+vivos uns dos outros). Após a barreira do estágio, os resultados são
+agregados em **ordem de declaração** (não ordem de conclusão) em
+`TasksOutput` / Facts / Warnings. O próximo estágio só começa depois desse
+fold. Dependências entre estágios usam `Task.Context` (apenas estágios
+anteriores). Veja [concurrency.md](concurrency.md).
 
 ```go
 crew := crewai.NewCrew(agentes, nil)

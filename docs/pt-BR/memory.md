@@ -63,12 +63,17 @@ fmt.Println(m.String())
 ## Contexto x Memória
 
 - **Contexto** (`WithContext`) é **explícito e direcionado**: você diz
-  exatamente quais saídas alimentam uma tarefa.
-- **Memória** é **implícita e cumulativa**: fica disponível a todas as tarefas
-  seguintes que não definiram contexto próprio.
+  exatamente quais saídas alimentam uma tarefa. Este é o **canal de merge**
+  para irmãos paralelos (pares Staged ou waves Async).
+- **Memória** é **implícita e cumulativa**: recall orçado do passado
+  **commitado** para tarefas com contexto vazio (`InjectWhenEmptyContext`).
 
-Use contexto para dependências precisas; use memória para dar à equipe uma
-"consciência" geral do que já foi feito.
+Use contexto para dependências precisas; use memória para consciência geral —
+**não** como canal lateral para ordenar outputs de irmãos. Em grupos
+paralelos, AutoSave é bufferizado e commitado na barreira em ordem de
+declaração (**D-M7**); o inject nunca vê irmãos em voo. Detalhes:
+[Modelo de concorrência](concurrency.md).
+
 
 ## Backends `MemoryStore` customizados
 
