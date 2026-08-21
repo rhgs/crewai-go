@@ -18,7 +18,7 @@
 Eles interagem: waves async gravam memória em paralelo (store race-safe); stores de longo prazo não podem assumir Kickoff single-threaded. Um plano único evita APIs incompatíveis.
 
 **Non-goals:**
-- Streaming de tokens LLM (P1 separado).
+- Streaming de tokens LLM (P1 separado — ver [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md)).
 - Vector DB / RAG cloud dentro do módulo core.
 - Substituir o processo Staged (Staged permanece; async estende Sequential/Hierarchical).
 - Cgo ou drivers de DB obrigatórios em `github.com/rhgs/crewai-go`.
