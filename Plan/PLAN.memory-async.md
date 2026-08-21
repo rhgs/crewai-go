@@ -2,7 +2,8 @@
 
 > **Status:** Plan only — do not implement until scheduled and open decisions are closed.  
 > **Related:** current in-RAM `Memory` (`memory.go`), `Crew.Memory` / `MemorySnapshot`, `Process=Staged` (`runStaged`), roadmap items in `PLAN.md` §6 P1/P2.  
-> **Constraints:** zero external module dependencies in the core library (`go.mod` stays stdlib-only). Quality gates from §6.1 of `PLAN.security-residuals.md` apply to every implementation PR (coverage ≥ 90% on touched packages, race-clean, docs EN+PT-BR, CHANGELOG).
+> **Constraints:** zero external module dependencies in the core library (`go.mod` stays stdlib-only). Quality gates from §6.1 of `PLAN.security-residuals.md` apply to every implementation PR (coverage ≥ 90% on touched packages, race-clean, docs EN+PT-BR, CHANGELOG).  
+> **External feedback:** DEV.to thread on staged semantic races vs `-race` ([article](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm) — freerave): merge must be orchestration contract (declaration-order fold after barrier). Memory completion-order caveat → **D-M7** visibility + stronger **D-M3**/**D-M4**. Reinforced **D-A1**/**D-A5**/**D-A6**.
 
 ---
 
@@ -13,7 +14,7 @@
 | **Memory** | Per-Kickoff in-RAM bag of `MemoryRecord`; substring `Search`; injected only when `Task.Context` is empty | No cross-run persistence, no semantic recall, no scoping (crew/agent/session), no budgeted injection into prompts |
 | **Async** | Parallelism **only** inside a Staged stage (`WaitGroup` + cancel-on-fail) | Sequential/Hierarchical always serial; no DAG of independent tasks; no `Task.Async` / wave scheduler |
 
-They interact: async waves write memory concurrently (store must stay race-safe); long-term stores must not assume single-threaded Kickoff. Designing them in one plan avoids two incompatible APIs.
+They interact: async waves write memory concurrently (store must stay race-safe **and** commit-visible only at barriers — D-M7); long-term stores must not assume single-threaded Kickoff. Designing them in one plan avoids two incompatible APIs (mutex-only memory would reintroduce the staged Memory caveat under Sequential+Async).
 
 **Non-goals (this plan):**
 - Streaming LLM tokens (separate P1).
@@ -247,6 +248,8 @@ Hard caps (constants):
 - `MaxMemoryEntryBytes = 32 << 10` (reject/truncate oversized Content on Put)
 - `DefaultMemoryMaxChars = 4000`
 
+**Visibility (see D-M7):** automatic inject/`Query` used by the orchestrator MUST only see entries **committed** at a prior wave/stage barrier (or from earlier Kickoffs). In-flight sibling writes are invisible to prompt assembly. “Latest N” (**D-M4-A**) means latest N **committed** entries with **stable order** `(CommittedSeq or declaration index, then ID)` — never raw completion/append order of a still-open wave.
+
 ### 2.7 Interaction with Facts
 
 | | Memory | Facts |
@@ -262,7 +265,7 @@ Do **not** auto-copy Facts into MemoryStore in v1 (apps may do so explicitly).
 | PR | Deliverable | Notes |
 |---|---|---|
 | **M1** | `MemoryEntry`, `MemoryStore`, `MemoryQuery`; `*Memory` implements store; adapter tests | No Crew behavior change yet |
-| **M2** | `MemoryPolicy` + Crew wiring (`Store`, inject/save paths); deprecate reliance on dump-all | Backward compatible `Memory bool` |
+| **M2** | `MemoryPolicy` + Crew wiring (`Store`, inject/save paths); **wave-buffered Save + barrier commit (D-M7)**; deprecate dump-all | Backward compatible `Memory bool`; no mid-wave inject visibility |
 | **M3** | `FileStore` JSONL + docs EN/PT + example `examples/memory_file` | Path security, 0600 |
 | **M4** | `EmbeddingFunc` + cosine query path + docs; example with mock embedder | No network in tests |
 | **M5** (opt) | Memory tool for agents (`recall_memory` / `remember`) | Only if product wants agent-driven recall |
@@ -272,19 +275,32 @@ Do **not** auto-copy Facts into MemoryStore in v1 (apps may do so explicitly).
 - Unit: Put/Query/Delete concurrency (`-race`), limit/maxchars, scope isolation, oversized content.
 - FileStore: restart durability (Put → Close → Open → Query), corrupt line skip/fail policy (**D-M5**).
 - Crew integration: `Memory bool` still works; policy inject doesn’t exceed MaxChars; async Kickoff (once async ships) doesn’t race the store.
+- **Semantic order:** `TestMemoryCommitOrderMatchesDeclaration` — slow-first / fast-second parallel tasks → committed Memory sequence matches **declaration index**, not finish time (mirror `TestStagedDeterministicOrder`). Inject in the next wave must not observe uncommitted sibling entries.
 - Coverage ≥ 90% on new files/packages.
-- Docs: `docs/memory.md` + pt-BR rewrite; README blurb; CHANGELOG.
+- Docs: `docs/memory.md` + pt-BR rewrite; elevate DEV caveat to **API invariant** (Memory is not a merge channel for parallel siblings — use `WithContext`); README blurb; CHANGELOG.
 
 ### 2.10 Memory — open decisions
 
 | ID | Question | Options | Recommendation |
 |---|---|---|---|
-| **D-M1** | Default store when `Memory=true` and `Store==nil`? | (A) InMemory only (B) require explicit Store | **A** — zero surprise |
-| **D-M2** | FileStore in root vs `memory/` subpackage? | (A) root (B) subpackage | **B** `memoryfile` or keep types in root, file impl in `memory/file` — prefer **root types + `memoryfile` package** only if import cycles; else single root files |
-| **D-M3** | Inject when task already has `Context`? | (A) never (today) (B) append memory block (C) policy flag | **C** default=A |
-| **D-M4** | Automatic injection query text | (A) empty → latest N (B) task description keywords (C) embed description | **A** for v1; **B** later |
-| **D-M5** | Corrupt JSONL line | (A) fail Open (B) skip line + warning | **B** with counter in meta |
-| **D-M6** | Cross-Kickoff FileStore lifecycle | (A) app opens/closes Store (B) Crew.Close | **A** + optional `Crew.WithStore` docs; Crew does not Close app stores automatically unless `StoreOwner` flag |
+| **D-M1** | Default store when `Memory=true` and `Store==nil`? | (A) InMemory only (B) require explicit Store | **A** — zero surprise *(unchanged by DEV thread)* |
+| **D-M2** | FileStore in root vs `memory/` subpackage? | (A) root (B) subpackage | **A** if no import cycle (v1 speed); **B** `memoryfile` if FileStore grows or cycles appear *(unchanged by DEV thread; still a product pick)* |
+| **D-M3** | Inject when task already has `Context`? | (A) never (today) (B) append memory block (C) policy flag | **C** with default **A** (`InjectWhenEmptyContext=true`). **Reinforced:** even when inject runs, never expose **in-wave / uncommitted** entries (D-M7). Auto-inject must not become a hidden sibling-merge channel. |
+| **D-M4** | Automatic injection query text | (A) empty → latest N (B) task description keywords (C) embed description | **A** for v1; **B** later. **Reinforced:** “latest N” over **committed snapshot** only, stable order `(commit seq / declaration index, ID)` — not live completion/append order. |
+| **D-M5** | Corrupt JSONL line | (A) fail Open (B) skip line + warning | **B** with counter in meta *(unchanged)* |
+| **D-M6** | Cross-Kickoff FileStore lifecycle | (A) app opens/closes Store (B) Crew.Close | **A** + docs; Crew does not Close app stores unless optional `StoreOwner` *(unchanged)* |
+| **D-M7** | When do task `Save`/`Put`s become visible to inject/`Query` used by orchestration? | (A) live event-log (completion order) (B) per-task buffer + fold at wave/stage barrier in declaration order (C) hybrid: raw `Put` immediate, orchestrator reads only committed | **B** (preferred). Matches Staged Facts/TasksOutput contract and answers DEV follow-up: API makes finish-order dependency hard to stumble into. **C** only if apps need a true wall-clock tail API. **A** rejects for prompt path. |
+
+#### 2.10.1 Orchestration invariants (API should make hard to violate)
+
+| Channel | Deterministic merge? | Enforcement |
+|---|---|---|
+| `Task.Context` / `WithContext` | Yes | Only deps already **done**; same-wave / cycle → hard error |
+| Facts / `TasksOutput` / `Final` | Yes | Per-task slot + fold by **declaration index** after barrier |
+| Memory auto-save → auto-inject (same Kickoff, parallel waves) | **Yes (D-M7=B)** | Buffer per task; commit at barrier in declaration order; inject sees committed only |
+| Memory as cross-Kickoff / debug log | May be chronological | Outside hot prompt path; document separately |
+
+Public docs must promote the DEV caveat to an **invariant**: *do not use Memory as the merge channel for parallel siblings — use `WithContext`.*
 
 ---
 
@@ -375,13 +391,25 @@ Align with Staged non-optional:
 
 Recommendation **D-A3-A:** dependents of a failed task are skipped with error; unrelated branches continue if FailFast false; if FailFast true, whole Kickoff aborts.
 
-### 3.7 Memory / output safety under async
+### 3.7 Memory / output safety under async (data races **and** semantic races)
 
-- `MemoryStore` / `*Memory` already mutexed — OK for concurrent `Save`/`Put`.
-- `task.setOutputWithJail` uses per-task state — OK if one goroutine per task.
+`-race` is necessary but not sufficient (DEV.to / freerave). Merge is part of the **orchestration contract**, not an accident of scheduling.
+
+**Data-plane (mutex / ownership):**
+- `MemoryStore` / `*Memory` mutexed for concurrent `Save`/`Put` calls from workers.
+- `task.setOutputWithJail` — one goroutine per task.
 - `CrewOutput` aggregation **after** wave join — main goroutine only.
-- Progress callbacks already required to be concurrent-safe.
-- Interpolation of inputs remains in Kickoff before schedule (single-threaded).
+- Progress callbacks must stay concurrent-safe.
+- Input interpolation remains in Kickoff before schedule (single-threaded).
+
+**Semantic-plane (visibility / order) — D-M7 + D-A1:**
+- Intra-wave tasks are **independent**: they must not read each other’s outputs, facts, or **committed** memory while the wave is open.
+- Same-wave `Task.Context` edges are invalid (cycle / not-yet-done dep → error before run), same spirit as “no same-stage Context” in Staged.
+- After `wg.Wait()`, fold results by **declaration index** (not completion order) into `TasksOutput`, Facts, Warnings, Final — same as today’s Staged barrier.
+- Memory: workers write into a **per-task buffer**; barrier commits buffers in declaration order into the store. Next wave inject/`Query` sees only the post-commit snapshot.
+- **Invariant tests:** extend the slow-first/fast-second pattern beyond outputs to Memory commit order.
+
+Do **not** document Memory completion order as “by design” on the prompt path. Residual nondeterminism (traces, raw metrics) stays off the prompt assembly path.
 
 ### 3.8 Hierarchical + async caveat
 
@@ -408,18 +436,19 @@ Recommendation: **serial resolve for tasks that need manager, then async execute
 - FailFast cancel test; optional continue test.
 - Panic in one Async task does not crash process.
 - `-race` on async Kickoff with Memory store saves.
+- Semantic: Memory commit order == declaration order after parallel wave; next-wave inject cannot see in-flight sibling saves.
 - Coverage ≥ 90% on scheduler files.
 
 ### 3.11 Async — open decisions
 
 | ID | Question | Options | Recommendation |
 |---|---|---|---|
-| **D-A1** | Scheduling rule for mixed Async/sync | (A) wave rule above (B) global serial except pure-Async subgraph | **A** |
-| **D-A2** | Hierarchical agent resolution | (A) serial pre-resolve (B) parallel lazy | **A** |
-| **D-A3** | FailFast false + failed upstream | (A) skip dependents only (B) abort crew | **A** |
-| **D-A4** | Default `AsyncMaxWorkers` | (A) 0 unlimited (B) `GOMAXPROCS` (C) 8 | **A** with docs warning |
-| **D-A5** | Staged interaction with `Task.Async` | (A) ignore flag (B) error if set | **A** |
-| **D-A6** | New process constant vs Sequential flag | (A) Sequential+Task.Async only (B) `Process=Async` | **A** — fewer concepts |
+| **D-A1** | Scheduling rule for mixed Async/sync | (A) wave rule above (B) global serial except pure-Async subgraph | **A** — **reinforced by DEV thread**: wave + barrier + aggregate by declaration index (same contract as Staged). Document explicitly in public docs. |
+| **D-A2** | Hierarchical agent resolution | (A) serial pre-resolve (B) parallel lazy | **A** *(unchanged by thread)* |
+| **D-A3** | FailFast false + failed upstream | (A) skip dependents only (B) abort crew | **A** *(unchanged)* |
+| **D-A4** | Default `AsyncMaxWorkers` | (A) 0 unlimited (B) `GOMAXPROCS` (C) 8 | **A** with docs warning on LLM fan-out cost *(unchanged)* |
+| **D-A5** | Staged interaction with `Task.Async` | (A) ignore flag (B) error if set | **A** — **reinforced**: Staged already owns batch parallelism; don’t create a second parallel rule inside stages. Optional one-shot `slog` Warn if `Async=true` under Staged. |
+| **D-A6** | New process constant vs Sequential flag | (A) Sequential+Task.Async only (B) `Process=Async` | **A** for v1 — fewer concepts. **Reinforced:** real contract is “DAG + barrier + fold”; if “Sequential with Async” confuses users, ship optional **A5** alias `Process=DAG` later without breaking A. |
 
 ---
 
@@ -474,7 +503,7 @@ Copied/adapted from security residuals:
 ## 5. Suggested implementation order
 
 ```
-Phase 0  Close open decisions D-M* and D-A* (short RFC in PR description)
+Phase 0  Close open decisions D-M1–D-M7 and D-A1–D-A6 (short RFC in PR description)
 Phase 1  A1 extract runTaskGroup          } can parallelize with
 Phase 1  M1 MemoryStore interface         } independent file ownership
 Phase 2  A2 DAG planner
@@ -495,13 +524,14 @@ File ownership to avoid conflicts:
 
 | Doc | Updates |
 |---|---|
-| `docs/memory.md` + pt-BR | Store interface, FileStore, policy, embeddings hook, vs Facts |
-| `docs/crews.md` + pt-BR | Async waves, FailFast, MaxWorkers, Staged unchanged |
-| `docs/tasks.md` + pt-BR | `Task.Async`, Context as deps for DAG |
+| `docs/memory.md` + pt-BR | Store interface, FileStore, policy, embeddings hook, vs Facts; **D-M7 visibility / commit barrier**; invariant: Memory ≠ sibling merge channel — use `WithContext` (promote DEV caveat to API contract) |
+| `docs/crews.md` + pt-BR | Async waves, barrier+declaration-order fold, FailFast, MaxWorkers, Staged unchanged |
+| `docs/tasks.md` + pt-BR | `Task.Async`, Context as DAG deps; same-wave Context forbidden |
 | `README` EN/PT | Feature bullets when shipped |
 | `examples/memory_file` | Persist across two Kickoffs |
-| `examples/async_tasks` | Two parallel research tasks → merge task |
+| `examples/async_tasks` | Two parallel research tasks → merge task (explicit `WithContext`, not Memory) |
 | `Plan/PLAN.md` | Checkboxes when PRs merge |
+| DEV.to reply (optional) | Point to shipped invariant / D-M7 when implemented |
 
 ---
 
@@ -510,17 +540,18 @@ File ownership to avoid conflicts:
 ### Long-term memory
 - [ ] `MemoryStore` interface + in-memory implementation; existing `Memory bool` tests pass.
 - [ ] Policy-based inject with hard caps; no unbounded dump by default when policy uses limits.
+- [ ] **D-M7:** parallel wave commits Memory in declaration order; next-wave inject cannot see in-flight sibling writes.
 - [ ] FileStore survives process restart in tests.
 - [ ] Optional embedding path tested with fake embedder (cosine rank).
-- [ ] Bilingual docs + example.
+- [ ] Bilingual docs + example; Memory/WithContext invariant documented (not only in a blog reply).
 
 ### Async beyond staged
 - [ ] Independent `Task.Async` tasks overlap in time under Sequential.
-- [ ] `Task.Context` dependencies enforced; cycles error clearly.
-- [ ] Staged golden behavior unchanged (same tests).
+- [ ] `Task.Context` dependencies enforced; cycles / same-wave edges error clearly.
+- [ ] Staged golden behavior unchanged (same tests); aggregation remains declaration-order after barrier.
 - [ ] FailFast cancel + panic recovery covered.
-- [ ] `-race` clean with memory saves under async.
-- [ ] Bilingual docs + example.
+- [ ] `-race` clean with memory saves under async **and** semantic Memory order test green.
+- [ ] Bilingual docs + example (wave/barrier/fold contract called out).
 
 ### Global
 - [ ] `go.mod` still free of new deps.
@@ -539,25 +570,30 @@ File ownership to avoid conflicts:
 | Hierarchical manager bottleneck | Serial pre-resolve agents |
 | Scope creep into RAG product | Embeddings are hooks only; no chunking pipeline in core |
 | Import cycles Crew ↔ memory file | Keep interfaces in root; file impl same package or thin subpackage |
+| Semantic race via Memory completion order | **D-M7=B** buffer+fold; inject only committed; tests like Staged deterministic order |
+| Users treating Memory as sibling merge bus | Docs invariant + prefer `WithContext`; default inject policy conservative (D-M3) |
 
 ---
 
 ## 9. Decision log (fill before coding)
 
+Recommendations below reflect the plan + DEV.to semantic-race feedback. Cells stay `_TBD_` until you explicitly close them (same process as security residuals D1–D7).
+
 | ID | Decision | Date | Notes |
 |---|---|---|---|
-| D-M1 | _TBD_ | | Default store |
-| D-M2 | _TBD_ | | Package layout |
-| D-M3 | _TBD_ | | Inject vs Context |
-| D-M4 | _TBD_ | | Query text |
-| D-M5 | _TBD_ | | Corrupt line |
-| D-M6 | _TBD_ | | Close ownership |
-| D-A1 | _TBD_ | | Wave rule |
-| D-A2 | _TBD_ | | Hierarchical resolve |
-| D-A3 | _TBD_ | | Partial failure |
-| D-A4 | _TBD_ | | MaxWorkers default |
-| D-A5 | _TBD_ | | Staged × Async |
-| D-A6 | _TBD_ | | Process constant |
+| D-M1 | _TBD_ | | Rec **A** — default InMemory |
+| D-M2 | _TBD_ | | Rec **A** if no cycle else **B** — layout |
+| D-M3 | _TBD_ | | Rec **C** default=A — inject vs Context; no uncommitted inject |
+| D-M4 | _TBD_ | | Rec **A** — latest N on **committed** snapshot, stable order |
+| D-M5 | _TBD_ | | Rec **B** — skip corrupt JSONL + counter |
+| D-M6 | _TBD_ | | Rec **A** — app owns Close |
+| D-M7 | _TBD_ | | Rec **B** — buffer + barrier fold (DEV thread) |
+| D-A1 | _TBD_ | | Rec **A** — wave + declaration-order fold |
+| D-A2 | _TBD_ | | Rec **A** — serial hierarchical pre-resolve |
+| D-A3 | _TBD_ | | Rec **A** — skip dependents only |
+| D-A4 | _TBD_ | | Rec **A** — MaxWorkers 0 unlimited + docs warn |
+| D-A5 | _TBD_ | | Rec **A** — Staged ignores Task.Async |
+| D-A6 | _TBD_ | | Rec **A** — no new Process; optional DAG alias later |
 
 ---
 
@@ -565,7 +601,7 @@ File ownership to avoid conflicts:
 
 | Workstream | Phase | PRs | Status |
 |---|---|---|---|
-| Memory interfaces + policy | P2 | M1–M2 | Planned |
+| Memory interfaces + policy + **D-M7 commit barrier** | P2 | M1–M2 | Planned |
 | FileStore | P2 | M3 | Planned |
 | Embeddings hook | P2 | M4 | Planned |
 | runTaskGroup extract | P1 | A1 | Planned |

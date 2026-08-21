@@ -2,7 +2,8 @@
 
 > **Status:** Apenas plano — não implementar até agendar e fechar decisões abertas.  
 > **Relacionado:** `Memory` em RAM (`memory.go`), `Crew.Memory` / `MemorySnapshot`, `Process=Staged` (`runStaged`), itens de roadmap em `PLAN.pt-BR.md` §6 P1/P2.  
-> **Restrições:** zero dependências externas no módulo core (`go.mod` só stdlib). Quality gates da §6.1 de `PLAN.security-residuals.pt-BR.md` valem em todo PR (cobertura ≥ 90% nos pacotes tocados, race-clean, docs EN+PT-BR, CHANGELOG).
+> **Restrições:** zero dependências externas no módulo core (`go.mod` só stdlib). Quality gates da §6.1 de `PLAN.security-residuals.pt-BR.md` valem em todo PR (cobertura ≥ 90% nos pacotes tocados, race-clean, docs EN+PT-BR, CHANGELOG).  
+> **Feedback externo:** thread no DEV.to sobre race **semântica** vs `-race` ([artigo](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm) — freerave): merge é contrato de orquestração (fold por ordem de declaração após barreira). Caveat de Memory por completion order → **D-M7** + reforço **D-M3**/**D-M4**. Reforçados **D-A1**/**D-A5**/**D-A6**.
 
 ---
 
@@ -195,6 +196,8 @@ Constantes:
 - `MaxMemoryEntryBytes = 32 KiB`
 - `DefaultMemoryMaxChars = 4000`
 
+**Visibilidade (ver D-M7):** inject/`Query` usados pelo orquestrador SÓ veem entries **commitadas** em barreira de wave/stage anterior (ou Kickoffs anteriores). Writes de siblings em voo são invisíveis na montagem do prompt. “Latest N” (**D-M4-A**) = últimos N do **snapshot commitado**, ordem estável `(seq de commit / índice de declaração, ID)` — nunca append/completion order da wave aberta.
+
 ### 2.7 Memória vs Facts
 
 | | Memory | Facts |
@@ -210,28 +213,41 @@ Não copiar Facts automaticamente para MemoryStore na v1.
 | PR | Entrega |
 |---|---|
 | **M1** | `MemoryEntry`, `MemoryStore`, `MemoryQuery`; `*Memory` como store; testes |
-| **M2** | `MemoryPolicy` + wiring no Crew; `Memory bool` compatível |
+| **M2** | `MemoryPolicy` + wiring no Crew; **Save bufferizado + commit na barreira (D-M7)**; deprecar dump-all | `Memory bool` compat; sem visibilidade mid-wave |
 | **M3** | `FileStore` JSONL + docs EN/PT + `examples/memory_file` |
 | **M4** | `EmbeddingFunc` + query cosseno + exemplo com embedder fake |
 | **M5** (opt) | Tools `recall_memory` / `remember` para o agent |
 
 ### 2.9 Testes e gates — Memória
 
-- Put/Query/Delete com `-race`, limites, escopos, content oversized.
+- Unit: Put/Query/Delete com `-race`, limit/maxchars, scope, content oversized.
 - FileStore: durabilidade restart; linha corrompida (**D-M5**).
-- Integração Crew: `Memory bool`; inject respeita MaxChars; async+store sem race.
-- Cobertura ≥ 90%; docs bilíngues; CHANGELOG.
+- Integração Crew: `Memory bool`; caps de inject; async sem data-race no store.
+- **Ordem semântica:** `TestMemoryCommitOrderMatchesDeclaration` — slow-first / fast-second → sequência commitada = **índice de declaração**, não tempo de término (espelha `TestStagedDeterministicOrder`). Inject da próxima wave não vê entries de siblings não commitadas.
+- Cobertura ≥ 90%; docs `docs/memory.md` + pt-BR; elevar caveat do DEV a **invariante de API** (Memory não é canal de merge de siblings paralelos — use `WithContext`).
 
 ### 2.10 Decisões abertas — Memória
 
 | ID | Pergunta | Opções | Rec |
 |---|---|---|---|
-| **D-M1** | Store default se `Memory=true` e `Store==nil`? | (A) InMemory (B) exigir Store | **A** |
-| **D-M2** | FileStore no root vs subpacote? | (A) root (B) subpacote | **A** se sem ciclo |
-| **D-M3** | Injetar quando já há `Context`? | (A) nunca (B) append (C) flag | **C** default A |
-| **D-M4** | Texto da query de injeção | (A) latest N (B) keywords da task (C) embed | **A** v1 |
-| **D-M5** | Linha JSONL corrompida | (A) falha Open (B) skip + aviso | **B** |
-| **D-M6** | Quem dá Close no FileStore? | (A) app (B) Crew.Close | **A** (+ flag owner opcional) |
+| **D-M1** | Store default se `Memory=true` e `Store==nil`? | (A) InMemory (B) exigir Store | **A** — zero surpresa *(thread DEV não muda)* |
+| **D-M2** | FileStore no root vs subpacote? | (A) root (B) subpacote | **A** se sem ciclo (v1 rápido); **B** `memoryfile` se crescer/ciclo *(ainda escolha de produto)* |
+| **D-M3** | Injetar quando já há `Context`? | (A) nunca (B) append (C) flag | **C** default **A**. **Reforço:** mesmo com inject, nunca expor entries **in-wave / não commitadas** (D-M7). Auto-inject não pode ser merge oculto de siblings. |
+| **D-M4** | Texto da query de injeção | (A) latest N (B) keywords da task (C) embed | **A** v1; **B** depois. **Reforço:** latest N só no **snapshot commitado**, ordem estável — não completion order ao vivo. |
+| **D-M5** | Linha JSONL corrompida | (A) falha Open (B) skip + aviso | **B** + contador em meta *(igual)* |
+| **D-M6** | Quem dá Close no FileStore? | (A) app (B) Crew.Close | **A** + docs; Close automático só com `StoreOwner` opcional *(igual)* |
+| **D-M7** | Quando `Save`/`Put` da task fica visível ao inject/`Query` da orquestração? | (A) event-log ao vivo (completion order) (B) buffer por task + fold na barreira em ordem de declaração (C) híbrido: Put cru imediato, orquestrador só lê commitado | **B** (preferido). Alinha ao contrato Staged de Facts/TasksOutput e responde o follow-up do DEV. **C** se app precisar de tail wall-clock. **A** rejeitado no caminho de prompt. |
+
+#### 2.10.1 Invariantes de orquestração (API deve dificultar violar)
+
+| Canal | Merge determinístico? | Como impor |
+|---|---|---|
+| `Task.Context` / `WithContext` | Sim | Só deps já **done**; mesma wave / ciclo → erro |
+| Facts / `TasksOutput` / `Final` | Sim | Slot por task + fold por **índice de declaração** após barreira |
+| Memory auto-save → auto-inject (mesmo Kickoff, waves paralelas) | **Sim (D-M7=B)** | Buffer por task; commit na barreira em ordem de declaração; inject só vê commitado |
+| Memory como log cross-Kickoff / debug | Pode ser cronológico | Fora do caminho quente do prompt; documentar à parte |
+
+Docs públicas elevam o caveat do DEV a **invariante**: *não use Memory como canal de merge de siblings paralelos — use `WithContext`.*
 
 ---
 
@@ -311,13 +327,25 @@ func (c *Crew) runTaskGroup(
 - **FailFast true (default):** cancela ctx da wave; espera WG; devolve first error real (ignora `context.Canceled` de siblings quando possível).
 - **FailFast false:** termina a wave; **D-A3** — recomendação: pular só dependentes da task que falhou; ramos independentes seguem.
 
-### 3.7 Segurança memória/output sob async
+### 3.7 Segurança memória/output sob async (data races **e** races semânticas)
 
-- Store/`Memory` com mutex — OK.
-- Um goroutine por task no output — OK.
-- Agregar `CrewOutput` só após join.
-- Progress já exige callback concorrente-safe.
-- Interpolação de inputs continua no Kickoff (single-thread).
+`-race` é necessário, mas não suficiente (DEV.to / freerave). Merge faz parte do **contrato de orquestração**, não é acidente de scheduling.
+
+**Plano de dados (mutex / ownership):**
+- Store/`Memory` com mutex para `Save`/`Put` concurrentes.
+- Um goroutine por task no output.
+- Agregar `CrewOutput` só após join da wave.
+- Progress callback concorrente-safe.
+- Interpolação de inputs no Kickoff (single-thread).
+
+**Plano semântico (visibilidade / ordem) — D-M7 + D-A1:**
+- Tasks na mesma wave são **independentes**: não leem outputs, facts nem memory **commitada** uns dos outros enquanto a wave está aberta.
+- Arestas `Task.Context` na mesma wave são inválidas (dep not-yet-done / ciclo → erro), no mesmo espírito do Staged (“sem Context same-stage”).
+- Após `wg.Wait()`, fold por **índice de declaração** (não completion order) em `TasksOutput`, Facts, Warnings, Final.
+- Memory: workers escrevem em **buffer por task**; a barreira faz commit em ordem de declaração. Inject/`Query` da próxima wave só vê o snapshot pós-commit.
+- **Testes de invariante:** slow-first/fast-second também para ordem de commit da Memory.
+
+Não documentar completion order de Memory como “by design” no caminho de prompt. Não-determinismo residual (traces, métricas brutas) fica fora da montagem do prompt.
 
 ### 3.8 Hierarchical + async
 
@@ -340,18 +368,19 @@ Recomendação: **pré-resolver agents em série** (chamadas ao manager), depois
 - Dependente só após upstream `done`.
 - FailFast cancel; panic recovery.
 - `-race` com saves de memória.
+- Semântica: commit de Memory == ordem de declaração após wave paralela; inject da próxima wave não vê saves in-flight de siblings.
 - Cobertura ≥ 90%.
 
 ### 3.11 Decisões abertas — Async
 
 | ID | Pergunta | Opções | Rec |
 |---|---|---|---|
-| **D-A1** | Regra mixed Async/sync | (A) wave acima (B) serial global exceto subgrafo Async | **A** |
-| **D-A2** | Resolve hierarchical | (A) pré-serial (B) lazy paralelo | **A** |
-| **D-A3** | FailFast false | (A) skip dependentes (B) abort crew | **A** |
-| **D-A4** | Default MaxWorkers | (A) 0 unlimited (B) GOMAXPROCS (C) 8 | **A** + docs |
-| **D-A5** | Staged × Async | (A) ignora flag (B) erro se set | **A** |
-| **D-A6** | Novo Process vs flag | (A) Sequential+Async (B) Process=Async | **A** |
+| **D-A1** | Regra mixed Async/sync | (A) wave acima (B) serial global exceto subgrafo Async | **A** — **reforçado pelo thread DEV**: wave + barreira + agregação por índice de declaração (mesmo contrato do Staged). Explicitar nas docs públicas. |
+| **D-A2** | Resolve hierarchical | (A) pré-serial (B) lazy paralelo | **A** *(thread não muda)* |
+| **D-A3** | FailFast false | (A) skip dependentes (B) abort crew | **A** *(igual)* |
+| **D-A4** | Default MaxWorkers | (A) 0 unlimited (B) GOMAXPROCS (C) 8 | **A** + aviso de custo de fan-out LLM nas docs *(igual)* |
+| **D-A5** | Staged × Async | (A) ignora flag (B) erro se set | **A** — **reforçado**: Staged já define paralelismo por stage; não criar segunda regra. Opcional: `slog` Warn se `Async=true` sob Staged. |
+| **D-A6** | Novo Process vs flag | (A) Sequential+Async (B) Process=Async | **A** no v1 — menos conceitos. **Reforço:** contrato real é “DAG + barreira + fold”; se “Sequential com Async” confundir, **A5** opcional (`Process=DAG`) depois sem quebrar A. |
 
 ---
 
@@ -401,7 +430,7 @@ Recomendação: **pré-resolver agents em série** (chamadas ao manager), depois
 ## 5. Ordem sugerida de implementação
 
 ```
-Fase 0  Fechar D-M* e D-A* (RFC curto no PR)
+Fase 0  Fechar D-M1–D-M7 e D-A1–D-A6 (RFC curto no PR)
 Fase 1  A1 runTaskGroup  ||  M1 MemoryStore    (arquivos disjuntos)
 Fase 2  A2 DAG           ||  M2 MemoryPolicy
 Fase 3  A3 wire Async    ||  M3 FileStore
@@ -419,13 +448,14 @@ Partição de arquivos:
 
 | Doc | Atualizações |
 |---|---|
-| `docs/memory.md` + pt-BR | Store, FileStore, policy, embeddings, vs Facts |
-| `docs/crews.md` + pt-BR | Waves async, FailFast, MaxWorkers, Staged igual |
-| `docs/tasks.md` + pt-BR | `Task.Async`, Context como deps do DAG |
+| `docs/memory.md` + pt-BR | Store, FileStore, policy, embeddings, vs Facts; **visibilidade D-M7 / barreira de commit**; invariante: Memory ≠ canal de merge de siblings — use `WithContext` (elevar caveat do DEV a contrato de API) |
+| `docs/crews.md` + pt-BR | Waves async, barreira + fold por declaração, FailFast, MaxWorkers, Staged igual |
+| `docs/tasks.md` + pt-BR | `Task.Async`, Context como deps do DAG; Context same-wave proibido |
 | README EN/PT | Bullets na release |
 | `examples/memory_file` | Dois Kickoffs com o mesmo dir |
-| `examples/async_tasks` | Duas researches paralelas → merge |
+| `examples/async_tasks` | Duas researches paralelas → merge (`WithContext` explícito, não Memory) |
 | `Plan/PLAN.md` | Checkboxes ao mergear |
+| Resposta no DEV.to (opc.) | Apontar invariante / D-M7 quando implementar |
 
 ---
 
@@ -434,17 +464,18 @@ Partição de arquivos:
 ### Memória de longo prazo
 - [ ] Interface `MemoryStore` + in-memory; testes de `Memory bool` passam.
 - [ ] Inject com caps; sem dump ilimitado quando policy usa limites.
+- [ ] **D-M7:** wave paralela comita Memory em ordem de declaração; inject da próxima wave não vê writes in-flight de siblings.
 - [ ] FileStore sobrevive restart nos testes.
 - [ ] Path de embedding com fake embedder.
-- [ ] Docs bilíngues + example.
+- [ ] Docs bilíngues + example; invariante Memory/`WithContext` documentada (não só na resposta do blog).
 
 ### Async além do staged
 - [ ] `Task.Async` independentes com overlap temporal no Sequential.
-- [ ] `Task.Context` enforced; ciclos com erro claro.
-- [ ] Staged golden inalterado.
+- [ ] `Task.Context` enforced; ciclos / arestas same-wave com erro claro.
+- [ ] Staged golden inalterado; agregação continua por declaração após barreira.
 - [ ] FailFast + panic recovery.
-- [ ] `-race` limpo com memory saves.
-- [ ] Docs bilíngues + example.
+- [ ] `-race` limpo com memory saves **e** teste de ordem semântica de Memory verde.
+- [ ] Docs bilíngues + example (contrato wave/barreira/fold explícito).
 
 ### Global
 - [ ] `go.mod` sem novas deps.
@@ -463,15 +494,30 @@ Partição de arquivos:
 | Gargalo do manager | Pré-resolve serial |
 | Scope creep RAG | Só hook de embedding; sem pipeline de chunk no core |
 | Ciclo de import | Interfaces no root |
+| Race semântica via completion order da Memory | **D-M7=B** buffer+fold; inject só commitado; testes como ordem determinística do Staged |
+| Users usando Memory como bus de merge de siblings | Invariante nas docs + preferir `WithContext`; policy de inject conservadora (D-M3) |
 
 ---
 
 ## 9. Decision log (preencher antes de codar)
 
+Recomendações abaixo já incorporam o plano + feedback de race semântica no DEV.to. Células ficam `_TBD_` até você fechar explicitamente (mesmo processo dos residuals D1–D7).
+
 | ID | Decisão | Data | Notas |
 |---|---|---|---|
-| D-M1…D-M6 | _TBD_ | | ver §2.10 |
-| D-A1…D-A6 | _TBD_ | | ver §3.11 |
+| D-M1 | _TBD_ | | Rec **A** — InMemory default |
+| D-M2 | _TBD_ | | Rec **A** se sem ciclo senão **B** — layout |
+| D-M3 | _TBD_ | | Rec **C** default=A — inject vs Context; sem inject não commitado |
+| D-M4 | _TBD_ | | Rec **A** — latest N no snapshot **commitado**, ordem estável |
+| D-M5 | _TBD_ | | Rec **B** — skip JSONL corrupto + contador |
+| D-M6 | _TBD_ | | Rec **A** — app dona do Close |
+| D-M7 | _TBD_ | | Rec **B** — buffer + fold na barreira (thread DEV) |
+| D-A1 | _TBD_ | | Rec **A** — wave + fold por declaração |
+| D-A2 | _TBD_ | | Rec **A** — pré-resolve hierarchical serial |
+| D-A3 | _TBD_ | | Rec **A** — skip só dependentes |
+| D-A4 | _TBD_ | | Rec **A** — MaxWorkers 0 + aviso docs |
+| D-A5 | _TBD_ | | Rec **A** — Staged ignora Task.Async |
+| D-A6 | _TBD_ | | Rec **A** — sem novo Process; alias DAG opcional depois |
 
 ---
 
@@ -479,7 +525,7 @@ Partição de arquivos:
 
 | Workstream | Fase | PRs | Status |
 |---|---|---|---|
-| Memory interfaces + policy | P2 | M1–M2 | Planejado |
+| Memory interfaces + policy + **barreira D-M7** | P2 | M1–M2 | Planejado |
 | FileStore | P2 | M3 | Planejado |
 | Embeddings hook | P2 | M4 | Planejado |
 | runTaskGroup | P1 | A1 | Planejado |
