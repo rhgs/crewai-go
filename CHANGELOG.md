@@ -29,6 +29,28 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`examples/mcp`**: offline wiring demo for MCP `FilterTools` /
   `WithDescriptionLimit` / `NewToolAdapter` (optional live `MCP_ENDPOINT`).
 
+### Added (async beyond Staged: A2/A3)
+
+- **`Task.Async` + wave scheduler**: marking a task `WithAsync()` (or setting
+  `Async = true`) lets independent tasks run concurrently under the
+  `Sequential` and `Hierarchical` processes. Scheduling is wave-based:
+  `Task.Context` defines the DAG, `planWaves` assigns each task to the
+  earliest wave strictly after its dependencies, and aggregation folds each
+  wave by declaration index after the barrier (same contract as Staged). A
+  cycle, self-dependency, or duplicate task pointer fails fast at Kickoff
+  with the new sentinel `ErrTaskDependencyCycle` (G12). Under Hierarchical,
+  agents are pre-resolved serially before the waves run (D-A2). Under
+  `Staged` the flag is ignored with a one-shot Warn log (D-A5/G5).
+
+- **`Crew.AsyncMaxWorkers` / `Crew.AsyncFailFast`**: wave concurrency is
+  capped by `AsyncMaxWorkers`; `NewCrew` sets `DefaultAsyncMaxWorkers` (**8**)
+  and `AsyncFailFast = true`. Use `WithAsyncMaxWorkers(n)` to override, or
+  **0 for unlimited** (explicit opt-out — bounding LLM fan-out is then your
+  responsibility). With `AsyncFailFast = false`, independent branches
+  continue after a failure and only the failed task's dependents are skipped
+  with an error (D-A3); the default `true` cancels siblings and aborts
+  Kickoff. Both are ignored under `Staged`.
+
 ### Changed
 
 - **Internal**: the staged parallel runtime was extracted into a shared

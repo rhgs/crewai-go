@@ -106,6 +106,14 @@ type Task struct {
 	// Loop, when set, overrides the agent's loop for this specific task.
 	Loop Loop
 
+	// Async, when true, marks the task as eligible to run concurrently with
+	// other ready Async tasks in the sequential and hierarchical processes.
+	// Default false keeps today's behavior (fully serial outside Staged).
+	// Dependencies (Context) are always honored: an Async task only starts
+	// after every dependency finished in an earlier wave. Under the Staged
+	// process this flag is ignored (stage batches own the parallelism).
+	Async bool
+
 	mu     sync.RWMutex
 	output string
 	done   bool
@@ -127,8 +135,19 @@ func NewTask(description, expectedOutput string, agent *Agent) *Task {
 }
 
 // WithContext sets the context tasks (dependencies) of this task.
+//
+// Under async scheduling (Async) every dependency listed here must finish in
+// a strictly earlier wave: a Context edge to a task in the same wave (or a
+// cycle) is rejected at Kickoff with ErrTaskDependencyCycle.
 func (t *Task) WithContext(tasks ...*Task) *Task {
 	t.Context = append(t.Context, tasks...)
+	return t
+}
+
+// WithAsync marks the task Async (concurrent-friendly under
+// sequential/hierarchical) and returns it for fluent chaining.
+func (t *Task) WithAsync() *Task {
+	t.Async = true
 	return t
 }
 

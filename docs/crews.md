@@ -99,6 +99,33 @@ role. If the task already has an `Agent`, it is respected.
 > If there is only one agent, it is chosen automatically. If delegation fails
 > (LLM error), the crew falls back to the first agent.
 
+## Async tasks under Sequential / Hierarchical (A3)
+
+Mark a task `Async` to let independent tasks overlap without switching to
+`Staged`. Dependencies still flow through `Task.Context`, and aggregation is
+always by **declaration index after a wave barrier** — never by completion
+order (the same contract the staged process follows).
+
+```go
+research := crewai.NewTask("research", "notes", agent).WithAsync()
+outline  := crewai.NewTask("outline", "points", agent).WithAsync()
+write    := crewai.NewTask("write article", "markdown", agent).
+    WithContext(research, outline) // runs after both
+
+crew := crewai.NewCrew([]*crewai.Agent{agent}, []*crewai.Task{research, outline, write})
+out, _ := crew.Kickoff(ctx, nil)
+```
+
+- `NewCrew` sets `AsyncMaxWorkers = DefaultAsyncMaxWorkers` (**8**) and
+  `AsyncFailFast = true`. Override with `crew.WithAsyncMaxWorkers(n)`; **0 =
+  unlimited** (explicit opt-out — LLM fan-out is your responsibility).
+- `AsyncFailFast: false` keeps running independent branches after a failure
+  and skips the failed task's dependents with an error (D-A3).
+- `Task.Context` edges define the DAG; a cycle, self-dependency, or duplicate
+  task pointer fails fast at Kickoff with `ErrTaskDependencyCycle` (G12).
+- Under `Staged` the flag is ignored with a one-shot Warn log (D-A5/G5) —
+  stages own the batch parallelism either way.
+
 ## Staged process
 
 The `Staged` process groups tasks into **stages**: stages run in sequence, but

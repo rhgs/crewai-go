@@ -52,6 +52,21 @@
 //	    {Name: "synthesize", Tasks: []*crewai.Task{write}},
 //	}
 //
+// # Async tasks (Sequential / Hierarchical)
+//
+// Setting Task.Async = true lets independent tasks overlap under the
+// sequential and hierarchical processes (Staged is unchanged and ignores the
+// flag). Dependencies are defined by Task.Context: a task starts only after
+// every dependency finished in a strictly earlier wave, and results are
+// folded by declaration index after each wave barrier (never by completion
+// order). Cycles, self-dependencies, and duplicate task pointers fail fast at
+// Kickoff with ErrTaskDependencyCycle. NewCrew applies
+// AsyncMaxWorkers = DefaultAsyncMaxWorkers (8) and AsyncFailFast = true;
+// override with Crew.WithAsyncMaxWorkers (0 = unlimited).
+//
+//	research := crewai.NewTask("research", "notes", agent).WithAsync()
+//	write := crewai.NewTask("write", "markdown", agent).WithContext(research)
+//
 // # Structured output
 //
 // When a task needs typed, trustworthy data, set Task.Structured to a

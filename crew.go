@@ -57,6 +57,28 @@ type Crew struct {
 	// agent.WithTools(NewDelegationTool(crew)) always works regardless.
 	EnableDelegationTool bool
 
+	// AsyncMaxWorkers caps how many Async tasks may run concurrently in a
+	// wave under the sequential and hierarchical processes (D-A4). The
+	// default set by NewCrew and by WithAsyncMaxWorkers is
+	// DefaultAsyncMaxWorkers (8). Setting it explicitly via
+	// WithAsyncMaxWorkers(0) disables the cap (unlimited, bounded by the
+	// ready set); assigning the field to 0 on a Crew built by NewCrew also
+	// expresses unlimited for the next Kickoff. Ignored under Staged.
+	AsyncMaxWorkers int
+
+	// AsyncFailFast controls what happens after the first task failure in an
+	// async wave (D-A3). Default true: the failure cancels the remaining
+	// siblings and aborts Kickoff. When false, independent branches continue
+	// and only the failed task's dependents are skipped (with an error).
+	// Ignored under Staged (Stage.Optional owns that axis).
+	AsyncFailFast bool
+
+	// asyncConfigured is set when the caller explicitly chose the wave cap
+	// via WithAsyncMaxWorkers (including 0 = unlimited), so Kickoff will not
+	// silently overwrite an explicit 0 with the default on the zero-value
+	// Crew path.
+	asyncConfigured bool
+
 	// logger is the structured logger used during Kickoff. Set via
 	// WithLogger before Kickoff. NOT CONCURRENT-SAFE: must be set before
 	// Kickoff starts and not mutated while Kickoff is running.
@@ -146,12 +168,23 @@ type TaskOutput struct {
 // String returns the crew's final output.
 func (o *CrewOutput) String() string { return o.Final }
 
-// NewCrew creates a sequential crew with the given agents and tasks.
+// DefaultAsyncMaxWorkers is the default cap on concurrent Async tasks in a
+// wave (D-A4). NewCrew uses it. Explicitly setting Crew.AsyncMaxWorkers=0
+// means unlimited, not this default.
+const DefaultAsyncMaxWorkers = 8
+
+// NewCrew creates a sequential crew with the given agents and tasks. It
+// applies the library defaults for async scheduling (AsyncMaxWorkers =
+// DefaultAsyncMaxWorkers, AsyncFailFast = true); override them on the
+// returned Crew if needed. A composite literal Crew{} (no NewCrew) has
+// AsyncMaxWorkers = 0 = unlimited by design.
 func NewCrew(agents []*Agent, tasks []*Task) *Crew {
 	return &Crew{
-		Agents:  agents,
-		Tasks:   tasks,
-		Process: Sequential,
+		Agents:          agents,
+		Tasks:           tasks,
+		Process:         Sequential,
+		AsyncMaxWorkers: DefaultAsyncMaxWorkers,
+		AsyncFailFast:   true,
 	}
 }
 
@@ -225,6 +258,35 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 		c.mem = NewMemory()
 	}
 
+	// D-A4: a zero-value Crew{} (no NewCrew) still gets the safe default wave
+	// cap. Only crews built via NewCrew or that explicitly set the field skip
+	// this branch, so an explicit AsyncMaxWorkers=0 (unlimited) is preserved.
+	if !c.asyncConfigured && c.AsyncMaxWorkers == 0 {
+		c.AsyncMaxWorkers = DefaultAsyncMaxWorkers
+	}
+
+	// G12: validate the async DAG before any task runs. Any dependency issue
+	// (cycle, same-wave Context for an Async task, duplicate task pointer)
+	// fails fast here instead of mid-wave.
+	if c.Process != Staged {
+		if _, err := planWaves(c.Tasks); err != nil {
+			c.logger.ErrorContext(ctx, "invalid async task graph", "error", redactError(err))
+			return nil, err
+		}
+	} else {
+		// G5: Async is ignored under Staged; surface it once when set so a
+		// silent no-op flag does not go unnoticed.
+		for _, stage := range c.Stages {
+			for _, t := range stage.Tasks {
+				if t.Async {
+					c.logger.WarnContext(ctx, "Task.Async is ignored under the Staged process",
+						"task", taskLabel(t, 0))
+					break
+				}
+			}
+		}
+	}
+
 	if c.EnableDelegationTool {
 		c.attachDelegationTools()
 	}
@@ -252,7 +314,7 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 
 	switch c.Process {
 	case Sequential:
-		out, err = c.runSequential(ctx)
+		out, err = c.runSequentialWithPlan(ctx, nil)
 	case Hierarchical:
 		out, err = c.runHierarchical(ctx)
 	case Staged:
@@ -271,8 +333,48 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 	return out, nil
 }
 
+// WithAsyncMaxWorkers sets the cap on concurrent Async tasks per wave.
+// Pass DefaultAsyncMaxWorkers for the default, or 0 for unlimited (the
+// explicit "unlimited" escape hatch of D-A4, distinct from an unset field).
+func (c *Crew) WithAsyncMaxWorkers(n int) *Crew {
+	c.AsyncMaxWorkers = n
+	c.asyncConfigured = true
+	return c
+}
+
 // runSequential executes the tasks in order.
 func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
+	return c.runSequentialWithPlan(ctx, nil)
+}
+
+// runSequentialWithPlan runs the sequential process. When no task is Async
+// the behavior is byte-identical to the pre-async serial path. When any task
+// is marked Async the crew schedules ready Async tasks per wave (already
+// validated at Kickoff by planWaves) and only folds results into the output
+// after each wave barrier, in declaration order.
+func (c *Crew) runSequentialWithPlan(ctx context.Context, plan *asyncPlan) (*CrewOutput, error) {
+	hasAsync := false
+	for _, t := range c.Tasks {
+		if t.Async {
+			hasAsync = true
+			break
+		}
+	}
+	if !hasAsync {
+		return c.runSequentialSerial(ctx)
+	}
+	if plan == nil {
+		var err error
+		plan, err = planWaves(c.Tasks)
+		if err != nil {
+			return nil, err // already validated at Kickoff; never reached
+		}
+	}
+	return c.runAsyncWaves(ctx, plan)
+}
+
+// runSequentialSerial is the unchanged pre-async sequential executor.
+func (c *Crew) runSequentialSerial(ctx context.Context) (*CrewOutput, error) {
 	out := &CrewOutput{}
 	for i, task := range c.Tasks {
 		agent := task.Agent
@@ -320,13 +422,193 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 	return out, nil
 }
 
+// runAsyncWaves executes the sequential process when at least one task is
+// Async. Tasks not marked Async still run one at a time in a wave of their
+// own (they never share a wave with a sibling). Aggregation folds each wave
+// by ascending task index after its barrier — the same declaration-order
+// contract as the staged process.
+func (c *Crew) runAsyncWaves(ctx context.Context, plan *asyncPlan) (*CrewOutput, error) {
+	out := &CrewOutput{}
+	// waveOrder runs every wave; within a wave only Async tasks run
+	// concurrently — non-Async ready tasks run one at a time in a group of
+	// size 1. Waves are bounded by AsyncMaxWorkers when non-zero.
+	waves := plan.waves
+	for w, wave := range waves {
+		label := fmt.Sprintf("wave %d", w+1)
+
+		// Split the ready wave into concurrent (Async) tasks and the first
+		// non-Async task. D-A1: only Async tasks may share a wave.
+		var groupIdx []int
+		for _, i := range wave {
+			if c.Tasks[i].Async {
+				groupIdx = append(groupIdx, i)
+			}
+		}
+		if len(groupIdx) == 0 {
+			groupIdx = wave[:1] // one non-Async task, alone in its slot
+		}
+		groupTasks := make([]*Task, len(groupIdx))
+		groupAgents := make([]*Agent, len(groupIdx))
+		for k, i := range groupIdx {
+			task := c.Tasks[i]
+			groupTasks[k] = task
+			agent := task.Agent
+			if agent == nil {
+				agent = c.agentForIndex(i)
+			}
+			groupAgents[k] = agent
+		}
+
+		results, firstErr, firstIdx := c.runTaskGroup(ctx, groupRun{
+			label:    label,
+			labelKey: "wave",
+			tasks:    groupTasks,
+			agents:   groupAgents,
+			failFast: c.AsyncFailFast,
+		})
+		if firstErr != nil && c.AsyncFailFast {
+			return nil, fmt.Errorf("async wave %q: task %d: %w", label, firstIdx+1, firstErr)
+		}
+
+		// Fold results into the output in declaration order (not completion
+		// order), then mark the group's tasks done so later waves can see
+		// their outputs via Context.
+		for k, res := range results {
+			i := groupIdx[k]
+			if res.err != nil {
+				if c.AsyncFailFast {
+					return nil, fmt.Errorf("async wave %q: task %d: %w", label, i+1, res.err)
+				}
+				c.logger.WarnContext(ctx, "async task failed; skipping dependents (FailFast=false)",
+					"task_index", i+1, "error", redactError(res.err))
+				continue
+			}
+			warnings := res.task.Warnings()
+			out.TasksOutput = append(out.TasksOutput, TaskOutput{
+				Task:       taskLabel(res.task, i),
+				Agent:      res.agent.Role,
+				Output:     res.out,
+				Facts:      res.facts,
+				ToolTraces: res.task.ToolTraces(),
+				Warnings:   warnings,
+			})
+			out.Facts = dedupFacts(out.Facts, res.facts)
+			out.Warnings = append(out.Warnings, warnings...)
+			out.Final = res.out
+		}
+
+		// TODO(M2/D-M7): memory commit happens here, at the barrier join,
+		// not inside runTaskGroup workers, once MemoryPolicy wiring lands.
+	}
+	return out, nil
+}
+
+// runAsyncWavesWithAgents is the async wave executor with pre-resolved
+// agents (used by the hierarchical process after its serial D-A2 manager
+// pre-resolve). It shares the exact same barrier/fold loop as the sequential
+// async path.
+func (c *Crew) runAsyncWavesWithAgents(ctx context.Context, plan *asyncPlan, agents []*Agent) (*CrewOutput, error) {
+	// Temporarily expose pre-resolved agents: agentForIndex is replaced by a
+	// closure over the agents slice by resolving groups per index here. The
+	// shared aggregation logic is factorized through a group runner over
+	// explicit task+agent pairs.
+	out := &CrewOutput{}
+	waves := plan.waves
+	for w, wave := range waves {
+		label := fmt.Sprintf("wave %d", w+1)
+
+		var groupIdx []int
+		for _, i := range wave {
+			if c.Tasks[i].Async {
+				groupIdx = append(groupIdx, i)
+			}
+		}
+		if len(groupIdx) == 0 {
+			groupIdx = wave[:1]
+		}
+		groupTasks := make([]*Task, len(groupIdx))
+		groupAgents := make([]*Agent, len(groupIdx))
+		for k, i := range groupIdx {
+			groupTasks[k] = c.Tasks[i]
+			groupAgents[k] = agents[i]
+		}
+
+		results, firstErr, firstIdx := c.runTaskGroup(ctx, groupRun{
+			label:    label,
+			labelKey: "wave",
+			tasks:    groupTasks,
+			agents:   groupAgents,
+			failFast: c.AsyncFailFast,
+		})
+		if firstErr != nil && c.AsyncFailFast {
+			return nil, fmt.Errorf("async wave %q: task %d: %w", label, firstIdx+1, firstErr)
+		}
+		for k, res := range results {
+			i := groupIdx[k]
+			if res.err != nil {
+				if c.AsyncFailFast {
+					return nil, fmt.Errorf("async wave %q: task %d: %w", label, i+1, res.err)
+				}
+				c.logger.WarnContext(ctx, "async task failed; skipping dependents (FailFast=false)",
+					"task_index", i+1, "error", redactError(res.err))
+				continue
+			}
+			warnings := res.task.Warnings()
+			out.TasksOutput = append(out.TasksOutput, TaskOutput{
+				Task:       taskLabel(res.task, i),
+				Agent:      res.agent.Role,
+				Output:     res.out,
+				Facts:      res.facts,
+				ToolTraces: res.task.ToolTraces(),
+				Warnings:   warnings,
+			})
+			out.Facts = dedupFacts(out.Facts, res.facts)
+			out.Warnings = append(out.Warnings, warnings...)
+			out.Final = res.out
+		}
+	}
+	return out, nil
+}
+
 // runHierarchical uses a manager to assign each task to the best agent.
+//
+// When any task is Async (D-A2), agents are resolved serially first
+// (predictable), then the async wave scheduler executes — the same wave /
+// barrier / declaration-order fold contract as the sequential async path.
 func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 	manager, err := c.resolveManager()
 	if err != nil {
 		return nil, err
 	}
 	c.logger.InfoContext(ctx, "manager resolved", "manager", manager.Role)
+
+	hasAsync := false
+	for _, t := range c.Tasks {
+		if t.Async {
+			hasAsync = true
+			break
+		}
+	}
+	if hasAsync {
+		// Resolve every agent first (serial manager calls), then run the DAG.
+		agents := make([]*Agent, len(c.Tasks))
+		for i, task := range c.Tasks {
+			agent := task.Agent
+			if agent == nil {
+				agent = c.delegate(ctx, manager, task)
+			}
+			if agent == nil {
+				return nil, ErrNoAgent
+			}
+			agents[i] = agent
+			c.logger.InfoContext(ctx, "task delegated", "task_index", i+1, "agent", agent.Role)
+		}
+		plan, err := planWaves(c.Tasks)
+		if err != nil {
+			return nil, err
+		}
+		return c.runAsyncWavesWithAgents(ctx, plan, agents)
+	}
 
 	out := &CrewOutput{}
 	for i, task := range c.Tasks {

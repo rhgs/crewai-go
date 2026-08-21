@@ -64,6 +64,9 @@
 - 🔧 **Native tool calling** — use provider-native function calling (OpenAI, Anthropic, Ollama) instead of text-based ReAct, with automatic fallback and full trace observability.
 - 🔎 **Web search** — agent-driven search via the `WebSearcher` interface (Ollama, OpenAI, Anthropic, xAI) or model-driven search via `WebSearchTool` with 7 providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave). SSRF-protected.
 - 📝 **Structured logging via `log/slog`** — inject a custom `*slog.Logger` on `Crew` and `Agent`, with backward-compatible `Verbose` fallback.
+- ⚡ **Async waves (v0.6)**: independent `Task.Async` tasks run in parallel under
+  Sequential/Hierarchical, honoring `Task.Context` dependencies, always folding
+  by declaration order. `NewCrew` defaults to `AsyncMaxWorkers = 8`.
 - 🧠 **Memory** between tasks and chainable **context**.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - 🪜 **Staged process** — stages run in sequence, tasks within a stage run in parallel.

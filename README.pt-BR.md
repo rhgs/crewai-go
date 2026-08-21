@@ -64,6 +64,10 @@
 - 🔧 **Native tool calling** — use function calling nativa do provedor (OpenAI, Anthropic, Ollama) em vez de ReAct baseado em texto, com fallback automático e observabilidade de traces.
 - 🔍 **Web search** — busque a web via `WebSearcher` (Ollama, OpenAI, Anthropic, xAI) com `crewai.SearchWeb`, ou via `WebSearchTool` no loop ReAct com 7 provedores (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave) e proteção SSRF.
 - 📝 **Logging estruturado** via `log/slog` da stdlib — injetar `*slog.Logger` customizado em `Crew` e `Agent`, com fallback para o `Verbose` legado.
+- ⚡ **Waves assíncronas (v0.6)**: tarefas independentes com `Task.Async` rodam em
+  paralelo sob Sequential/Hierarchical, respeitando dependências `Task.Context`
+  e sempre agregando na ordem de declaração. `NewCrew` usa
+  `AsyncMaxWorkers = 8` por padrão.
 - 🧠 **Memória** entre tarefas e **contexto** encadeável.
 - 👔 **Processo hierárquico** com gerente que delega dinamicamente.
 - 🪜 **Processo em estágios (Staged)** — estágios em sequência, tarefas de um estágio em paralelo.

@@ -98,6 +98,33 @@ Se a tarefa já tem `Agent`, ele é respeitado.
 > Se houver apenas um agente, ele é escolhido automaticamente. Se a delegação
 > falhar (erro do LLM), a crew usa o primeiro agente como _fallback_.
 
+## Tarefas assíncronas em Sequential / Hierarchical (A3)
+
+Marque uma tarefa `Async` para sobrepor tarefas independentes sem migrar para
+`Staged`. Dependências continuam via `Task.Context`, e a agregação é sempre
+por **índice de declaração após a barreira da wave** — nunca por ordem de
+conclusão (o mesmo contrato do processo staged).
+
+```go
+pesquisa := crewai.NewTask("pesquisar", "notas", agente).WithAsync()
+esboco   := crewai.NewTask("esboço", "pontos", agente).WithAsync()
+redacao  := crewai.NewTask("escrever artigo", "markdown", agente).
+    WithContext(pesquisa, esboco) // roda depois das duas
+
+crew := crewai.NewCrew([]*crewai.Agent{agente}, []*crewai.Task{pesquisa, esboco, redacao})
+out, _ := crew.Kickoff(ctx, nil)
+```
+
+- `NewCrew` usa `AsyncMaxWorkers = DefaultAsyncMaxWorkers` (**8**) e
+  `AsyncFailFast = true`. Sobrescreva com `crew.WithAsyncMaxWorkers(n)`; **0 =
+  ilimitado** (opt-out explícito — o fan-out de LLM é sua responsabilidade).
+- `AsyncFailFast: false` continua os ramos independentes após uma falha e
+  ignora apenas os dependentes da tarefa que falhou, com erro (D-A3).
+- As arestas `Task.Context` definem a DAG; ciclo, auto-dependência ou ponteiro
+  de tarefa duplicado falham no Kickoff com `ErrTaskDependencyCycle` (G12).
+- Em `Staged` o flag é ignorado com um Warn único (D-A5/G5) — os estágios já
+  controlam o paralelismo.
+
 ## Processo em estágios (Staged)
 
 O processo `Staged` agrupa tarefas em **estágios**: os estágios rodam em

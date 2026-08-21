@@ -29,6 +29,29 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 - **`examples/mcp`**: demo de wiring offline para MCP `FilterTools` /
   `WithDescriptionLimit` / `NewToolAdapter` (`MCP_ENDPOINT` opcional ao vivo).
 
+### Adicionado (async além de Staged: A2/A3)
+
+- **`Task.Async` + agendador de waves**: marcar uma tarefa com `WithAsync()`
+  (ou `Async = true`) permite que tarefas independentes rodem em concorrência
+  sob `Sequential` e `Hierarchical`. O agendamento é por waves:
+  `Task.Context` define a DAG, `planWaves` coloca cada tarefa na primeira
+  wave estritamente após suas dependências, e a agregação agrega cada wave
+  por índice de declaração após a barreira (mesmo contrato do Staged). Ciclo,
+  auto-dependência ou ponteiro de tarefa duplicado falham no Kickoff com a
+  nova sentinela `ErrTaskDependencyCycle` (G12). No Hierarchical, agentes são
+  pré-resolvidos em série antes das waves (D-A2). Em `Staged` o flag é
+  ignorado com um Warn único (D-A5/G5).
+
+- **`Crew.AsyncMaxWorkers` / `Crew.AsyncFailFast`**: a concorrência da wave é
+  limitada por `AsyncMaxWorkers`; `NewCrew` usa `DefaultAsyncMaxWorkers`
+  (**8**) e `AsyncFailFast = true`. Use `WithAsyncMaxWorkers(n)` para
+  sobrescrever, ou **0 para ilimitado** (opt-out explícito — limitar o
+  fan-out de LLM passa a ser sua responsabilidade). Com `AsyncFailFast =
+  false`, ramos independentes continuam após uma falha e apenas os
+  dependentes da tarefa que falhou são ignorados com erro (D-A3); o padrão
+  `true` cancela os irmãos e aborta o Kickoff. Ambos são ignorados em
+  `Staged`.
+
 ### Alterado
 
 - **Interno**: o runtime paralelo staged foi extraído para a primitiva

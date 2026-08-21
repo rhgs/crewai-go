@@ -642,6 +642,6 @@ Not originally numbered in §2.10/§3.11; recorded here so implementation PRs do
 | FileStore | P2 | M3 | Planned |
 | Embeddings hook | P2 | M4 | Planned |
 | runTaskGroup extract | P1 | A1 | Shipped 2026-08-21 (branch feat/phase1-a1-m1) — Staged tests golden unchanged |
-| DAG + Async wire-up | P1 | A2–A4 | Planned |
+| DAG + Async wire-up | P1 | A2–A4 | A2–A3 shipped 2026-08-21 (branch feat/phase1-a1-m1); A4 docs mostly in PR |
 | Optional tools / sugar | P3 | M5/A5 | Deferred |
 

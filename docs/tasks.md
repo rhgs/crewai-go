@@ -30,6 +30,7 @@ task := crewai.NewTask(
 | `Structured`     | `*crewai.StructuredOutput` | If set, requires JSON output validated against a JSON Schema. |
 | `Guardrail`      | `crewai.Guardrail` | Optional task-level post-output validation. |
 | `Loop`           | `crewai.Loop`   | Optional per-task execution strategy (overrides `Agent.Loop`). |
+| `Async`          | `bool`          | If true, this task may run concurrently with other ready `Async` tasks under Sequential/Hierarchical (ignored under `Staged`). |
 
 ## Context between tasks
 
@@ -44,6 +45,16 @@ analyze  := crewai.NewTask("Analyze the trends.", "insights", analyst).
 In the **sequential process**, the previous task's output is also chained
 automatically when you use `WithContext`. Without `WithContext`, each task
 receives only accumulated memory (if `crew.Memory = true`).
+
+### Context as DAG dependencies (async)
+
+When a task is marked `Async`, its `Context` list is used as the dependency
+graph: every dependency must finish in a strictly earlier wave before the
+task may start. A cycle, a **self**-dependency, or the same task pointer
+appearing twice in `Crew.Tasks` is rejected at Kickoff with
+`ErrTaskDependencyCycle` (G12). Tasks within the same wave are independent
+by construction — adding a Context edge to a co-ready sibling moves it to a
+later wave, never to the same wave.
 
 ## Variable interpolation
 
