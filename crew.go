@@ -131,6 +131,10 @@ type Crew struct {
 	// concurrency-safe. Panics are recovered (D-S12).
 	stream StreamFunc
 
+	// events is invoked with structured lifecycle CrewEvents (D-C1).
+	// Set via WithEvents before Kickoff. Concurrent-safe; panics recovered.
+	events EventFunc
+
 	// runMu enforces a single in-flight Kickoff per Crew value. Concurrent
 	// Kickoff calls return ErrCrewRunning (fail fast; they do not queue).
 	runMu sync.Mutex
@@ -169,6 +173,19 @@ func (c *Crew) WithProgress(fn ProgressFunc) *Crew {
 // to untrusted clients (see SECURITY.md).
 func (c *Crew) WithStream(fn StreamFunc) *Crew {
 	c.stream = fn
+	return c
+}
+
+// WithEvents registers an EventFunc for structured lifecycle telemetry
+// during Kickoff (llm_call, react_iteration, structured_repair, etc.).
+// The callback MAY run from multiple goroutines and MUST be concurrency-safe.
+// Events are metadata-only by default (no prompt bodies). Panics are
+// recovered. Passing nil disables events. Progress continues to work
+// independently (dual-emit when both are set).
+//
+// Set BEFORE Kickoff.
+func (c *Crew) WithEvents(fn EventFunc) *Crew {
+	c.events = fn
 	return c
 }
 
@@ -388,6 +405,12 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 	ctx = ContextWithProgress(ctx, c.progress)
 	// Inject the stream sink (nil is a no-op inside ContextWithStream).
 	ctx = ContextWithStream(ctx, c.stream)
+	// Lifecycle events + correlation id (D-C1, D-C6).
+	if kickoffIDFromCtx(ctx) == "" {
+		ctx = ContextWithKickoffID(ctx, newKickoffID())
+	}
+	ctx = ContextWithEvents(ctx, c.events)
+	emitEvent(ctx, CrewEvent{Type: EventKickoffStarted})
 
 	switch c.Process {
 	case Sequential:
@@ -399,15 +422,27 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 	}
 	if err != nil {
 		c.discardMemoryBuffer()
+		emitEventErr(ctx, CrewEvent{
+			Type:       EventKickoffCompleted,
+			DurationMs: time.Since(start).Milliseconds(),
+		}, err)
 		return nil, err
 	}
 	out.Duration = time.Since(start)
 
 	// Run crew-level guardrails after all tasks complete.
 	if err := runCrewGuardrails(ctx, c.Guardrails, out); err != nil {
+		emitEventErr(ctx, CrewEvent{
+			Type:       EventKickoffCompleted,
+			DurationMs: time.Since(start).Milliseconds(),
+		}, err)
 		return nil, err
 	}
 
+	emitEvent(ctx, CrewEvent{
+		Type:       EventKickoffCompleted,
+		DurationMs: time.Since(start).Milliseconds(),
+	})
 	return out, nil
 }
 
@@ -525,6 +560,9 @@ func (c *Crew) runAsyncWaves(ctx context.Context, plan *asyncPlan, agents []*Age
 	done := make([]bool, len(c.Tasks))
 
 	for w, wave := range plan.waves {
+		waveLabel := fmt.Sprintf("wave %d", w+1)
+		waveStart := time.Now()
+		emitEvent(ctx, CrewEvent{Type: EventWaveStarted, Stage: waveLabel})
 		// Drain the wave: first run all ready Async tasks (chunked by
 		// AsyncMaxWorkers), then each remaining non-Async task alone.
 		// D-A1: non-Async never share a group with a sibling.
@@ -561,8 +599,12 @@ func (c *Crew) runAsyncWaves(ctx context.Context, plan *asyncPlan, agents []*Age
 				end = start + c.AsyncMaxWorkers
 			}
 			chunk := asyncIdx[start:end]
-			label := fmt.Sprintf("wave %d", w+1)
-			if err := c.runWaveGroup(ctx, label, chunk, agents, out); err != nil {
+			if err := c.runWaveGroup(ctx, waveLabel, chunk, agents, out); err != nil {
+				emitEventErr(ctx, CrewEvent{
+					Type:       EventWaveCompleted,
+					Stage:      waveLabel,
+					DurationMs: time.Since(waveStart).Milliseconds(),
+				}, err)
 				return nil, err
 			}
 			for _, i := range chunk {
@@ -573,12 +615,21 @@ func (c *Crew) runAsyncWaves(ctx context.Context, plan *asyncPlan, agents []*Age
 
 		// 2) Non-Async ready tasks, one at a time (stable by declaration index).
 		for _, i := range syncIdx {
-			label := fmt.Sprintf("wave %d", w+1)
-			if err := c.runWaveGroup(ctx, label, []int{i}, agents, out); err != nil {
+			if err := c.runWaveGroup(ctx, waveLabel, []int{i}, agents, out); err != nil {
+				emitEventErr(ctx, CrewEvent{
+					Type:       EventWaveCompleted,
+					Stage:      waveLabel,
+					DurationMs: time.Since(waveStart).Milliseconds(),
+				}, err)
 				return nil, err
 			}
 			done[i] = true
 		}
+		emitEvent(ctx, CrewEvent{
+			Type:       EventWaveCompleted,
+			Stage:      waveLabel,
+			DurationMs: time.Since(waveStart).Milliseconds(),
+		})
 	}
 	return out, nil
 }

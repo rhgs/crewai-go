@@ -99,6 +99,7 @@ func (l *AgenticLoop) Run(ctx context.Context, a *Agent, t *Task, contextText st
 
 	// Plan phase: skipped when SkipPlan is set or the agent has no tools.
 	if !l.SkipPlan && len(effectiveTools(a, t)) > 0 {
+		emitEvent(ctx, CrewEvent{Type: EventLoopPhase, Task: taskLabel(t, 0), Agent: a.Role, Phase: "plan"})
 		plan, err := l.plan(ctx, a, t, contextText)
 		if err != nil {
 			return "", nil, err
@@ -115,6 +116,7 @@ func (l *AgenticLoop) Run(ctx context.Context, a *Agent, t *Task, contextText st
 	var allFacts []Fact
 
 	// Initial execute phase.
+	emitEvent(ctx, CrewEvent{Type: EventLoopPhase, Task: taskLabel(t, 0), Agent: a.Role, Phase: "execute"})
 	output, facts, err := executeTaskDefault(ctx, a, t, contextText, log)
 	if err != nil {
 		return "", allFacts, err
@@ -129,6 +131,7 @@ func (l *AgenticLoop) Run(ctx context.Context, a *Agent, t *Task, contextText st
 		}
 
 		// Evaluate phase.
+		emitEvent(ctx, CrewEvent{Type: EventLoopPhase, Task: taskLabel(t, 0), Agent: a.Role, Phase: "evaluate", Iteration: round})
 		score, feedback, err := l.evaluate(ctx, a, t, output)
 		if err != nil {
 			return "", allFacts, err
@@ -148,6 +151,7 @@ func (l *AgenticLoop) Run(ctx context.Context, a *Agent, t *Task, contextText st
 			// Rewrite-only: revise the previous output directly, without
 			// re-running tools. The rewritten output is re-evaluated on the
 			// next iteration.
+			emitEvent(ctx, CrewEvent{Type: EventLoopPhase, Task: taskLabel(t, 0), Agent: a.Role, Phase: "rewrite", Iteration: round})
 			output, err = l.rewrite(ctx, a, t, output, refine)
 			if err != nil {
 				return "", allFacts, err
@@ -156,6 +160,7 @@ func (l *AgenticLoop) Run(ctx context.Context, a *Agent, t *Task, contextText st
 		}
 
 		// Re-execute with feedback injected as context.
+		emitEvent(ctx, CrewEvent{Type: EventLoopPhase, Task: taskLabel(t, 0), Agent: a.Role, Phase: "refine", Iteration: round})
 		if contextText != "" {
 			contextText = contextText + "\n\n" + refine
 		} else {

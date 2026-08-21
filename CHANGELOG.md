@@ -5,12 +5,23 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Lifecycle events (P2)**: `CrewEvent` + `Crew.WithEvents` / `ContextWithEvents`,
+  `KickoffID`, dual-emit with Progress, `llm_call_*`, `react_iteration`,
+  `structured_repair`, `loop_phase`, `guardrail_blocked`, `wave_*`. Helpers
+  `ProgressAsEvents`, `EventLogger`. Example `examples/events`. Design:
+  `Plan/PLAN.p2-callbacks-schema.md` Part C (D-C1–D-C10).
+- **JSON Schema remainder (P2)**: local `$ref` (`#/$defs`, `#/definitions`) with
+  depth/expansion caps; `format` allowlist; `const`, `not`, `if`/`then`/`else`,
+  `minProperties`/`maxProperties`, `uniqueItems`; boolean schemas. StrictSchema
+  still rejects `unevaluated*`. Design plan Part J (D-J1–D-J12).
+
 ### Documentation
 
-- **P2 design plan**: `Plan/PLAN.p2-callbacks-schema.md` (+ PT) — callbacks/
-  telemetry (`CrewEvent`/`WithEvents`) + JSON Schema remainder (local `$ref`,
-  format allowlist, …); D-C1–D-C10 / D-J1–D-J12; linked from roadmap P2 (not
-  implemented yet).
+- **P2 design plan** was linked earlier; implementation docs: crews `WithEvents`,
+  tasks schema keyword table, SECURITY events + local `$ref`, examples READMEs.
+
 
 ## [v0.7.0] — 2026-08-21
 

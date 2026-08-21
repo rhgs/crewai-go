@@ -5,12 +5,23 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
-### Documentation
+### Adicionado
 
-- **Plano de design P2**: `Plan/PLAN.p2-callbacks-schema.md` (+ PT) —
-  callbacks/telemetria (`CrewEvent`/`WithEvents`) + remainder de JSON Schema
-  (`$ref` local, allowlist de format, …); D-C1–D-C10 / D-J1–D-J12; linkado no
-  P2 do roadmap (ainda não implementado).
+- **Eventos de lifecycle (P2)**: `CrewEvent` + `Crew.WithEvents` /
+  `ContextWithEvents`, `KickoffID`, dual-emit com Progress, `llm_call_*`,
+  `react_iteration`, `structured_repair`, `loop_phase`, `guardrail_blocked`,
+  `wave_*`. Helpers `ProgressAsEvents`, `EventLogger`. Exemplo
+  `examples/events`. Design: `Plan/PLAN.p2-callbacks-schema.md` Parte C.
+- **Remainder de JSON Schema (P2)**: `$ref` local (`#/$defs`, `#/definitions`)
+  com caps; allowlist de `format`; `const`, `not`, `if`/`then`/`else`,
+  `minProperties`/`maxProperties`, `uniqueItems`; schemas booleanos.
+  StrictSchema ainda rejeita `unevaluated*`. Design Parte J.
+
+### Documentação
+
+- **Plano P2** já linkado; docs de implementação: crews `WithEvents`, tabela de
+  keywords em tasks, SECURITY events + `$ref` local, READMEs de examples.
+
 
 ## [v0.7.0] — 2026-08-21
 

@@ -73,7 +73,7 @@ func executeTaskDefault(ctx context.Context, a *Agent, t *Task, contextText stri
 
 	// No tools: a single call is enough (streaming path matrix Yes — D-S4).
 	if len(tools) == 0 {
-		out, err := callLLMText(ctx, a.LLM, messages, t, a)
+		out, err := callLLMTextEvent(ctx, a, t, messages, 0)
 		if err != nil {
 			return "", nil, fmt.Errorf("agent %q: %w", a.Role, err)
 		}
@@ -89,7 +89,13 @@ func executeTaskDefault(ctx context.Context, a *Agent, t *Task, contextText stri
 		default:
 		}
 
-		out, err := a.LLM.Call(ctx, messages)
+		emitEvent(ctx, CrewEvent{
+			Type:      EventReactIteration,
+			Task:      taskLabel(t, 0),
+			Agent:     a.Role,
+			Iteration: i,
+		})
+		out, err := callLLMPlainEvent(ctx, a, t, messages, i)
 		if err != nil {
 			return "", collectedFacts, fmt.Errorf("agent %q: %w", a.Role, err)
 		}
@@ -232,4 +238,104 @@ func firstLine(s string) string {
 		}
 	}
 	return ""
+}
+
+// callLLMTextEvent wraps callLLMText with llm_call_* events (D-C3/D-C9).
+func callLLMTextEvent(ctx context.Context, a *Agent, t *Task, messages []Message, iteration int) (string, error) {
+	taskName := ""
+	if t != nil {
+		taskName = taskLabel(t, 0)
+	}
+	agentRole := ""
+	model := ""
+	if a != nil {
+		agentRole = a.Role
+		if a.LLM != nil {
+			model = a.LLM.Model()
+		}
+	}
+	attrs := map[string]any{}
+	if model != "" {
+		attrs["model"] = model
+	}
+	emitEvent(ctx, CrewEvent{
+		Type:      EventLLMCallStarted,
+		Task:      taskName,
+		Agent:     agentRole,
+		Iteration: iteration,
+		Attrs:     attrs,
+	})
+	start := time.Now()
+	out, err := callLLMText(ctx, a.LLM, messages, t, a)
+	ev := CrewEvent{
+		Type:       EventLLMCallCompleted,
+		Task:       taskName,
+		Agent:      agentRole,
+		Iteration:  iteration,
+		DurationMs: time.Since(start).Milliseconds(),
+		Attrs:      attrs,
+	}
+	if err != nil {
+		emitEventErr(ctx, ev, err)
+		return "", err
+	}
+	emitEvent(ctx, ev)
+	return out, nil
+}
+
+// callLLMPlainEvent wraps a.LLM.Call with llm_call_* events (tool/ReAct path).
+func callLLMPlainEvent(ctx context.Context, a *Agent, t *Task, messages []Message, iteration int) (string, error) {
+	taskName := ""
+	if t != nil {
+		taskName = taskLabel(t, 0)
+	}
+	agentRole := ""
+	model := ""
+	var llm LLM
+	if a != nil {
+		agentRole = a.Role
+		llm = a.LLM
+		if llm != nil {
+			model = llm.Model()
+		}
+	}
+	attrs := map[string]any{}
+	if model != "" {
+		attrs["model"] = model
+	}
+	emitEvent(ctx, CrewEvent{
+		Type:      EventLLMCallStarted,
+		Task:      taskName,
+		Agent:     agentRole,
+		Iteration: iteration,
+		Attrs:     attrs,
+	})
+	start := time.Now()
+	if llm == nil {
+		err := ErrNoLLM
+		emitEventErr(ctx, CrewEvent{
+			Type:       EventLLMCallCompleted,
+			Task:       taskName,
+			Agent:      agentRole,
+			Iteration:  iteration,
+			DurationMs: time.Since(start).Milliseconds(),
+			Attrs:      attrs,
+		}, err)
+		return "", err
+	}
+	out, err := llm.Call(ctx, messages)
+	ev := CrewEvent{
+		Type:       EventLLMCallCompleted,
+		Task:       taskName,
+		Agent:      agentRole,
+		Iteration:  iteration,
+		DurationMs: time.Since(start).Milliseconds(),
+		Attrs:      attrs,
+	}
+	if err != nil {
+		emitEventErr(ctx, ev, err)
+		return "", err
+	}
+	emitEvent(ctx, ev)
+	return out, nil
 }

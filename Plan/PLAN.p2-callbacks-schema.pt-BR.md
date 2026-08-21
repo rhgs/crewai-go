@@ -1,6 +1,6 @@
 # Plano — P2: Callbacks / Telemetria e remainder de JSON Schema
 
-> **Status:** **Design** (não iniciado). Próximo epic de produto após v0.7.0 (Streaming).  
+> **Status:** **Implementado** no branch (tag v0.8.0 pendente).  
 > **Decisões:** D-C1–D-C10 (callbacks) e D-J1–D-J12 (JSON Schema) propostas abaixo (§9); fechar antes do código da Fase 1.  
 > **Relacionado:** `progress.go`, `stream.go`, `executor.go` / `toolcall.go` / `loop.go` / `crew.go`, `schema.go` / `structured.go`, roadmap `PLAN.pt-BR.md` §6 P2.  
 > **Restrições:** zero dependências externas de módulo no core (`go.mod` só-stdlib). Gates do §6.1 de `PLAN.security-residuals.md` em todo PR (cobertura ≥ 90%, race-clean, docs EN+PT-BR, CHANGELOG).  

@@ -3,10 +3,14 @@ package crewai
 import (
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/mail"
+	"net/url"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ValidationError describes a single JSON Schema validation failure.
@@ -63,20 +67,26 @@ var knownSchemaKeywords = map[string]struct{}{
 	"minItems": {}, "maxItems": {},
 	"pattern": {},
 	"oneOf":   {}, "anyOf": {}, "allOf": {},
+	"$ref": {}, "const": {}, "format": {},
+	"not": {}, "if": {}, "then": {}, "else": {},
+	"minProperties": {}, "maxProperties": {}, "uniqueItems": {},
 	// Meta / ignored (do not cause StrictSchema failure):
 	"$schema": {}, "$id": {}, "title": {}, "description": {}, "default": {},
 	"examples": {}, "definitions": {}, "$defs": {},
 }
 
+// MaxSchemaRefDepth caps $ref chain depth (D-J12).
+const MaxSchemaRefDepth = 32
+
+// MaxSchemaRefExpansions caps total $ref resolutions per validateSchema call.
+const MaxSchemaRefExpansions = 256
+
 // unsupportedStrictKeywords cause StrictSchema construction to fail when
 // present anywhere in the schema tree.
 var unsupportedStrictKeywords = map[string]struct{}{
-	"$ref": {}, "if": {}, "then": {}, "else": {},
-	"not": {}, "dependentRequired": {}, "dependentSchemas": {},
+	"dependentRequired": {}, "dependentSchemas": {},
 	"unevaluatedProperties": {}, "unevaluatedItems": {},
 	"prefixItems": {}, "contains": {}, "propertyNames": {},
-	"minProperties": {}, "maxProperties": {},
-	"uniqueItems": {}, "const": {}, "format": {},
 }
 
 // validateSchema validates a raw JSON document against a raw JSON Schema.
@@ -85,27 +95,25 @@ var unsupportedStrictKeywords = map[string]struct{}{
 //
 // Supported keywords (stdlib-only subset):
 //
-//	type, properties, required, enum, items,
+//	type, properties, required, enum, const, items,
 //	additionalProperties (bool or nested schema),
 //	minLength, maxLength (string length in bytes — len(s)),
 //	minimum, maximum, exclusiveMinimum, exclusiveMaximum (numbers as float64),
-//	minItems, maxItems,
+//	minItems, maxItems, uniqueItems, minProperties, maxProperties,
 //	pattern (Go regexp; pattern length capped at MaxSchemaPatternLen),
-//	oneOf, anyOf, allOf.
+//	format (allowlist: date-time, date, email, uri, uri-reference, uuid, ipv4, ipv6),
+//	oneOf, anyOf, allOf, not, if/then/else,
+//	$ref (local JSON Pointer fragments only; see MaxSchemaRefDepth).
 //
-// Not supported: $ref, if/then/else, unevaluated*, format, and most draft
-// 2020-12 keywords. See StrictSchema on StructuredOutput to fail fast when
-// unsupported keywords appear in an author-supplied schema.
+// Boolean schemas: true always matches; false never matches.
+//
+// Not supported: unevaluated*, remote $ref, dependent*, prefixItems, contains,
+// propertyNames, and most remaining draft 2020-12 keywords. See StrictSchema
+// on StructuredOutput to fail fast when unsupported keywords appear.
 func validateSchema(doc, schema json.RawMessage) error {
 	var schemaNode any
 	if err := json.Unmarshal(schema, &schemaNode); err != nil {
 		return fmt.Errorf("invalid schema: %w", err)
-	}
-	schemaMap, ok := schemaNode.(map[string]any)
-	if !ok {
-		// A non-object schema (e.g. a bare boolean) is not supported;
-		// treat as pass (no constraints).
-		return nil
 	}
 
 	var docNode any
@@ -116,12 +124,51 @@ func validateSchema(doc, schema json.RawMessage) error {
 		}
 	}
 
+	vc := &schemaValidation{
+		root: schemaNode,
+	}
 	var errs ValidationErrors
-	validateNode(docNode, schemaMap, "", &errs)
+	validateNode(vc, docNode, schemaNode, "", &errs)
 	if len(errs) > 0 {
 		return errs
 	}
 	return nil
+}
+
+// schemaValidation holds root + $ref bookkeeping for one validateSchema call.
+type schemaValidation struct {
+	root       any
+	refDepth   int
+	expansions int
+	stack      []string // JSON pointers currently being resolved
+}
+
+func (vc *schemaValidation) pushRef(ptr string) error {
+	if vc.expansions >= MaxSchemaRefExpansions {
+		return ErrSchemaRefDepth
+	}
+	if vc.refDepth >= MaxSchemaRefDepth {
+		return ErrSchemaRefDepth
+	}
+	for _, s := range vc.stack {
+		if s == ptr {
+			return ErrSchemaRefCycle
+		}
+	}
+	vc.stack = append(vc.stack, ptr)
+	vc.refDepth++
+	vc.expansions++
+	return nil
+}
+
+func (vc *schemaValidation) popRef() {
+	if len(vc.stack) == 0 {
+		return
+	}
+	vc.stack = vc.stack[:len(vc.stack)-1]
+	if vc.refDepth > 0 {
+		vc.refDepth--
+	}
 }
 
 // checkSchemaSupported walks a schema tree and returns an error if any
@@ -164,7 +211,7 @@ func walkSchemaKeywords(node any, path string, found *[]string) {
 					walkSchemaKeywords(pv, joinPath(p, pk), found)
 				}
 			}
-		case "items", "additionalProperties", "not":
+		case "items", "additionalProperties", "not", "if", "then", "else":
 			walkSchemaKeywords(v, p, found)
 		case "oneOf", "anyOf", "allOf":
 			if arr, ok := v.([]any); ok {
@@ -181,29 +228,88 @@ func walkSchemaKeywords(node any, path string, found *[]string) {
 // validateNode recursively validates a decoded JSON value against a schema
 // node. All discovered errors are appended to errs (not short-circuited)
 // so the repair prompt can present the full list to the model.
-func validateNode(value any, schema map[string]any, path string, errs *ValidationErrors) {
-	// Combinators first: allOf always applies; oneOf/anyOf replace the
-	// rest of the node when present (draft-ish: we still also apply
-	// sibling keywords after a successful match).
-	if allOf, ok := schema["allOf"].([]any); ok {
-		for i, sub := range allOf {
-			subMap, ok := sub.(map[string]any)
-			if !ok {
+func validateNode(vc *schemaValidation, value any, schema any, path string, errs *ValidationErrors) {
+	// Boolean schemas (draft-accurate): true matches all; false matches none.
+	switch b := schema.(type) {
+	case bool:
+		if !b {
+			*errs = append(*errs, &ValidationError{Path: path, Message: "schema is false"})
+		}
+		return
+	case nil:
+		return
+	}
+	schemaMap, ok := schema.(map[string]any)
+	if !ok {
+		return
+	}
+
+	// $ref: resolve local pointer; apply sibling keywords as intersection (D-J2-B).
+	if refRaw, hasRef := schemaMap["$ref"]; hasRef {
+		refStr, ok := refRaw.(string)
+		if !ok {
+			*errs = append(*errs, &ValidationError{Path: path, Message: ErrSchemaRefInvalid.Error()})
+			return
+		}
+		target, ptr, err := resolveLocalRef(vc.root, refStr)
+		if err != nil {
+			*errs = append(*errs, &ValidationError{Path: path, Message: err.Error()})
+			return
+		}
+		if err := vc.pushRef(ptr); err != nil {
+			*errs = append(*errs, &ValidationError{Path: path, Message: err.Error()})
+			return
+		}
+		validateNode(vc, value, target, path, errs)
+		vc.popRef()
+		// Sibling keywords (excluding $ref) still apply.
+		siblings := make(map[string]any, len(schemaMap))
+		for k, v := range schemaMap {
+			if k == "$ref" {
 				continue
 			}
-			var subErrs ValidationErrors
-			validateNode(value, subMap, path, &subErrs)
-			if len(subErrs) > 0 {
-				for _, e := range subErrs {
-					*errs = append(*errs, e)
-				}
-				// keep collecting across branches
-				_ = i
+			siblings[k] = v
+		}
+		if len(siblings) > 0 {
+			validateNodeKeywords(vc, value, siblings, path, errs)
+		}
+		return
+	}
+
+	validateNodeKeywords(vc, value, schemaMap, path, errs)
+}
+
+func validateNodeKeywords(vc *schemaValidation, value any, schema map[string]any, path string, errs *ValidationErrors) {
+	// if / then / else
+	if ifSch, ok := schema["if"]; ok {
+		var ifErrs ValidationErrors
+		validateNode(vc, value, ifSch, path, &ifErrs)
+		if len(ifErrs) == 0 {
+			if thenSch, ok := schema["then"]; ok {
+				validateNode(vc, value, thenSch, path, errs)
 			}
+		} else if elseSch, ok := schema["else"]; ok {
+			validateNode(vc, value, elseSch, path, errs)
+		}
+	}
+
+	// not
+	if notSch, ok := schema["not"]; ok {
+		var notErrs ValidationErrors
+		validateNode(vc, value, notSch, path, &notErrs)
+		if len(notErrs) == 0 {
+			*errs = append(*errs, &ValidationError{Path: path, Message: "value matches not schema"})
+		}
+	}
+
+	// Combinators
+	if allOf, ok := schema["allOf"].([]any); ok {
+		for _, sub := range allOf {
+			validateNode(vc, value, sub, path, errs)
 		}
 	}
 	if anyOf, ok := schema["anyOf"].([]any); ok && len(anyOf) > 0 {
-		if !matchOneOfAnyOf(value, anyOf, false /*requireExactlyOne*/) {
+		if !matchOneOfAnyOf(vc, value, anyOf, false) {
 			*errs = append(*errs, &ValidationError{
 				Path:    path,
 				Message: "value does not match any anyOf schema",
@@ -211,7 +317,7 @@ func validateNode(value any, schema map[string]any, path string, errs *Validatio
 		}
 	}
 	if oneOf, ok := schema["oneOf"].([]any); ok && len(oneOf) > 0 {
-		if !matchOneOfAnyOf(value, oneOf, true /*requireExactlyOne*/) {
+		if !matchOneOfAnyOf(vc, value, oneOf, true) {
 			*errs = append(*errs, &ValidationError{
 				Path:    path,
 				Message: "value does not match exactly one oneOf schema",
@@ -225,7 +331,6 @@ func validateNode(value any, schema map[string]any, path string, errs *Validatio
 				Path:    path,
 				Message: fmt.Sprintf("expected type %v, got %s", t, jsonTypeOf(value)),
 			})
-			// Type mismatch: no point checking further type-specific keywords.
 			return
 		}
 	}
@@ -239,33 +344,35 @@ func validateNode(value any, schema map[string]any, path string, errs *Validatio
 		}
 	}
 
-	// String keywords (length in bytes — D7).
+	if c, ok := schema["const"]; ok {
+		if !reflect.DeepEqual(value, c) {
+			*errs = append(*errs, &ValidationError{
+				Path:    path,
+				Message: fmt.Sprintf("value does not equal const %v", c),
+			})
+		}
+	}
+
 	if s, ok := value.(string); ok {
 		validateString(s, schema, path, errs)
 	}
-
-	// Number keywords.
 	if f, ok := value.(float64); ok {
 		validateNumber(f, schema, path, errs)
 	}
 
 	switch v := value.(type) {
 	case map[string]any:
-		validateObject(v, schema, path, errs)
+		validateObject(vc, v, schema, path, errs)
 	case []any:
-		validateArray(v, schema, path, errs)
+		validateArray(vc, v, schema, path, errs)
 	}
 }
 
-func matchOneOfAnyOf(value any, alts []any, exactlyOne bool) bool {
+func matchOneOfAnyOf(vc *schemaValidation, value any, alts []any, exactlyOne bool) bool {
 	matches := 0
 	for _, sub := range alts {
-		subMap, ok := sub.(map[string]any)
-		if !ok {
-			continue
-		}
 		var subErrs ValidationErrors
-		validateNode(value, subMap, "", &subErrs)
+		validateNode(vc, value, sub, "", &subErrs)
 		if len(subErrs) == 0 {
 			matches++
 			if !exactlyOne && matches >= 1 {
@@ -318,6 +425,11 @@ func validateString(s string, schema map[string]any, path string, errs *Validati
 				Path:    path,
 				Message: fmt.Sprintf("value does not match pattern %q", pat),
 			})
+		}
+	}
+	if fmtName, ok := schema["format"].(string); ok && fmtName != "" {
+		if errMsg := checkFormat(fmtName, s); errMsg != "" {
+			*errs = append(*errs, &ValidationError{Path: path, Message: errMsg})
 		}
 	}
 }
@@ -384,7 +496,23 @@ func validateNumber(f float64, schema map[string]any, path string, errs *Validat
 }
 
 // validateObject checks required, properties, and additionalProperties.
-func validateObject(obj map[string]any, schema map[string]any, path string, errs *ValidationErrors) {
+func validateObject(vc *schemaValidation, obj map[string]any, schema map[string]any, path string, errs *ValidationErrors) {
+	if v, ok := asFloat(schema["minProperties"]); ok {
+		if float64(len(obj)) < v {
+			*errs = append(*errs, &ValidationError{
+				Path:    path,
+				Message: fmt.Sprintf("object has %d properties; minProperties %v", len(obj), v),
+			})
+		}
+	}
+	if v, ok := asFloat(schema["maxProperties"]); ok {
+		if float64(len(obj)) > v {
+			*errs = append(*errs, &ValidationError{
+				Path:    path,
+				Message: fmt.Sprintf("object has %d properties; maxProperties %v", len(obj), v),
+			})
+		}
+	}
 	if req, ok := schema["required"].([]any); ok {
 		for _, r := range req {
 			key, ok := r.(string)
@@ -413,7 +541,7 @@ func validateObject(obj map[string]any, schema map[string]any, path string, errs
 				continue
 			}
 			p := joinPath(path, key)
-			validateNode(val, subMap, p, errs)
+			validateNode(vc, val, subMap, p, errs)
 		}
 	}
 
@@ -440,14 +568,14 @@ func validateObject(obj map[string]any, schema map[string]any, path string, errs
 						continue
 					}
 				}
-				validateNode(val, apv, joinPath(path, key), errs)
+				validateNode(vc, val, apv, joinPath(path, key), errs)
 			}
 		}
 	}
 }
 
-// validateArray checks items, minItems, maxItems.
-func validateArray(arr []any, schema map[string]any, path string, errs *ValidationErrors) {
+// validateArray checks items, minItems, maxItems, uniqueItems.
+func validateArray(vc *schemaValidation, arr []any, schema map[string]any, path string, errs *ValidationErrors) {
 	if v, ok := asFloat(schema["minItems"]); ok {
 		if float64(len(arr)) < v {
 			*errs = append(*errs, &ValidationError{
@@ -464,13 +592,24 @@ func validateArray(arr []any, schema map[string]any, path string, errs *Validati
 			})
 		}
 	}
-	items, ok := schema["items"].(map[string]any)
-	if !ok {
-		return
+	if uniq, ok := schema["uniqueItems"].(bool); ok && uniq {
+		for i := 0; i < len(arr); i++ {
+			for j := i + 1; j < len(arr); j++ {
+				if reflect.DeepEqual(arr[i], arr[j]) {
+					*errs = append(*errs, &ValidationError{
+						Path:    path,
+						Message: "array items are not unique",
+					})
+					break
+				}
+			}
+		}
 	}
-	for i, elem := range arr {
-		p := fmt.Sprintf("%s/%d", path, i)
-		validateNode(elem, items, p, errs)
+	if items, ok := schema["items"]; ok {
+		for i, elem := range arr {
+			p := fmt.Sprintf("%s/%d", path, i)
+			validateNode(vc, elem, items, p, errs)
+		}
 	}
 }
 
@@ -580,3 +719,104 @@ func joinPath(parent, key string) string {
 	}
 	return parent + "/" + key
 }
+
+// resolveLocalRef resolves a local JSON Pointer $ref against root.
+// Returns the target node and the normalized pointer used for cycle detection.
+func resolveLocalRef(root any, ref string) (any, string, error) {
+	if ref == "" {
+		return nil, "", ErrSchemaRefInvalid
+	}
+	// Reject URLs and non-fragment refs.
+	if strings.Contains(ref, "://") || (!strings.HasPrefix(ref, "#") && strings.Contains(ref, "#")) {
+		return nil, "", ErrSchemaRefInvalid
+	}
+	if !strings.HasPrefix(ref, "#") {
+		// Plain name without fragment — not supported (would be external).
+		return nil, "", ErrSchemaRefInvalid
+	}
+	ptr := ref[1:] // drop '#'
+	if ptr == "" {
+		return root, "#", nil
+	}
+	if !strings.HasPrefix(ptr, "/") {
+		return nil, "", ErrSchemaRefInvalid
+	}
+	node := root
+	parts := strings.Split(ptr, "/")[1:] // skip empty before first /
+	for _, part := range parts {
+		part = strings.ReplaceAll(part, "~1", "/")
+		part = strings.ReplaceAll(part, "~0", "~")
+		switch cur := node.(type) {
+		case map[string]any:
+			next, ok := cur[part]
+			if !ok {
+				return nil, "", ErrSchemaRefNotFound
+			}
+			node = next
+		case []any:
+			idx, err := strconv.Atoi(part)
+			if err != nil || idx < 0 || idx >= len(cur) {
+				return nil, "", ErrSchemaRefNotFound
+			}
+			node = cur[idx]
+		default:
+			return nil, "", ErrSchemaRefNotFound
+		}
+	}
+	return node, "#" + ptr, nil
+}
+
+// checkFormat validates known format values. Unknown formats return "" (ignore).
+func checkFormat(name, s string) string {
+	switch name {
+	case "date-time":
+		if _, err := time.Parse(time.RFC3339, s); err != nil {
+			if _, err2 := time.Parse(time.RFC3339Nano, s); err2 != nil {
+				return fmt.Sprintf("value is not a valid date-time: %v", err)
+			}
+		}
+	case "date":
+		if _, err := time.Parse("2006-01-02", s); err != nil {
+			return "value is not a valid date (YYYY-MM-DD)"
+		}
+	case "email":
+		if len(s) > 254 {
+			return "email exceeds maximum length"
+		}
+		if _, err := mail.ParseAddress(s); err != nil {
+			return "value is not a valid email"
+		}
+		// mail.ParseAddress allows "Name <a@b>" — require bare addr.
+		if strings.Contains(s, "<") || strings.Contains(s, " ") {
+			return "value is not a valid email"
+		}
+	case "uri":
+		u, err := url.Parse(s)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return "value is not a valid uri"
+		}
+	case "uri-reference":
+		if _, err := url.Parse(s); err != nil {
+			return "value is not a valid uri-reference"
+		}
+	case "uuid":
+		if !uuidRegexp.MatchString(s) {
+			return "value is not a valid uuid"
+		}
+	case "ipv4":
+		ip := net.ParseIP(s)
+		if ip == nil || ip.To4() == nil {
+			return "value is not a valid ipv4"
+		}
+	case "ipv6":
+		ip := net.ParseIP(s)
+		if ip == nil || ip.To4() != nil {
+			return "value is not a valid ipv6"
+		}
+	default:
+		// Unknown format: ignore (D-J4-A).
+	}
+	return ""
+}
+
+var uuidRegexp = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)

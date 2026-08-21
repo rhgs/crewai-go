@@ -75,6 +75,7 @@
 - 🔌 **MCP** — connect to Model Context Protocol servers and expose their tools as `crewai.Tool` (schema-preserving).
 - 📡 **Progress & warnings** — real-time `WithProgress` callbacks and per-task non-fatal warnings.
 - 🌊 **Streaming** — optional `StreamingLLM` + `Crew.WithStream` for final-answer token deltas (ReAct/native no-tools); Task/Agent demux on Async waves.
+- 📊 **Lifecycle events** — `WithEvents` / `CrewEvent` metadata telemetry (llm_call, react turns, repairs) alongside Progress.
 - ✅ **Testable** — mock LLM included; ~90% core coverage.
 
 ## Concepts

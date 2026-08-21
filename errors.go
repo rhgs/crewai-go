@@ -69,4 +69,13 @@ var (
 	// exceeds MaxProviderResponseBytes on accumulated text or on raw HTTP
 	// body bytes read (D-S8).
 	ErrStreamResponseTooLarge = errors.New("crewai: stream response exceeds size limit")
+
+	// ErrSchemaRefCycle is returned when JSON Schema $ref resolution detects a cycle.
+	ErrSchemaRefCycle = errors.New("crewai: JSON Schema $ref cycle")
+	// ErrSchemaRefInvalid is returned for external or non-fragment $ref values.
+	ErrSchemaRefInvalid = errors.New("crewai: JSON Schema $ref invalid or external")
+	// ErrSchemaRefNotFound is returned when a local $ref target does not exist.
+	ErrSchemaRefNotFound = errors.New("crewai: JSON Schema $ref target not found")
+	// ErrSchemaRefDepth is returned when $ref resolution exceeds MaxSchemaRefDepth.
+	ErrSchemaRefDepth = errors.New("crewai: JSON Schema $ref depth exceeded")
 )

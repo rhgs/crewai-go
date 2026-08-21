@@ -12,6 +12,7 @@ Cada subpasta é um programa executável independente.
 | `sequential`    | Pipeline de agentes + contexto + memória          | ✅ OpenAI               |
 | `hierarchical`  | Gerente delegando tarefas dinamicamente           | ✅ OpenAI               |
 | `staged`        | Estágios em sequência, tarefas de um estágio em paralelo | ✅ OpenAI        |
+| `events`        | Lifecycle `WithEvents` em JSON lines (mock offline) | ❌ Não |
 | `streaming`     | Deltas `WithStream` + demux de Task Async (mock offline) | ❌ Não |
 | `async_tasks`   | Waves `Task.Async` sob Sequential + merge com `WithContext` (mock offline) | ❌ Não / ✅ OpenAI |
 | `memory_file`   | Persistência `FileStore` JSONL entre dois Kickoffs (offline) | ❌ Não |
@@ -31,6 +32,7 @@ Cada subpasta é um programa executável independente.
 ```bash
 # Sem chave de API:
 go run ./examples/custom_llm
+go run ./examples/events      # WithEvents JSONL (offline)
 go run ./examples/streaming  # demux de stream mock offline
 go run ./examples/async_tasks  # waves Task.Async; USE_OPENAI=1 para live
 go run ./examples/memory_file  # FileStore JSONL; MEMORY_DIR opcional

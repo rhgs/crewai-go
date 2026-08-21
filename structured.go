@@ -346,7 +346,7 @@ func executeStructuredJSON(ctx context.Context, a *Agent, t *Task, contextText s
 		default:
 		}
 
-		out, err := a.LLM.Call(ctx, messages)
+		out, err := callLLMPlainEvent(ctx, a, t, messages, attempt)
 		if err != nil {
 			return "", fmt.Errorf("agent %q: %w", a.Role, err)
 		}
@@ -359,6 +359,13 @@ func executeStructuredJSON(ctx context.Context, a *Agent, t *Task, contextText s
 		}
 
 		log.DebugContext(ctx, "structured output validation failed", "agent", a.Role, "attempt", attempt, "error", valErr)
+		emitEvent(ctx, CrewEvent{
+			Type:      EventStructuredRepair,
+			Task:      taskLabel(t, 0),
+			Agent:     a.Role,
+			Iteration: attempt,
+			Attrs:     map[string]any{"reason": "validation_failed"},
+		})
 
 		if attempt >= repairMax {
 			return "", fmt.Errorf("agent %q: %w (last error: %v)", a.Role, ErrRepairBudgetExceeded, valErr)
@@ -426,6 +433,13 @@ func executeStructuredToolCall(ctx context.Context, a *Agent, t *Task, contextTe
 		}
 
 		log.DebugContext(ctx, "structured output validation failed (tool-call)", "agent", a.Role, "attempt", attempt, "error", valErr)
+		emitEvent(ctx, CrewEvent{
+			Type:      EventStructuredRepair,
+			Task:      taskLabel(t, 0),
+			Agent:     a.Role,
+			Iteration: attempt,
+			Attrs:     map[string]any{"reason": "validation_failed", "mode": "tool_call"},
+		})
 
 		if attempt >= repairMax {
 			return "", fmt.Errorf("agent %q: %w (last error: %v)", a.Role, ErrRepairBudgetExceeded, valErr)
