@@ -1,6 +1,6 @@
 # Plan — Long-term Memory & Async beyond Staged
 
-> **Status:** Plan only — do not implement until scheduled and open decisions are closed.  
+> **Status:** Plan only — do not implement until scheduled. **Open decisions D-M1–D-M7, D-A1–D-A6 and gaps G1–G12 closed 2026-08-21** (see §9).  
 > **Related:** current in-RAM `Memory` (`memory.go`), `Crew.Memory` / `MemorySnapshot`, `Process=Staged` (`runStaged`), roadmap items in `PLAN.md` §6 P1/P2.  
 > **Constraints:** zero external module dependencies in the core library (`go.mod` stays stdlib-only). Quality gates from §6.1 of `PLAN.security-residuals.md` apply to every implementation PR (coverage ≥ 90% on touched packages, race-clean, docs EN+PT-BR, CHANGELOG).  
 > **External feedback:** DEV.to thread on staged semantic races vs `-race` ([article](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm) — freerave): merge must be orchestration contract (declaration-order fold after barrier). Memory completion-order caveat → **D-M7** visibility + stronger **D-M3**/**D-M4**. Reinforced **D-A1**/**D-A5**/**D-A6**.
@@ -279,7 +279,7 @@ Do **not** auto-copy Facts into MemoryStore in v1 (apps may do so explicitly).
 - Coverage ≥ 90% on new files/packages.
 - Docs: `docs/memory.md` + pt-BR rewrite; elevate DEV caveat to **API invariant** (Memory is not a merge channel for parallel siblings — use `WithContext`); README blurb; CHANGELOG.
 
-### 2.10 Memory — open decisions
+### 2.10 Memory — decisions (closed 2026-08-21)
 
 | ID | Question | Options | Recommendation |
 |---|---|---|---|
@@ -439,7 +439,7 @@ Recommendation: **serial resolve for tasks that need manager, then async execute
 - Semantic: Memory commit order == declaration order after parallel wave; next-wave inject cannot see in-flight sibling saves.
 - Coverage ≥ 90% on scheduler files.
 
-### 3.11 Async — open decisions
+### 3.11 Async — decisions (closed 2026-08-21)
 
 | ID | Question | Options | Recommendation |
 |---|---|---|---|
@@ -503,7 +503,7 @@ Copied/adapted from security residuals:
 ## 5. Suggested implementation order
 
 ```
-Phase 0  Close open decisions D-M1–D-M7 and D-A1–D-A6 (short RFC in PR description)
+Phase 0  ~~Close open decisions D-M1–D-M7 and D-A1–D-A6~~ **done 2026-08-21** (gaps G1–G12 closed in the same pass)
 Phase 1  A1 extract runTaskGroup          } can parallelize with
 Phase 1  M1 MemoryStore interface         } independent file ownership
 Phase 2  A2 DAG planner
@@ -575,25 +575,46 @@ File ownership to avoid conflicts:
 
 ---
 
-## 9. Decision log (fill before coding)
+## 9. Decision log (closed 2026-08-21)
 
-Recommendations below reflect the plan + DEV.to semantic-race feedback. Cells stay `_TBD_` until you explicitly close them (same process as security residuals D1–D7).
+Closed in one pass to match residuals D1–D7 process, v0.5.0 strategy (P1–P10), and DEV.to semantic-race thread (freerave). Implementation still **not** scheduled.
+
+### 9.1 Official (D-M* / D-A*)
 
 | ID | Decision | Date | Notes |
 |---|---|---|---|
-| D-M1 | _TBD_ | | Rec **A** — default InMemory |
-| D-M2 | _TBD_ | | Rec **A** if no cycle else **B** — layout |
-| D-M3 | _TBD_ | | Rec **C** default=A — inject vs Context; no uncommitted inject |
-| D-M4 | _TBD_ | | Rec **A** — latest N on **committed** snapshot, stable order |
-| D-M5 | _TBD_ | | Rec **B** — skip corrupt JSONL + counter |
-| D-M6 | _TBD_ | | Rec **A** — app owns Close |
-| D-M7 | _TBD_ | | Rec **B** — buffer + barrier fold (DEV thread) |
-| D-A1 | _TBD_ | | Rec **A** — wave + declaration-order fold |
-| D-A2 | _TBD_ | | Rec **A** — serial hierarchical pre-resolve |
-| D-A3 | _TBD_ | | Rec **A** — skip dependents only |
-| D-A4 | _TBD_ | | Rec **A** — MaxWorkers 0 unlimited + docs warn |
-| D-A5 | _TBD_ | | Rec **A** — Staged ignores Task.Async |
-| D-A6 | _TBD_ | | Rec **A** — no new Process; optional DAG alias later |
+| D-M1 | **A** | 2026-08-21 | `Memory=true` + `Store==nil` ⇒ InMemoryStore (zero surprise / P6) |
+| D-M2 | **A** | 2026-08-21 | FileStore in root (`filestore.go`); move to `memoryfile` only if import cycle or FileStore grows |
+| D-M3 | **C** (default A) | 2026-08-21 | `InjectWhenEmptyContext` policy flag; default true (today). Never inject uncommitted / in-wave entries (D-M7) |
+| D-M4 | **A** | 2026-08-21 | Empty query → latest N on **committed** snapshot; stable order `(commit seq / declaration index, ID)`. Keywords/embed later |
+| D-M5 | **B** | 2026-08-21 | Corrupt JSONL: skip line + warning + counter in meta (P3 warn+capture) |
+| D-M6 | **A** | 2026-08-21 | App opens/closes Store. Crew does not Close app stores unless optional `StoreOwner` (Crew-created default only) |
+| D-M7 | **B** | 2026-08-21 | Per-task buffer + fold at wave/stage barrier in **declaration order**. Orchestrator inject/`Query` sees committed only. Live event-log rejected on prompt path (DEV thread / P4 / P5) |
+| D-A1 | **A** | 2026-08-21 | Wave rule: ready Async run together; sync never share a wave; aggregate by declaration index after barrier |
+| D-A2 | **A** | 2026-08-21 | Hierarchical: serial manager pre-resolve, then async execute |
+| D-A3 | **A** | 2026-08-21 | `FailFast=false`: skip dependents of failed tasks only; unrelated branches continue. `FailFast=true` (default) aborts Kickoff |
+| D-A4 | **A** | 2026-08-21 | `AsyncMaxWorkers=0` unlimited (bounded by ready set). Docs must warn on LLM fan-out ($$/429); example `AsyncMaxWorkers: 4` |
+| D-A5 | **A** | 2026-08-21 | Staged ignores `Task.Async` (stages own batches). See G5 for one-shot Warn |
+| D-A6 | **A** | 2026-08-21 | No new `Process` constant. Sequential/Hierarchical + `Task.Async` only. Optional `Process=DAG` alias later (A5) if naming confuses |
+
+### 9.2 Gaps closed in the same pass (G1–G12)
+
+Not originally numbered in §2.10/§3.11; recorded here so implementation PRs do not re-litigate them.
+
+| ID | Decision | Date | Notes |
+|---|---|---|---|
+| G1 | **A** | 2026-08-21 | Fold/commit order = index in `Crew.Tasks` for this Kickoff (same contract as Staged / DEV reply). No mandatory `Task.ID` in v1 |
+| G2 | **A** | 2026-08-21 | AutoSave only on **successful** task output. Failures stay on `CrewOutput` / logs, not the recall channel |
+| G3 | **B** | 2026-08-21 | Default `MemoryPolicy.Scope` = `Crew.Name` when non-empty; else empty (default partition) |
+| G4 | **A** | 2026-08-21 | `Memory bool` remains a permanent v0.x alias (`true` ⇒ ensure InMemoryStore for the Kickoff). No deprecation noise |
+| G5 | **B** | 2026-08-21 | If `Task.Async=true` under `Process=Staged`: one-shot `slog` Warn (P3). Not an error (D-A5=A) |
+| G6 | **A** | 2026-08-21 | `CreatedAt` = task **finish** time (informational). **Commit / latest-N order** is declaration index (D-M7), not wall-clock |
+| G7 | **A** | 2026-08-21 | FileStore v1 is **single-writer**; document it. No `flock`. Path is caller-trusted |
+| G8 | **A** | 2026-08-21 | `AutoEmbed` runs **serially at the barrier fold**. No extra embed fan-out in v1 |
+| G9 | **A** | 2026-08-21 | **M2 includes the commit barrier on Staged now**, not only Sequential+Async. Closes the published Memory caveat |
+| G10 | **A** | 2026-08-21 | Prefer one minor **v0.6.0** shipping M1–M2 + A1–A4 if capacity allows; FileStore/embeddings may trail |
+| G11 | **A** | 2026-08-21 | `MaxMemoryEntryBytes`: **reject** on Put (hard limit). AutoSave failure → warn+capture (P3), do not abort Kickoff |
+| G12 | **A** | 2026-08-21 | Cycle and same-wave `Task.Context` validated at **Kickoff start** (P2 fail-fast). Hard error, not mid-wave |
 
 ---
 
