@@ -21,10 +21,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `Query` searches `Content`/`Task` (case-insensitive; empty `Text` returns
   the latest entries first, bounded by `Limit`/`MaxChars`), `Delete` is
   idempotent, and `Close` is a no-op. Entries are partitioned by
-  `MemoryScope`. The Crew is **not** wired to `MemoryStore` yet (that is M2);
-  the interface is public now so applications can depend on the contract
-  ahead of the FileStore/embeddings backends. No `Crew.Memory` behavior
-  change.
+  `MemoryScope`. Crew wiring arrived in M2; FileStore in M3. No change to
+  the pre-existing `Memory bool` short-term path beyond the store bridge.
 
 - **`examples/mcp`**: offline wiring demo for MCP `FilterTools` /
   `WithDescriptionLimit` / `NewToolAdapter` (optional live `MCP_ENDPOINT`).
@@ -69,6 +67,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   waves (semaphore). Mixed ready waves run non-Async tasks after the Async
   subset (previously dropped). `AsyncFailFast=false` skips only dependents of
   failed tasks (D-A3). `0` remains unlimited by design; `NewCrew` still sets 8.
+
+### Added (FileStore: M3)
+
+- **`FileStore` JSONL backend**: `OpenFileStore(dir)` opens a durable
+  stdlib-only `MemoryStore` under a caller-trusted root (`filestore.go`,
+  D-M2=A). Layout `{root}/scopes/{urlsafeScope}/{entries.jsonl,meta.json}`;
+  files `0600`, dirs `0700`. Put appends + RAM index; Delete writes a
+  tombstone; Query matches the in-memory semantics (latest-N, Limit/MaxChars,
+  Scope). Corrupt JSONL lines are skipped on Open and counted in meta /
+  `CorruptSkipped()` (D-M5). v1 is single-writer per root (G7); the app owns
+  `Close` (D-M6). Empty/blank root returns `ErrFileStoreRoot`; use after
+  Close returns `ErrFileStoreClosed`. Example: `examples/memory_file`.
 
 ### Changed
 

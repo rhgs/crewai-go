@@ -229,6 +229,9 @@
 //	var store crewai.MemoryStore = mem // *crewai.Memory
 //	hits, _ := store.Query(ctx, crewai.MemoryQuery{Text: "revenue", Limit: 5})
 //
+// OpenFileStore(dir) provides a durable JSONL backend (caller-trusted root,
+// app owns Close). See docs/memory.md.
+//
 // # Logging
 //
 // crewai-go uses log/slog (structured logging) from the standard library.

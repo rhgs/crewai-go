@@ -99,6 +99,39 @@ use Memory como canal de merge entre irmãos paralelos; use `WithContext`.
 Tarefas que falham nunca entram no AutoSave (G2). Erros de AutoSave geram
 warn+capture; não abortam o Kickoff (G11).
 
+
+## FileStore (JSONL, M3)
+
+`OpenFileStore(dir)` abre um backend durável só-stdlib sob um root
+**confiável pelo caller** (nunca passe paths controlados pelo modelo):
+
+```go
+store, err := crewai.OpenFileStore("/var/lib/myapp/crew-memory")
+if err != nil { /* … */ }
+defer store.Close() // app é dona do lifecycle (D-M6)
+
+crew.Name = "finance-crew"       // MemoryPolicy.Scope padrão (G3)
+crew.MemoryStore = store
+crew.MemoryPolicy = crewai.NewMemoryPolicy()
+```
+
+Layout:
+
+```
+{root}/scopes/{urlsafeScope}/
+  entries.jsonl   # linhas JSON de MemoryEntry append-only (+ tombstones)
+  meta.json       # versão do schema, contador de linhas corrompidas
+```
+
+- Arquivos `0600`, diretórios `0700`.
+- v1 é **single-writer** (G7): um processo por root; um `*FileStore` é
+  seguro para Puts/Queries concorrentes dentro desse processo.
+- Linhas JSONL corrompidas são **ignoradas** no Open e contadas em
+  `meta.json` / `CorruptSkipped()` (D-M5).
+- Sobrevive a restart: Put → Close → Open → Query.
+
+Veja `examples/memory_file`.
+
 ## Interface de armazenamento de longo prazo
 
 `*Memory` também implementa `crewai.MemoryStore`, o contrato de memória de
@@ -123,5 +156,4 @@ _ = store.Delete(ctx, "", e.ID)
   escopo padrão (vazio).
 
 `Crew.Memory` permanece o alias permanente v0.x que garante um store InMemory
-quando `MemoryStore` é nil. FileStore/JSONL (`filestore.go`) e ranking por
-embeddings vêm em M3/M4.
+quando `MemoryStore` é nil. Ranking por embeddings vem em M4.

@@ -604,7 +604,8 @@ for _, r := range crew.MemorySnapshot().Records() {
 
 `*Memory` também implementa o contrato plugável `crewai.MemoryStore`
 (Put/Query/Delete/Close com tetos de entrada/consulta) usado pelos backends
-de memória de longo prazo em M2+. Veja
+de memória de longo prazo. `OpenFileStore(dir)` adiciona
+persistência JSONL durável (app faz Close). Veja
 [docs/pt-BR/memory.md](docs/pt-BR/memory.md).
 
 ## Exemplos

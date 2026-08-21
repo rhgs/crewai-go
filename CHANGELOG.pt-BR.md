@@ -21,10 +21,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   `Query` busca em `Content`/`Task` (sem maiúsculas; `Text` vazio devolve os
   mais recentes primeiro, limitado por `Limit`/`MaxChars`), `Delete` é
   idempotente e `Close` é no-op. Entradas são particionadas por
-  `MemoryScope`. O Crew **não** está ligado ao `MemoryStore` ainda (isso é
-  M2); a interface é pública agora para que aplicações dependam do contrato
-  antes dos backends FileStore/embeddings. Sem mudança de comportamento em
-  `Crew.Memory`.
+  `MemoryScope`. O wiring no Crew chegou no M2; FileStore no M3. Sem mudança
+  no caminho de curto prazo de `Memory bool` além da ponte de store.
 
 - **`examples/mcp`**: demo de wiring offline para MCP `FilterTools` /
   `WithDescriptionLimit` / `NewToolAdapter` (`MCP_ENDPOINT` opcional ao vivo).
@@ -71,6 +69,18 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   do subset Async (antes eram dropadas). `AsyncFailFast=false` ignora só
   dependentes da tarefa que falhou (D-A3). `0` continua ilimitado por design;
   `NewCrew` ainda define 8.
+
+### Adicionado (FileStore: M3)
+
+- **Backend `FileStore` JSONL**: `OpenFileStore(dir)` abre um `MemoryStore`
+  durável só-stdlib sob um root confiável pelo caller (`filestore.go`,
+  D-M2=A). Layout `{root}/scopes/{urlsafeScope}/{entries.jsonl,meta.json}`;
+  arquivos `0600`, dirs `0700`. Put faz append + índice em RAM; Delete grava
+  tombstone; Query segue a semântica in-memory (latest-N, Limit/MaxChars,
+  Scope). Linhas JSONL corrompidas são ignoradas no Open e contadas em meta /
+  `CorruptSkipped()` (D-M5). v1 é single-writer por root (G7); a app é dona
+  do `Close` (D-M6). Root vazio/branco retorna `ErrFileStoreRoot`; uso após
+  Close retorna `ErrFileStoreClosed`. Exemplo: `examples/memory_file`.
 
 ### Alterado
 
