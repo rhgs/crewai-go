@@ -12,6 +12,9 @@ Each subfolder is a standalone executable program.
 | `sequential`    | Agent pipeline + context + memory                 | ✅ OpenAI               |
 | `hierarchical`  | A manager delegating tasks dynamically             | ✅ OpenAI               |
 | `staged`        | Stages in sequence, tasks within a stage in parallel | ✅ OpenAI            |
+| `async_tasks`   | `Task.Async` waves under Sequential + `WithContext` merge (offline mock) | ❌ No / ✅ OpenAI |
+| `memory_file`   | `FileStore` JSONL persistence across two Kickoffs (offline) | ❌ No |
+| `memory_embed`  | `AutoEmbed` + cosine Query with mock embedder (offline) | ❌ No |
 | `agentic_loop`  | Plan-Execute-Evaluate-Refine cycle (mock LLM)      | ❌ No                   |
 | `tools`         | An agent using tools via ReAct                     | ✅ OpenAI               |
 | `xai_oauth`     | Grok via API key or subscription OAuth             | ✅ xAI                  |
@@ -31,6 +34,9 @@ go run ./examples/basic
 go run ./examples/sequential
 go run ./examples/hierarchical
 go run ./examples/staged
+go run ./examples/async_tasks  # offline mock; USE_OPENAI=1 for live
+go run ./examples/memory_file  # FileStore JSONL; MEMORY_DIR optional
+go run ./examples/memory_embed # AutoEmbed + cosine (mock)
 go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
 go run ./examples/logging      # offline redaction demo

@@ -104,35 +104,39 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct/nati
 - [x] Documentation: bilingual README + guides + MCP + SECURITY; 14 examples.
 - [x] Clean `go build`, `go vet`, and `go test ./...`.
 
-### Maturity snapshot (2026-08-20 — v0.5.0)
+### Maturity snapshot (2026-08-21 — v0.6.0)
 
 | Metric | Value |
 |---------|-------|
-| Latest release | **v0.5.0** (2026-08-20) |
-| Go LOC (approx.) | ~23k |
-| `.go` files | ~111 |
+| Latest release | **v0.6.0** (2026-08-21) — PR #31 |
+| Go LOC (approx.) | ~25k+ |
 | External dependencies | 0 (stdlib) |
-| Coverage — core (`crewai`) | ~96.9% |
-| Coverage — `mcp` / `tools` | ~92% / ~91% |
-| Coverage — `llm/*` providers | all ≥ 90% |
-| Runnable examples | 14 (+ pt-BR mirrors) |
-| Documentation | bilingual README + guides + MCP + SECURITY |
+| Coverage — core (`crewai`) | ~94%+ (memory/async epic) |
+| Coverage — `mcp` / `tools` / `llm/*` | all ≥ 90% |
+| Runnable examples | 17 (+ pt-BR mirrors): +async_tasks, memory_file, memory_embed |
+| Documentation | bilingual README + guides + MCP + SECURITY + memory/async |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
-### Known limitations (still open after v0.5.0)
+### Known limitations (post v0.5.0; memory/async closed in PR #31)
 
 - **No streaming** — `LLM.Call` returns the full response; there is no
-  `CallStream` / `StreamingLLM` yet.
-- **In-process memory only** — no persistence or semantic/embedding search.
+  `CallStream` / `StreamingLLM` yet (roadmap §6 P1).
 - **JSON Schema is still a subset** — supports core keywords plus
   `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf`/`allOf`
   (v0.5.0). Still no `$ref`, `if`/`then`/`else`, `format`, unevaluated*, etc.
+  (roadmap §6 P2).
 - **MCP servers are trusted** — tool descriptions/results enter the model
   context; use `FilterTools`, network allowlists, and least privilege (see
   MCP threat model docs).
-- **No event-driven Flows / YAML / training** — P3 roadmap.
-- **Async beyond staged** — parallel-within-stage exists; free-form
-  `async_execution` across arbitrary tasks does not.
+- **No event-driven Flows / YAML / training** — roadmap §6 P3.
+- **No first-class callbacks/telemetry beyond `WithProgress`** — task and
+  ReAct-iteration lifecycle hooks are still open (roadmap §6 P2).
+- **Tool surface beyond web search** — no built-in HTTP/files/RAG tools yet
+  (roadmap §6 P3). Web search shipped in v0.3+.
+
+> **Closed in **v0.6.0** (PR #31):** long-term `MemoryStore` + FileStore
+> JSONL + embeddings hook, and `Task.Async` DAG waves beyond Staged. See
+> [`PLAN.memory-async.md`](PLAN.memory-async.md).
 
 ## 6. Roadmap — next steps (out of current scope)
 
@@ -161,7 +165,7 @@ priority (highest impact / lowest effort first):
 - [x] **Expanded JSON Schema** + `WithStrictSchema`.
 - [x] **`RedactHandler`**, OutputFile jail, Kickoff single-flight.
 - [x] **Real delegation tool** `delegate_to_coworker` + `EnableDelegationTool`.
-- [x] Tags **v0.1.0 … v0.5.0**; bilingual docs; CI + CodeQL.
+- [x] Tags **v0.1.0 … v0.6.0**; bilingual docs; CI + CodeQL.
 
 ### P0 — Publishing and fundamentals
 
@@ -244,58 +248,100 @@ and environment variable names in docs/README. The `.gitignore` protects
 
 ### P1 — Core extensibility
 
-- [ ] **Streaming** — add `CallStream(ctx, messages) (<-chan StreamChunk, error)`
-  to the `LLM` interface (or an optional `StreamingLLM` interface) and propagate
-  in the executor.
 - [x] **Native function calling** per provider (OpenAI/Anthropic/Ollama/xAI)
   via `ToolModeNative` + `ToolCallingLLM` — ReAct remains the default/fallback.
-- [ ] **Async/parallelism** of tasks (`async_execution`) with `sync.WaitGroup`
-  / an errgroup-like pattern using goroutines and channels.
 - [x] **Real delegation** between agents — `NewDelegationTool` /
   `delegate_to_coworker` + `Crew.EnableDelegationTool` (v0.5.0). Hierarchical
   manager assignment remains separate.
+- [x] **Async/parallelism beyond Staged** — `Task.Async` + DAG via
+  `Task.Context`, wave scheduler, `AsyncMaxWorkers` (default 8; 0=unlimited),
+  `AsyncFailFast`. Staged golden unchanged. **Shipped in v0.6.0 (PR #31).**
+  Design archive: [`PLAN.memory-async.md`](PLAN.memory-async.md)
+  ([PT](PLAN.memory-async.pt-BR.md)). Optional follow-ups deferred there:
+  **M5** agent memory tools, **A5** `Process=DAG` alias.
+- [ ] **Streaming** — `CallStream(ctx, messages) (<-chan StreamChunk, error)`
+  on `LLM`, **or** optional `StreamingLLM` checked by type assertion in the
+  executor (preferred: does not break existing `LLM` implementers). Propagate
+  through the agentic/ReAct loop without buffering the full completion when
+  the provider supports it. **Separate plan when scheduled** (non-goal of
+  memory-async). Open design choice stays in §7.
 
 ### P2 — Persistence and observability
 
-- [ ] **Long-term memory** with embeddings/semantic search and persistence
-  (`MemoryStore` interface + file/sqlite implementation as default).
-- [ ] **Callbacks and telemetry** — task and ReAct-iteration start/end hooks,
-  exportable (structured logs, metrics).
-- [x] **Guardrails** — output validation with retry via the structured-output
-  repair loop (`Task.Structured` + `StructuredOutput.RepairMax`). The repair
-  loop re-prompts the model with validation errors and retries up to a bounded
-  number of attempts. Does not transform output (only validates).
-- [x] **Post-output guardrails** — code-enforced post-output validation hooks
-  (`Crew.Guardrails` and `Task.Guardrail`) that block publication of outputs
-  violating business invariants. New sentinel `ErrBlockedByGuardrail`.
-  Complements structured-output schema validation (shape vs. meaning).
-  Coverage 93.7% in the root package.
-- [x] **Facts & provenance** — first-class `Fact` type populated only by
-  `FactSource` tools, never by the LLM. Facts carry source org, source URL,
-  collection time, and payload hash (SHA-256). `NewFactSourceTool` constructor,
-  `AllFactsProvenanced` helper, `dedupFacts` by PayloadHash. Coverage 94.5%
-  in the root package.
-- [x] **Structured output extensions (partial — v0.5.0)** — validator gained
+- [x] **Long-term memory** — `MemoryStore`, JSONL `FileStore` (stdlib),
+  `MemoryPolicy` + D-M7 commit barrier, optional `EmbeddingFunc` + cosine
+  recall; `Memory bool` remains the v0.x alias. **Shipped in v0.6.0 (PR #31).**
+  Design archive: [`PLAN.memory-async.md`](PLAN.memory-async.md)
+  ([PT](PLAN.memory-async.pt-BR.md)). SQLite stays out of core.
+- [x] **Guardrails** — structured-output repair loop (`Task.Structured` +
+  `StructuredOutput.RepairMax`).
+- [x] **Post-output guardrails** — `Crew.Guardrails` / `Task.Guardrail`,
+  `ErrBlockedByGuardrail`.
+- [x] **Facts & provenance** — `Fact` / `FactSource` only (never LLM-authored).
+- [x] **Structured output extensions (partial — v0.5.0)** — validator:
   `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf`/`allOf`,
   `WithStrictSchema`; `WithAllowTools` gather→capture; `WithToolCall`
-  emit_result. Still open: `$ref`, `format`, full draft 2020-12.
+  emit_result.
+- [ ] **Callbacks and telemetry** — beyond `WithProgress` / slog:
+  task and ReAct-iteration start/end hooks, exportable structured events
+  (logs, metrics, optional OpenTelemetry later). Must stay metadata-safe
+  (no prompt bodies by default; same redaction posture as Progress).
+  **Separate plan when scheduled.**
+- [ ] **JSON Schema remainder** — `$ref` (and remote/`$id` policy),
+  `if`/`then`/`else`, `format`, `unevaluatedProperties` / `unevaluatedItems`,
+  fuller draft 2020-12. Keep zero deps; fail closed on unsupported keywords
+  under `WithStrictSchema`. Completes the partial v0.5.0 work above.
 
-### P3 — Advanced
+### P3 — Advanced orchestration, tools, and packaging
 
-- [ ] **Flows** (event-driven orchestration with state and routing).
-- [ ] More tools (HTTP, files, RAG) — **web search already shipped** (v0.3+).
-- [ ] Declarative YAML definition (agents.yaml/tasks.yaml).
-- [ ] _Training_ (prompt fine-tuning from executions).
+- [ ] **Flows** — event-driven orchestration with explicit state and routing
+  (CrewAI-style Flows), without replacing Sequential/Hierarchical/Staged/
+  Async waves. **Separate plan when scheduled.**
+- [ ] **More built-in tools** — HTTP client (SSRF-safe, allowlists), sandboxed
+  file read/write (jail like `OutputDir`), lightweight RAG helpers **as app
+  patterns or optional examples** (vector DBs stay out of core; embeddings
+  already hook via `EmbeddingFunc`). Web search already shipped (v0.3+).
+- [ ] **Declarative YAML** — `agents.yaml` / `tasks.yaml` (and optional crew
+  composition) compiled into the existing Go types; validation errors at load
+  time. No runtime YAML eval of untrusted paths without a jail.
+- [ ] **Training** — prompt fine-tuning / few-shot distillation from successful
+  executions (export traces → curated examples). Out of core model training;
+  library-side capture + export only unless a future optional module says
+  otherwise.
+
+### Out-of-epic backlog (single view)
+
+Items **not** part of `PLAN.memory-async` and **not** shipped as of v0.6.0.
+Schedule each with its own design note before coding (same gates as residuals:
+decisions first, ≥90% coverage, race-clean, EN+PT docs, no new core deps
+unless explicitly accepted).
+
+| Priority | Item | Notes |
+|---|---|---|
+| P1 | **Streaming** | `StreamingLLM` vs `LLM.CallStream`; executor propagation |
+| P2 | **Callbacks / telemetry** | Lifecycle hooks beyond `WithProgress` |
+| P2 | **JSON Schema `$ref` / `format` / …** | Finish subset → practical 2020-12 slice |
+| P3 | **Flows** | Event-driven state + routing |
+| P3 | **Tools: HTTP, files, RAG patterns** | SSRF/jail; RAG not a core vector DB |
+| P3 | **YAML crew definitions** | agents.yaml / tasks.yaml → Go types |
+| P3 | **Training / trace export** | Few-shot distillation from runs |
+| Deferred (memory-async P3) | **M5** `recall_memory` / `remember` | Agent-driven memory tools |
+| Deferred (memory-async P3) | **A5** `Process=DAG` alias | Naming sugar only |
 
 ## 7. Open decisions
 
-- **Module path**: currently `github.com/rhgs/crewai-go`. Adjust on publishing.
-- **xAI OAuth**: `client_id` and exact endpoints are not public; implemented
-  per RFC 8628 with configurable endpoints. Fix the defaults when xAI publishes
-  the official documentation.
-- **Streaming**: decide whether the `LLM` interface gets a `CallStream` method
-  (breaks existing implementations) or whether we introduce an optional
-  `StreamingLLM` interface that the executor checks via type assertion.
-- **Function calling vs ReAct**: keep ReAct as the universal tool layer and add
-  native function calling as an optional per-provider optimization, or migrate
-  completely to function calling? Leaning toward the former.
+Product/design choices still open for **future** epics (not memory-async):
+
+- **Streaming API shape** — prefer optional `StreamingLLM` (type assert in the
+  executor) over adding `CallStream` to `LLM` (would break every implementer).
+  Confirm when the streaming plan is scheduled.
+- **Function calling vs ReAct** — **lean keep both**: ReAct remains the
+  universal tool layer; native `ToolCallingLLM` stays opt-in per provider
+  (already shipped). Revisit only if ReAct maintenance cost dominates.
+- **xAI OAuth defaults** — `client_id` and exact endpoints are not public;
+  implemented per RFC 8628 with configurable endpoints. Fix defaults when xAI
+  publishes official documentation.
+- **Module path** — published as `github.com/rhgs/crewai-go` (resolved).
+
+Deferred from memory-async (only if product asks): **M5** memory tools,
+**A5** `Process=DAG` alias — see [`PLAN.memory-async.md`](PLAN.memory-async.md) §10.

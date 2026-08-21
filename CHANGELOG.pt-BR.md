@@ -5,6 +5,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [v0.6.0] — 2026-08-21
+
 ### Alterado
 
 - **Pin de toolchain Go**: `go.mod` declara `toolchain go1.24.9` (linguagem
@@ -13,8 +15,97 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 
+- **Contrato `MemoryStore` de memória de longo prazo (M1)**: novos tipos
+  `MemoryEntry`, `MemoryStore` e `MemoryQuery` com tetos de entrada/consulta
+  (`MaxMemoryEntryBytes`, `MaxMemoryQueryLimit`, `DefaultMemoryQueryLimit`,
+  `DefaultMemoryMaxChars`). O `*Memory` embutido agora implementa
+  `MemoryStore`: `Put` mapeia para `Save` atribuindo `ID` e `CreatedAt`,
+  `Query` busca em `Content`/`Task` (sem maiúsculas; `Text` vazio devolve os
+  mais recentes primeiro, limitado por `Limit`/`MaxChars`), `Delete` é
+  idempotente e `Close` é no-op. Entradas são particionadas por
+  `MemoryScope`. O wiring no Crew chegou no M2; FileStore no M3. Sem mudança
+  no caminho de curto prazo de `Memory bool` além da ponte de store.
+
 - **`examples/mcp`**: demo de wiring offline para MCP `FilterTools` /
   `WithDescriptionLimit` / `NewToolAdapter` (`MCP_ENDPOINT` opcional ao vivo).
+
+### Adicionado (async além de Staged: A2/A3)
+
+- **`Task.Async` + agendador de waves**: marcar uma tarefa com `WithAsync()`
+  (ou `Async = true`) permite que tarefas independentes rodem em concorrência
+  sob `Sequential` e `Hierarchical`. O agendamento é por waves:
+  `Task.Context` define a DAG, `planWaves` coloca cada tarefa na primeira
+  wave estritamente após suas dependências, e a agregação agrega cada wave
+  por índice de declaração após a barreira (mesmo contrato do Staged). Ciclo,
+  auto-dependência ou ponteiro de tarefa duplicado falham no Kickoff com a
+  nova sentinela `ErrTaskDependencyCycle` (G12). No Hierarchical, agentes são
+  pré-resolvidos em série antes das waves (D-A2). Em `Staged` o flag é
+  ignorado com um Warn único (D-A5/G5).
+
+- **`Crew.AsyncMaxWorkers` / `Crew.AsyncFailFast`**: a concorrência da wave é
+  limitada por `AsyncMaxWorkers`; `NewCrew` usa `DefaultAsyncMaxWorkers`
+  (**8**) e `AsyncFailFast = true`. Use `WithAsyncMaxWorkers(n)` para
+  sobrescrever, ou **0 para ilimitado** (opt-out explícito — limitar o
+  fan-out de LLM passa a ser sua responsabilidade). Com `AsyncFailFast =
+  false`, ramos independentes continuam após uma falha e apenas os
+  dependentes da tarefa que falhou são ignorados com erro (D-A3); o padrão
+  `true` cancela os irmãos e aborta o Kickoff. Ambos são ignorados em
+  `Staged`.
+
+
+- **`MemoryPolicy` + barreira de commit D-M7 (M2)**: `Crew.MemoryStore` e
+  `Crew.MemoryPolicy` ligam memória de longo prazo ao Kickoff. `Memory=true`
+  permanece o alias permanente v0.x que garante store InMemory quando nenhum
+  store externo é definido (D-M1/G4). AutoSave só em sucesso (G2); inject usa
+  `queryCommitted` sobre o snapshot commitado (latest N, orçado por
+  `DefaultLimit`/`DefaultMaxChars`). Em waves/stages paralelas, AutoSave é
+  bufferizado por tarefa e commitado na barreira em **ordem de declaração**
+  (D-M7/G9) — o inject da próxima wave não vê writes de irmãos em voo.
+  Buffers de falha/cancelamento são descartados. Erros de AutoSave geram
+  warn+capture e não abortam o Kickoff (G11). `Scope` padrão = `Crew.Name`
+  quando definido (G3). Use `NewMemoryPolicy()` para os defaults da lib (um
+  `MemoryPolicy{}` zero não é esses defaults).
+
+- **Correções A3**: `AsyncMaxWorkers` agora limita de fato os workers em
+  flight nas waves async (semáforo). Waves mistas rodam as non-Async depois
+  do subset Async (antes eram dropadas). `AsyncFailFast=false` ignora só
+  dependentes da tarefa que falhou (D-A3). `0` continua ilimitado por design;
+  `NewCrew` ainda define 8.
+
+### Adicionado (embeddings: M4)
+
+- **`EmbeddingFunc` + Query por cosseno (M4)**: `Crew.Embed` aceita um
+  embedder da app. Com `MemoryPolicy.AutoEmbed = true`, cada entrada de
+  AutoSave é embedada **em série na barreira de commit** (G8) antes do Put —
+  nunca dentro dos workers paralelos. Stores embutidos (*Memory, FileStore)
+  ranqueiam `MemoryQuery.Embedding` por similaridade de cosseno (stdlib);
+  `Text` substring é ignorado no caminho semântico. Dim mismatch / norma
+  zero pontuam 0; matches positivos cortam linhas zero; se nada estiver
+  embedado, Query cai no latest-N. Erros de AutoEmbed são soft
+  (warn+capture, entrada ainda salva). Exemplo: `examples/memory_embed`
+  (mock bag-of-words offline).
+
+### Adicionado (FileStore: M3)
+
+- **Backend `FileStore` JSONL**: `OpenFileStore(dir)` abre um `MemoryStore`
+  durável só-stdlib sob um root confiável pelo caller (`filestore.go`,
+  D-M2=A). Layout `{root}/scopes/{urlsafeScope}/{entries.jsonl,meta.json}`;
+  arquivos `0600`, dirs `0700`. Put faz append + índice em RAM; Delete grava
+  tombstone; Query segue a semântica in-memory (latest-N, Limit/MaxChars,
+  Scope). Linhas JSONL corrompidas são ignoradas no Open e contadas em meta /
+  `CorruptSkipped()` (D-M5). v1 é single-writer por root (G7); a app é dona
+  do `Close` (D-M6). Root vazio/branco retorna `ErrFileStoreRoot`; uso após
+  Close retorna `ErrFileStoreClosed`. Exemplo: `examples/memory_file`.
+
+### Alterado
+
+- **Interno**: o runtime paralelo staged foi extraído para a primitiva
+  compartilhada `runTaskGroup` (A1), que `runStaged` agora chama por stage.
+  A barreira (join) é o único ponto onde resultados são agregados, sempre
+  indexados pela posição da tarefa (ordem de declaração), nunca por ordem de
+  conclusão. Sem mudança de comportamento público no processo staged — é a
+  base que o agendador de waves async (A2/A3) e a barreira de commit de
+  memória (M2, D-M7) vão usar.
 
 ### Documentacao
 
@@ -337,7 +428,8 @@ Primeira release pública: um port idiomático do núcleo do framework CrewAI pa
   chamadas entre agentes em tempo de execução), sem streaming, memória apenas em
   processo, sem function calling nativo. Veja `Plan/PLAN.md` para o roadmap completo.
 
-[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.6.0...HEAD
+[v0.6.0]: https://github.com/rhgs/crewai-go/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/rhgs/crewai-go/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/rhgs/crewai-go/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/rhgs/crewai-go/compare/v0.2.0...v0.3.0

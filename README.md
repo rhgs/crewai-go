@@ -64,6 +64,9 @@
 - 🔧 **Native tool calling** — use provider-native function calling (OpenAI, Anthropic, Ollama) instead of text-based ReAct, with automatic fallback and full trace observability.
 - 🔎 **Web search** — agent-driven search via the `WebSearcher` interface (Ollama, OpenAI, Anthropic, xAI) or model-driven search via `WebSearchTool` with 7 providers (Wikipedia, LangSearch, Serpstack, DuckDuckGo, Google, Brave). SSRF-protected.
 - 📝 **Structured logging via `log/slog`** — inject a custom `*slog.Logger` on `Crew` and `Agent`, with backward-compatible `Verbose` fallback.
+- ⚡ **Async waves (v0.6)**: independent `Task.Async` tasks run in parallel under
+  Sequential/Hierarchical, honoring `Task.Context` dependencies, always folding
+  by declaration order. `NewCrew` defaults to `AsyncMaxWorkers = 8`.
 - 🧠 **Memory** between tasks and chainable **context**.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - 🪜 **Staged process** — stages run in sequence, tasks within a stage run in parallel.
@@ -624,6 +627,12 @@ for _, r := range crew.MemorySnapshot().Records() {
 	fmt.Printf("[%s] %s\n", r.Agent, r.Content)
 }
 ```
+
+`*Memory` also implements the pluggable `crewai.MemoryStore` contract
+(Put/Query/Delete/Close with entry/query caps) used by long-term memory
+backends. `OpenFileStore(dir)` adds durable JSONL persistence
+(app owns Close). Optional `Crew.Embed` + `AutoEmbed` add cosine recall.
+See [docs/memory.md](docs/memory.md).
 
 ## Examples
 

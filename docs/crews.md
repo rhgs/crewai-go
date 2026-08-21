@@ -44,7 +44,13 @@ See [LLMs > Logging](llms.md#logging) for the full reference.
 | `Stages`       | `[]Stage`      | Stages for the `Staged` process (takes precedence over `Tasks`). |
 | `Verbose`      | `bool`         | Enables detailed logs (maps to `LevelDebug` when no logger is injected via `WithLogger`). |
 | `logger`       | `*slog.Logger` | Internal — set via `WithLogger`. When nil, `Kickoff` creates a default text logger on stderr. |
-| `Memory`       | `bool`         | Enables shared memory. |
+| `Memory`       | `bool`         | Ensures InMemory store when `MemoryStore` is nil (permanent v0.x alias). |
+| `MemoryStore`  | `MemoryStore`  | Optional long-term backend; app owns `Close`. |
+| `MemoryPolicy` | `*MemoryPolicy`| AutoSave/inject policy; nil ⇒ `NewMemoryPolicy()` defaults. |
+| `Embed`        | `EmbeddingFunc`| Optional app embedder; used when `AutoEmbed` is true (serial at barrier). |
+| `Name`         | `string`       | Optional crew id; default `MemoryPolicy.Scope` when set. |
+| `AsyncMaxWorkers` | `int`       | Cap on concurrent Async tasks per wave (default 8 via `NewCrew`; 0 = unlimited). |
+| `AsyncFailFast` | `bool`        | Cancel wave on first failure (default true). |
 | `ManagerLLM`   | `LLM`          | The manager's LLM (hierarchical process). |
 | `ManagerAgent` | `*Agent`       | Explicit manager (takes precedence over `ManagerLLM`). |
 | `Guardrails`   | `[]Guardrail`  | Crew-level post-output validation hooks. |
@@ -98,6 +104,33 @@ role. If the task already has an `Agent`, it is respected.
 
 > If there is only one agent, it is chosen automatically. If delegation fails
 > (LLM error), the crew falls back to the first agent.
+
+## Async tasks under Sequential / Hierarchical (A3)
+
+Mark a task `Async` to let independent tasks overlap without switching to
+`Staged`. Dependencies still flow through `Task.Context`, and aggregation is
+always by **declaration index after a wave barrier** — never by completion
+order (the same contract the staged process follows).
+
+```go
+research := crewai.NewTask("research", "notes", agent).WithAsync()
+outline  := crewai.NewTask("outline", "points", agent).WithAsync()
+write    := crewai.NewTask("write article", "markdown", agent).
+    WithContext(research, outline) // runs after both
+
+crew := crewai.NewCrew([]*crewai.Agent{agent}, []*crewai.Task{research, outline, write})
+out, _ := crew.Kickoff(ctx, nil)
+```
+
+- `NewCrew` sets `AsyncMaxWorkers = DefaultAsyncMaxWorkers` (**8**) and
+  `AsyncFailFast = true`. Override with `crew.WithAsyncMaxWorkers(n)`; **0 =
+  unlimited** (explicit opt-out — LLM fan-out is your responsibility).
+- `AsyncFailFast: false` keeps running independent branches after a failure
+  and skips the failed task's dependents with an error (D-A3).
+- `Task.Context` edges define the DAG; a cycle, self-dependency, or duplicate
+  task pointer fails fast at Kickoff with `ErrTaskDependencyCycle` (G12).
+- Under `Staged` the flag is ignored with a one-shot Warn log (D-A5/G5) —
+  stages own the batch parallelism either way.
 
 ## Staged process
 

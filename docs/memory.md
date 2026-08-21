@@ -73,3 +73,122 @@ Use context for precise dependencies; use memory to give the team a general
 The built-in `Memory` is in-RAM and concurrency-safe. For semantic search
 (embeddings) or persistence, you can wrap/replace this logic in your
 application — the `MemoryRecord` structure is intentionally simple.
+
+## MemoryPolicy + commit barrier (M2)
+
+`Crew.MemoryPolicy` controls automatic save/inject. Nil means
+`NewMemoryPolicy()` defaults (`AutoSave=true`, `InjectWhenEmptyContext=true`,
+budgeted `DefaultLimit` / `DefaultMaxChars`). A literal `MemoryPolicy{}` is
+**not** those defaults — use `NewMemoryPolicy` and override fields.
+
+```go
+crew.Memory = true // ensures InMemory store when MemoryStore is nil
+crew.Name = "my-crew" // default MemoryPolicy.Scope (G3)
+crew.MemoryPolicy = crewai.NewMemoryPolicy()
+crew.MemoryPolicy.DefaultMaxChars = 2000
+// or supply an external store (app owns Close — D-M6):
+// crew.MemoryStore = myStore
+```
+
+**D-M7 visibility invariant:** during a parallel wave/stage, AutoSave writes
+go into a per-task buffer. They are committed to the store **only at the
+barrier**, in declaration order. The next wave's inject/`Query` sees only the
+committed snapshot — never in-flight sibling writes. Do **not** use Memory as
+the merge channel for parallel siblings; use `WithContext`.
+
+Failed tasks are never AutoSaved (G2). AutoSave errors are warned and
+captured; they do not abort Kickoff (G11).
+
+
+
+## Embeddings + cosine recall (M4)
+
+Provide an `EmbeddingFunc` and set `MemoryPolicy.AutoEmbed = true` to
+persist vectors on AutoSave. Embedding runs **serially at the commit
+barrier** (G8) — never inside parallel workers. The core never bundles a
+model; the app owns the HTTP call (same trust as LLM providers).
+
+```go
+crew.Embed = func(ctx context.Context, texts []string) ([][]float32, error) {
+    // call OpenAI / Ollama / local model…
+    return vectors, nil
+}
+p := crewai.NewMemoryPolicy()
+p.AutoEmbed = true
+crew.MemoryPolicy = p
+crew.Memory = true
+```
+
+**Query ranking:** pass a pre-computed `MemoryQuery.Embedding` to rank by
+cosine similarity (stdlib only). Built-in stores (*Memory, FileStore)
+ignore substring `Text` on the semantic path. Entries without a usable
+vector score 0 and are trimmed when any positive match exists; if nothing
+is embedded, Query falls back to latest-N of the candidate set.
+
+```go
+hits, _ := store.Query(ctx, crewai.MemoryQuery{
+    Embedding: queryVec, // embed q yourself via EmbeddingFunc
+    Limit:     5,
+})
+```
+
+AutoEmbed errors are soft (warn+capture, entry still saved without a
+vector) — they never abort Kickoff. See `examples/memory_embed`.
+
+## FileStore (JSONL, M3)
+
+`OpenFileStore(dir)` opens a durable stdlib-only backend under a
+**caller-trusted** root (never pass model-controlled paths):
+
+```go
+store, err := crewai.OpenFileStore("/var/lib/myapp/crew-memory")
+if err != nil { /* … */ }
+defer store.Close() // app owns lifecycle (D-M6)
+
+crew.Name = "finance-crew"       // default MemoryPolicy.Scope (G3)
+crew.MemoryStore = store
+crew.MemoryPolicy = crewai.NewMemoryPolicy()
+```
+
+Layout:
+
+```
+{root}/scopes/{urlsafeScope}/
+  entries.jsonl   # append-only MemoryEntry JSON lines (+ delete tombstones)
+  meta.json       # schema version, corrupt-skip counter
+```
+
+- Files `0600`, directories `0700`.
+- v1 is **single-writer** (G7): one process per root; one `*FileStore` is
+  mutex-safe for concurrent Puts/Queries inside that process.
+- Corrupt JSONL lines are **skipped** on Open and counted in `meta.json`
+  / `CorruptSkipped()` (D-M5).
+- Survives process restart: Put → Close → Open → Query.
+
+See `examples/memory_file`.
+
+## Long-term store interface
+
+`*Memory` also implements `crewai.MemoryStore`, the pluggable long-term
+memory contract the durable backends will use:
+
+```go
+var store crewai.MemoryStore = crewai.NewMemory() // or existing *Memory
+
+e, _ := store.Put(ctx, crewai.MemoryEntry{Agent: "Analyst", Content: "revenue grew 12%"})
+hits, _ := store.Query(ctx, crewai.MemoryQuery{Limit: 5})
+_ = store.Delete(ctx, "", e.ID)
+```
+
+- `Put` assigns a stable `ID` and `CreatedAt`; entries over
+  `MaxMemoryEntryBytes` are rejected (`ErrMemoryEntryTooLarge`).
+- `Query` honors `Limit` (default `DefaultMemoryQueryLimit`, hard cap
+  `MaxMemoryQueryLimit`) and `MaxChars` (default `DefaultMemoryMaxChars`,
+  negative = uncapped), searching `Content`/`Task` case-insensitively. An
+  empty `Text` returns the latest entries first.
+- `Delete` is idempotent; `Close` is a no-op for the in-memory store.
+- Entries are partitioned by `MemoryScope`; short-term `Save` records live in
+  the default (empty) scope.
+
+`Crew.Memory` remains the permanent v0.x alias that ensures an InMemory store
+when `MemoryStore` is nil.

@@ -52,6 +52,21 @@
 //	    {Name: "synthesize", Tasks: []*crewai.Task{write}},
 //	}
 //
+// # Async tasks (Sequential / Hierarchical)
+//
+// Setting Task.Async = true lets independent tasks overlap under the
+// sequential and hierarchical processes (Staged is unchanged and ignores the
+// flag). Dependencies are defined by Task.Context: a task starts only after
+// every dependency finished in a strictly earlier wave, and results are
+// folded by declaration index after each wave barrier (never by completion
+// order). Cycles, self-dependencies, and duplicate task pointers fail fast at
+// Kickoff with ErrTaskDependencyCycle. NewCrew applies
+// AsyncMaxWorkers = DefaultAsyncMaxWorkers (8) and AsyncFailFast = true;
+// override with Crew.WithAsyncMaxWorkers (0 = unlimited).
+//
+//	research := crewai.NewTask("research", "notes", agent).WithAsync()
+//	write := crewai.NewTask("write", "markdown", agent).WithContext(research)
+//
 // # Structured output
 //
 // When a task needs typed, trustworthy data, set Task.Structured to a
@@ -192,6 +207,31 @@
 // non-http(s) schemes, loopback/private/link-local/unspecified addresses are
 // blocked, and domain names are resolved via DNS to prevent rebinding attacks.
 // Fail-closed: unresolvable hosts are blocked.
+//
+// # Memory
+//
+// Setting Crew.Memory = true ensures an InMemory MemoryStore for the Kickoff
+// (permanent v0.x alias). Later tasks with no explicit Task.Context receive
+// recalled memory from the committed snapshot. MemorySnapshot returns the
+// short-term *Memory when that is the active store.
+//
+// *Memory also implements MemoryStore. MemoryEntry adds ID/Scope/CreatedAt/
+// Metadata/Embedding on top of MemoryRecord; MemoryQuery bounds recall
+// (Limit, MaxChars, hard cap MaxMemoryQueryLimit; Content is capped at
+// MaxMemoryEntryBytes on Put). Crew.MemoryStore + Crew.MemoryPolicy wire
+// AutoSave/inject into Kickoff. During parallel waves/stages, AutoSave is
+// buffered per task and committed at the barrier in declaration order (D-M7);
+// next-wave inject sees only the committed snapshot. Prefer WithContext over
+// Memory as the merge channel for parallel siblings.
+//
+//	crew.Memory = true
+//	crew.MemoryPolicy = crewai.NewMemoryPolicy()
+//	var store crewai.MemoryStore = mem // *crewai.Memory
+//	hits, _ := store.Query(ctx, crewai.MemoryQuery{Text: "revenue", Limit: 5})
+//
+// OpenFileStore(dir) provides a durable JSONL backend (caller-trusted root,
+// app owns Close). Crew.Embed + MemoryPolicy.AutoEmbed persist vectors at the
+// commit barrier; Query with MemoryQuery.Embedding ranks by cosine. See docs/memory.md.
 //
 // # Logging
 //

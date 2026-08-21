@@ -56,4 +56,9 @@ var (
 	// is already executing. One Kickoff at a time per Crew value; use
 	// separate Crew instances for parallel runs.
 	ErrCrewRunning = errors.New("crewai: crew already running")
+	// ErrTaskDependencyCycle is returned at the start of Kickoff when the
+	// Task.Context dependencies of an async crew would place a task in the
+	// same wave as its dependency (a cycle, or a dependency that cannot run
+	// strictly earlier). Validated before any task runs (G12, fail fast).
+	ErrTaskDependencyCycle = errors.New("crewai: invalid task dependency (cycle or same-wave)")
 )
