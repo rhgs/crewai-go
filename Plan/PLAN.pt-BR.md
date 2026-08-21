@@ -117,20 +117,25 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory, LLM, executor R
 | Documentação | README + guias bilíngues + MCP + SECURITY |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
-### Limitações conhecidas (ainda abertas após v0.5.0)
+### Limitações conhecidas (pós v0.5.0; memory/async fechados no PR #31)
 
 - **Sem streaming** — `LLM.Call` retorna a resposta completa; ainda não há
-  `CallStream` / `StreamingLLM`.
-- **Memória apenas em processo** — sem persistência nem busca semântica/embeddings.
+  `CallStream` / `StreamingLLM` (roadmap §6 P1).
 - **JSON Schema ainda é um subconjunto** — núcleo + `additionalProperties`,
   bounds, `pattern`, `oneOf`/`anyOf`/`allOf` (v0.5.0). Ainda sem `$ref`,
-  `if`/`then`/`else`, `format`, unevaluated*, etc.
+  `if`/`then`/`else`, `format`, unevaluated*, etc. (roadmap §6 P2).
 - **Servidores MCP são confiáveis** — descriptions/resultados entram no
   contexto do modelo; use `FilterTools`, allowlists de rede e least privilege
   (ver threat model MCP).
-- **Sem Flows event-driven / YAML / training** — roadmap P3.
-- **Async além do staged** — parallel-within-stage existe; `async_execution`
-  livre entre tasks arbitrárias não.
+- **Sem Flows event-driven / YAML / training** — roadmap §6 P3.
+- **Sem callbacks/telemetria de primeira classe além de `WithProgress`** —
+  hooks de lifecycle de task/ReAct ainda abertos (roadmap §6 P2).
+- **Superfície de tools além de web search** — sem HTTP/arquivos/RAG
+  embutidos ainda (roadmap §6 P3). Web search já existe (v0.3+).
+
+> **Fechado pelo PR #31 (candidato v0.6):** memória de longo prazo
+> (`MemoryStore` + FileStore JSONL + embeddings) e `Task.Async` com waves
+> além do Staged. Ver [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md).
 
 ## 6. Roadmap — próximos passos (fora do escopo atual)
 
@@ -232,64 +237,103 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 
 ### P1 — Extensibilidade do núcleo
 
-- [ ] **Streaming** — adicionar `CallStream(ctx, messages) (<-chan StreamChunk, error)`
-  à interface `LLM` (ou interface opcional `StreamingLLM`) e propagar no executor.
 - [x] **Function calling nativo** por provedor (OpenAI/Anthropic/Ollama/xAI)
   via `ToolModeNative` + `ToolCallingLLM` — ReAct continua default/fallback.
-- [ ] **Async/paralelismo** de tarefas (`async_execution` / `Task.Async` + DAG
-  via `Task.Context`) com `sync.WaitGroup` / waves — além do parallel-within-stage
-  do Staged. Design: [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md)
-  ([EN](PLAN.memory-async.md)).
 - [x] **Delegação real** entre agentes — `NewDelegationTool` /
   `delegate_to_coworker` + `EnableDelegationTool` (v0.5.0). Atribuição do
   manager hierárquico permanece separada.
+- [x] **Async/paralelismo além do Staged** — `Task.Async` + DAG via
+  `Task.Context`, agendador de waves, `AsyncMaxWorkers` (padrão 8; 0=ilimitado),
+  `AsyncFailFast`. Staged dourado inalterado. **PR #31 / candidato v0.6.**
+  Arquivo de design: [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md)
+  ([EN](PLAN.memory-async.md)). Follow-ups opcionais adiados lá: **M5** tools
+  de memória do agente, **A5** alias `Process=DAG`.
+- [ ] **Streaming** — `CallStream(ctx, messages) (<-chan StreamChunk, error)`
+  em `LLM`, **ou** `StreamingLLM` opcional via type assertion no executor
+  (preferido: não quebra implementadores existentes de `LLM`). Propagar no
+  loop agentic/ReAct sem bufferar a completion inteira quando o provider
+  suportar. **Plano separado quando agendado** (non-goal do memory-async).
+  Escolha de design permanece no §7.
 
 ### P2 — Persistência e observabilidade
 
-- [ ] **Memória de longo prazo** com `MemoryStore`, FileStore JSONL (stdlib),
-  policy de injeção orçada e hook opcional de embeddings (sem deps no core;
-  SQLite fica fora do módulo). Design:
-  [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md)
-  ([EN](PLAN.memory-async.md)).
-- [ ] **Callbacks e telemetria** — hooks de início/fim de tarefa e iteração
-  ReAct, exportáveis (log estruturado, métricas).
-- [x] **Guardrails** — validacao de saida com retry via loop de reparo da saida
-  estruturada (`Task.Structured` + `StructuredOutput.RepairMax`). O loop
-  reenvia ao modelo os erros de validacao e tenta ate um numero limitado de
-  tentativas. Nao transforma a saida (apenas valida).
-- [x] **Guardrails pos-saida** — hooks de validacao pos-saida em codigo
-  (`Crew.Guardrails` e `Task.Guardrail`) que bloqueiam a publicacao de saidas
-  que violam invariantes de negocio. Nova sentinela `ErrBlockedByGuardrail`.
-  Complementa a validacao de schema da saida estruturada (forma vs.
-  significado). Cobertura 93.7% no pacote raiz.
-- [x] **Facts e proveniencia** — tipo `Fact` de primeira classe, populado
-  apenas por tools `FactSource`, nunca pelo LLM. Facts carregam organizacao
-  fonte, URL fonte, momento de coleta e hash do payload (SHA-256). Construtor
-  `NewFactSourceTool`, helper `AllFactsProvenanced`, `dedupFacts` por
-  PayloadHash. Cobertura 94.5% no pacote raiz.
-- [ ] **Extensoes da saida estruturada** — expandir o validador de JSON Schema
-  para suportar mais palavras-chave (`additionalProperties`, `oneOf`/`anyOf`,
-  `pattern`, `minimum`/`maximum`, `minItems`/`maxItems`); permitir uso de
-  ferramentas antes da saida estruturada; function calling nativo opcional
-  para saida estruturada (OpenAI/Anthropic). Rastreado como R4 + R8 em
-  [`PLAN.security-residuals.pt-BR.md`](PLAN.security-residuals.pt-BR.md).
+- [x] **Memória de longo prazo** — `MemoryStore`, `FileStore` JSONL (stdlib),
+  `MemoryPolicy` + barreira D-M7, `EmbeddingFunc` opcional + recall por
+  cosseno; `Memory bool` permanece o alias v0.x. **PR #31 / candidato v0.6.**
+  Arquivo de design: [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md)
+  ([EN](PLAN.memory-async.md)). SQLite fica fora do core.
+- [x] **Guardrails** — loop de reparo da saída estruturada (`Task.Structured` +
+  `StructuredOutput.RepairMax`).
+- [x] **Guardrails pós-saída** — `Crew.Guardrails` / `Task.Guardrail`,
+  `ErrBlockedByGuardrail`.
+- [x] **Facts e proveniência** — `Fact` / `FactSource` apenas (nunca autorados
+  pelo LLM).
+- [x] **Extensões da saída estruturada (parcial — v0.5.0)** — validador:
+  `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf`/`allOf`,
+  `WithStrictSchema`; `WithAllowTools` gather→capture; `WithToolCall`
+  emit_result.
+- [ ] **Callbacks e telemetria** — além de `WithProgress` / slog: hooks de
+  início/fim de tarefa e iteração ReAct, eventos estruturados exportáveis
+  (logs, métricas, OpenTelemetry opcional depois). Manter posture de metadata
+  (sem corpos de prompt por padrão; mesma redação do Progress). **Plano
+  separado quando agendado.**
+- [ ] **Remainder de JSON Schema** — `$ref` (e política remote/`$id`),
+  `if`/`then`/`else`, `format`, `unevaluatedProperties` / `unevaluatedItems`,
+  fatia prática do draft 2020-12. Zero deps; fail closed em keywords não
+  suportadas com `WithStrictSchema`. Completa o trabalho parcial da v0.5.0.
 
-### P3 — Avançado
+### P3 — Orquestração avançada, tools e packaging
 
-- [ ] **Flows** (orquestração event-driven com estado e roteamento).
-- [ ] Mais ferramentas (HTTP, arquivos, RAG) — **web search já existe** (v0.3+).
-- [ ] Definição declarativa via YAML (agents.yaml/tasks.yaml).
-- [ ] _Training_ (ajuste fino de prompts a partir de execuções).
+- [ ] **Flows** — orquestração event-driven com estado explícito e roteamento
+  (estilo CrewAI Flows), sem substituir Sequential/Hierarchical/Staged/waves
+  Async. **Plano separado quando agendado.**
+- [ ] **Mais tools embutidas** — cliente HTTP (SSRF-safe, allowlists),
+  leitura/escrita de arquivos com jail (como `OutputDir`), helpers leves de
+  RAG **como padrões de app ou exemplos opcionais** (vector DBs ficam fora do
+  core; embeddings já encaixam via `EmbeddingFunc`). Web search já existe
+  (v0.3+).
+- [ ] **YAML declarativo** — `agents.yaml` / `tasks.yaml` (e composição
+  opcional de crew) compilados nos tipos Go existentes; erros de validação no
+  load. Sem eval de YAML não confiável sem jail.
+- [ ] **Training** — fine-tune / few-shot a partir de execuções bem-sucedidas
+  (exportar traces → exemplos curados). Fora treino de modelo no core; só
+  capture + export na lib, salvo módulo opcional futuro.
+
+### Backlog fora do epic (visão única)
+
+Itens **que não** fazem parte de `PLAN.memory-async` e **não** foram
+entregues até o PR #31. Agendar cada um com nota de design própria antes de
+codar (mesmos gates dos residuals: decisões primeiro, cobertura ≥90%,
+race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
+
+| Prioridade | Item | Notas |
+|---|---|---|
+| P1 | **Streaming** | `StreamingLLM` vs `LLM.CallStream`; propagação no executor |
+| P2 | **Callbacks / telemetria** | Hooks de lifecycle além de `WithProgress` |
+| P2 | **JSON Schema `$ref` / `format` / …** | Fechar subconjunto → fatia 2020-12 |
+| P3 | **Flows** | Estado event-driven + roteamento |
+| P3 | **Tools: HTTP, arquivos, padrões RAG** | SSRF/jail; RAG ≠ vector DB no core |
+| P3 | **Definições YAML de crew** | agents.yaml / tasks.yaml → tipos Go |
+| P3 | **Training / export de traces** | Few-shot a partir de runs |
+| Adiado (memory-async P3) | **M5** `recall_memory` / `remember` | Tools de memória do agente |
+| Adiado (memory-async P3) | **A5** alias `Process=DAG` | Açúcar de naming |
 
 ## 7. Decisões em aberto
 
-- **Module path**: hoje `github.com/rhgs/crewai-go`. Ajustar ao publicar.
-- **xAI OAuth**: `client_id` e endpoints exatos não são públicos; implementado
-  conforme RFC 8628 com endpoints configuráveis. Fixar padrões quando a xAI
-  publicar a documentação oficial.
-- **Streaming**: definir se a interface `LLM` ganha um método `CallStream` (quebra
-  implementações existentes) ou se introduzimos interface opcional
-  `StreamingLLM` que o executor verifica com type assertion.
-- **Function calling vs ReAct**: manter o ReAct como camada universal de
-  ferramentas e adicionar function calling nativo como otimização opcional por
-  provedor, ou migrar completamente para function calling? Tende-se à primeira.
+Escolhas de produto/design ainda abertas para **epics futuros** (não
+memory-async):
+
+- **Forma da API de streaming** — preferir `StreamingLLM` opcional (type
+  assert no executor) a adicionar `CallStream` em `LLM` (quebraria todos os
+  implementadores). Confirmar quando o plano de streaming for agendado.
+- **Function calling vs ReAct** — **manter os dois**: ReAct continua a camada
+  universal de tools; `ToolCallingLLM` nativo permanece opt-in por provider
+  (já entregue). Revisitar só se o custo de manter ReAct dominar.
+- **Defaults do xAI OAuth** — `client_id` e endpoints exatos não são públicos;
+  implementado conforme RFC 8628 com endpoints configuráveis. Fixar defaults
+  quando a xAI publicar documentação oficial.
+- **Module path** — publicado como `github.com/rhgs/crewai-go` (resolvido).
+
+Adiados do memory-async (só se o produto pedir): **M5** tools de memória,
+**A5** alias `Process=DAG` — ver
+[`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md) §10.
