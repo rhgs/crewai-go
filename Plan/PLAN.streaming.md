@@ -1,7 +1,7 @@
 # Plan — Streaming LLM tokens
 
 > **Status:** **Design** (not started). Next product epic after v0.6.0 (memory + async).  
-> **Decisions:** D-S1–D-S12 proposed below (§9); close before coding Phase 1.  
+> **Decisions:** D-S1–D-S14 closed by design review 2026-08-21 (§9) — ack before Phase 1 code.  
 > **Related:** `llm.go` (`LLM`), `toolcall.go` (`ToolCallingLLM` pattern), `executor.go` / `structured.go` / `loop.go`, providers under `llm/*`, roadmap `PLAN.md` §6 P1.  
 > **Constraints:** zero external module dependencies in the core library (`go.mod` stays stdlib-only). Quality gates from §6.1 of `PLAN.security-residuals.md` apply to every implementation PR (coverage ≥ 90% on touched packages, race-clean, docs EN+PT-BR, CHANGELOG).  
 > **Non-goals of sibling epics:** this plan does **not** include callbacks/telemetry beyond stream delivery (P2), JSON Schema remainder (P2), Flows (P3), or memory-async M5/A5.
@@ -68,7 +68,7 @@ type ToolCallingLLM interface {
 | `llm/ollama` | `POST /api/chat` | **`Stream: false` hardcoded** | NDJSON lines, `done: true` |
 | `llm/mock` | in-process | n/a | synthetic chunking of `Responses` |
 
-All non-stream paths use `io.ReadAll(io.LimitReader(body, MaxProviderResponseBytes))`. Stream paths must honor the **same byte ceiling on the accumulated text** (D-S8).
+All non-stream paths use `io.ReadAll(io.LimitReader(body, MaxProviderResponseBytes))`. Stream paths must honor the **same ceiling on accumulated text and on raw body bytes read** (D-S8).
 
 ### 1.4 Progress contract (must not regress)
 
@@ -94,13 +94,24 @@ All non-stream paths use `io.ReadAll(io.LimitReader(body, MaxProviderResponseByt
 
 ```go
 // StreamChunk is one unit of a streaming completion.
-// v1 is text-centric: providers map their wire deltas into Delta.
+// v1 is text-centric: providers map their wire deltas into Delta only.
+// Task/Agent are filled by the executor wrapper (D-S13), never by providers.
 type StreamChunk struct {
     // Delta is the incremental text fragment (may be empty on control chunks).
+    // Providers SHOULD omit empty/null wire deltas (no empty-Delta spam).
     Delta string
 
+    // Task is the task label (Name or "Task N"). Set by the executor when
+    // delivering to the app sink so concurrent Async waves can be demuxed.
+    // Empty when CallStream is used outside a task (tests / CollectStream).
+    Task string
+
+    // Agent is the agent role for the in-flight task. Same rules as Task.
+    Agent string
+
     // Done is true on the terminal successful chunk. Delta may still hold
-    // a final fragment. After a Done chunk the channel is closed.
+    // a final fragment (D-S2-A). After a Done chunk the channel is closed.
+    // Done and Err MUST NOT both be set (D-S14); CollectStream prioritizes Err.
     Done bool
 
     // Err is non-nil on a terminal failure chunk. Delta is empty.
@@ -109,21 +120,33 @@ type StreamChunk struct {
     Err error
 }
 
-// StreamingLLM is an optional capability. The executor type-asserts it
-// when a stream sink is configured (D-S1, D-S3). Implementers that only
-// support Call remain valid forever.
+// StreamingLLM is an optional capability (same pattern as ToolCallingLLM:
+// embeds LLM so Model/Call remain available on the asserted value).
+// The executor type-asserts it when a stream sink is configured (D-S1, D-S3).
+// Implementers that only support Call remain valid forever.
 type StreamingLLM interface {
+    LLM
     // CallStream starts a completion and returns a channel of chunks.
+    // The channel is NEVER nil (D-S14). Setup failures (marshal, auth, dial)
+    // are delivered as the first chunk {Err: ...} then the channel is closed.
     // The channel is closed after the terminal Done or Err chunk, or when
-    // ctx is cancelled. Implementers MUST:
+    // ctx is cancelled (producer exits; CollectStream maps bare close to
+    // ctx.Err() or ErrStreamIncomplete). Implementers MUST:
     //   - respect ctx cancellation promptly;
     //   - not block forever if the caller stops receiving (prefer ctx);
-    //   - enforce MaxProviderResponseBytes on accumulated text (D-S8);
-    //   - be safe for concurrent Call/CallStream on the same client.
-    // The returned channel MUST have a small buffer (e.g. 16) or be
-    // paired with an internal producer goroutine that exits on ctx.Done.
+    //   - enforce MaxProviderResponseBytes on accumulated text AND on
+    //     raw HTTP body bytes read (D-S8); use ErrStreamResponseTooLarge;
+    //   - be safe for concurrent Call/CallStream on the same client;
+    //   - leave Task/Agent empty (executor fills them).
+    // The returned channel MUST have a small buffer (DefaultStreamChanBuffer
+    // = 16, D-S11) or be paired with an internal producer that exits on
+    // ctx.Done.
     CallStream(ctx context.Context, messages []Message) <-chan StreamChunk
 }
+
+// Sentinel errors (errors.go):
+//   ErrStreamIncomplete       — channel closed without Done/Err and ctx OK
+//   ErrStreamResponseTooLarge — text or body bytes exceeded MaxProviderResponseBytes
 ```
 
 **Compile-time checks** in each provider (same style as `ToolCallingLLM`):
@@ -136,21 +159,25 @@ var _ crewai.StreamingLLM = (*Client)(nil)
 
 ```go
 // CollectStream drains ch and returns the concatenated Delta text.
-// Returns the first non-nil chunk.Err, or ctx.Err(), or nil.
+// Public stable API (O-S3 closed). Returns the first non-nil chunk.Err,
+// ctx.Err() if ctx is done when the channel closes without terminal chunk,
+// ErrStreamIncomplete if the channel closes with neither Done nor Err while
+// ctx is still OK, or nil on clean Done. Ignores Task/Agent for concat.
 func CollectStream(ctx context.Context, ch <-chan StreamChunk) (string, error)
 
 // CallOrStream prefers StreamingLLM when sink != nil, otherwise Call.
 // Always returns the full text for the executor; sink receives deltas.
+// All sink invocations go through emitStream (panic recover, D-S12).
 func CallOrStream(ctx context.Context, llm LLM, messages []Message, sink StreamFunc) (string, error)
 
-// StreamFunc is invoked for each non-empty Delta (and optionally Done).
-// MUST be safe for use on the calling goroutine (executor does not add
-// its own fan-out). Panics are recovered at the Crew boundary only if
-// routed through emitStream (D-S5) — see below.
+// StreamFunc is invoked for each chunk delivered to the app (deltas, Done,
+// Err). MUST be safe for concurrent use when Async waves / Staged stages
+// run in parallel (same contract as ProgressFunc). Set via WithStream
+// BEFORE Kickoff. Panics are recovered in emitStream (D-S12).
 type StreamFunc func(StreamChunk)
 ```
 
-`CollectStream` lets providers and tests share one drain path; the executor uses `CallOrStream` so non-streaming LLMs need zero changes.
+`CollectStream` is **public** so apps and custom executors share one drain path; the crew executor uses `CallOrStream` so non-streaming LLMs need zero changes.
 
 ### 3.3 How apps attach a sink (D-S3)
 
@@ -178,41 +205,47 @@ Alternative rejected for v1: per-call `Agent.StreamFunc` field only (easy to for
 
 | Chunk | When | Notes |
 |---|---|---|
-| `{Delta: "Hel"}` | provider text delta | may be multi-rune; no guarantee of token boundaries |
-| `{Delta: "lo", Done: true}` | last text + terminal | or separate empty `{Done: true}` — **D-S2 chooses one style**; recommendation: **allow final Delta on Done chunk** |
-| `{Err: err}` | HTTP/decode/cap failure | channel then closes |
+| `{Delta: "Hel", Task, Agent}` | provider text delta | may be multi-rune; no token-boundary guarantee; Task/Agent from executor (D-S13) |
+| `{Delta: "lo", Done: true, Task, Agent}` | last text + terminal | final Delta may ride on Done (D-S2-A) |
+| `{Err: err, Task, Agent}` | HTTP/decode/cap/setup failure | channel then closes; Done unset (D-S14) |
 
-No `Role`, no tool-call partials, no token counts in v1 (keeps the type stable and redaction-simple).
+No `Role`, no tool-call partials, no token counts in v1 (keeps the type stable and redaction-simple). Empty/null provider deltas are not forwarded. AgenticLoop refine may emit **multiple** Done sequences for the same Task/Agent (one per execute round) — apps key off Done boundaries; optional `Phase` field is out of v1.
 
 ---
 
 ## 4. Executor integration
 
-### 4.1 Helper used everywhere text is final-ish
+### 4.1 Helper — only on matrix **Yes** paths
 
 ```go
-func callLLM(ctx context.Context, llm LLM, messages []Message) (string, error) {
-    return CallOrStream(ctx, llm, messages, streamFuncFromCtx(ctx))
+// callLLMText streams when the path matrix allows it. Do NOT use as a
+// global drop-in for every a.LLM.Call site (D-S4).
+func callLLMText(ctx context.Context, llm LLM, messages []Message, task *Task, agent *Agent) (string, error) {
+    sink := streamFuncFromCtx(ctx)
+    if sink != nil {
+        sink = withTaskAgent(sink, taskLabel(task), agentRole(agent)) // D-S13
+    }
+    return CallOrStream(ctx, llm, messages, sink)
 }
 ```
 
-Replace direct `a.LLM.Call` in paths listed below **only when** streaming is meaningful.
+**Hard rule:** replace `a.LLM.Call` **only** where §4.2 says **Yes**. Structured, ReAct+tools intermediate turns, plan/eval/refine/rewrite, and hierarchical `delegate` stay on plain `Call`.
 
 ### 4.2 Path matrix (D-S4)
 
 | Path | Stream deltas to sink? | Mechanism |
 |---|---|---|
-| ReAct **no tools** | **Yes** | `CallOrStream` |
-| ReAct **with tools** (intermediate turns) | **No** (v1) | plain `Call` — need full text to parse Action/Final Answer; streaming partial thoughts is noisy and protocol-brittle |
-| ReAct **with tools** (optional later) | deferred | only stream turns that already look like Final Answer — out of v1 |
-| Native `CallWithTools` loop | **No** for tool rounds | keep `CallWithTools` |
-| Native final text-only response | **Yes** if provider adds stream-with-tools later | **not v1** unless cheap; default No |
+| ReAct **no tools** | **Yes** | `callLLMText` / `CallOrStream` |
+| ReAct **with tools** (all turns) | **No** (v1) | plain `Call` — need full text to parse Action/Final Answer |
+| ReAct **with tools** (stream Final Answer only) | deferred | out of v1 |
+| Native **no tools** (`ToolModeNative` + empty tool list) | **Yes** | same plain-`Call` fallthrough in `toolcall.go` → `callLLMText` |
+| Native `CallWithTools` rounds (including final text-only response) | **No** (v1) | keep buffered `CallWithTools` (D-S10) |
 | Structured output (all phases) | **No** | validation needs complete JSON; repair loop too |
-| AgenticLoop plan / evaluate / refine | **No** | short control completions |
-| AgenticLoop **execute** sub-step | follows `executeTaskDefault` | so no-tools execute **can** stream |
+| AgenticLoop plan / evaluate / refine / rewrite | **No** | short control completions |
+| AgenticLoop **execute** sub-step | follows `executeTaskDefault` | no-tools execute **can** stream (may Done multiple times across refine rounds) |
 | Hierarchical `delegate` | **No** | tiny completion; avoid UI spam |
 
-**Summary v1:** stream the **user-visible final answer path** that is already a single full-text `Call` (primarily no-tools ReAct / no-tools execute). Everything protocol-driven stays buffered.
+**Summary v1:** stream the **user-visible final answer path** that is already a single full-text `Call` — ReAct no-tools, native no-tools, and agentic execute when those apply. Everything protocol-driven stays buffered.
 
 ### 4.3 Fallback (D-S7)
 
@@ -220,26 +253,27 @@ Replace direct `a.LLM.Call` in paths listed below **only when** streaming is mea
 func CallOrStream(ctx context.Context, llm LLM, messages []Message, sink StreamFunc) (string, error) {
     if sink != nil {
         if s, ok := llm.(StreamingLLM); ok {
-            ch := s.CallStream(ctx, messages)
-            return drainToSink(ctx, ch, sink)
+            ch := s.CallStream(ctx, messages) // never nil (D-S14)
+            return drainToSink(ctx, ch, sink)   // emitStream per chunk; concat Deltas
         }
     }
     // Non-streaming LLM or no sink: one-shot Call.
-    // Optional courtesy: if sink != nil, emit full text as one Delta+Done
-    // so UIs still update once (D-S7-B). Decision: **yes, emit one chunk**.
+    // D-S7-B: if sink != nil, emit full text as one Delta+Done via emitStream.
     out, err := llm.Call(ctx, messages)
     if err != nil {
         if sink != nil {
-            sink(StreamChunk{Err: err})
+            emitStream(ctx, sink, StreamChunk{Err: err})
         }
         return "", err
     }
     if sink != nil {
-        sink(StreamChunk{Delta: out, Done: true})
+        emitStream(ctx, sink, StreamChunk{Delta: out, Done: true})
     }
     return out, nil
 }
 ```
+
+`withTaskAgent` copies Task/Agent onto every chunk before `emitStream` so providers stay metadata-free (D-S13).
 
 ### 4.4 Interaction with existing features
 
@@ -261,19 +295,23 @@ func CallOrStream(ctx context.Context, llm LLM, messages []Message, sink StreamF
 ### 5.1 Shared discipline
 
 1. Request with stream enabled; do **not** `ReadAll` the body.
-2. Scan frames (SSE or NDJSON); map to `StreamChunk{Delta}`.
-3. Accumulate text in a `strings.Builder`; if `builder.Len() > MaxProviderResponseBytes`, send `{Err: …}`, cancel body, return.
-4. On clean EOF / provider done: send `{Done: true}` (with or without final delta), close channel.
-5. Producer runs in a goroutine; exit on `ctx.Done()` and close channel.
-6. Never log full deltas at Info; Debug optional and behind existing redaction guidance.
-7. Errors from provider JSON (`error` object mid-stream) → `{Err}` chunk.
+2. Count **raw body bytes read** (counter or `io.LimitedReader`); if exceeded → `{Err: ErrStreamResponseTooLarge}`, close body, close channel (D-S8).
+3. Scan frames (SSE or NDJSON); map text fragments to `StreamChunk{Delta}` only (Task/Agent empty). Skip null/empty wire deltas.
+4. Accumulate text in a `strings.Builder`; if `builder.Len() > MaxProviderResponseBytes`, same too-large error path.
+5. On clean EOF / provider done: send `{Done: true}` (with or without final delta), close channel. Never set Done and Err together.
+6. Producer runs in a goroutine; exit on `ctx.Done()` and close channel (no further sends).
+7. Setup failures before the producer starts: still return a non-nil channel that immediately yields `{Err}` (D-S14).
+8. Never log full deltas at Info; Debug optional and behind existing redaction guidance.
+9. Errors from provider JSON (`error` object mid-stream) → `{Err}` chunk.
 
 ### 5.2 OpenAI / xAI
 
 - Set `"stream": true` on chat completions.
 - Read SSE: lines `data: …`; skip comments; terminal `data: [DONE]`.
 - Parse `choices[0].delta.content` (string fragment).
-- xAI: inherits via `inner *openai.Client` once openai implements `CallStream`.
+- xAI: thin `CallStream` delegates to `inner.CallStream` plus
+  `var _ crewai.StreamingLLM = (*Client)(nil)` in the xai package (same as Call).
+- Ignore `delta.content == null` / omitted; do not emit empty Delta chunks.
 
 ### 5.3 Ollama
 
@@ -321,7 +359,7 @@ No new packages required. Prefer `stream.go` in root to keep `llm.go` readable.
 
 | Topic | Rule |
 |---|---|
-| **Byte cap** | Accumulated stream text ≤ `MaxProviderResponseBytes` (same as non-stream ReadAll) |
+| **Byte cap** | Accumulated **text** ≤ `MaxProviderResponseBytes` **and** raw **body bytes read** ≤ same cap (D-S8). Prevents JSON-frame DoS with empty deltas. Sentinel `ErrStreamResponseTooLarge`. |
 | **Secrets in deltas** | StreamFunc receives raw model text (may include echoed secrets). Docs: do not ship raw deltas to untrusted multi-tenant clients without the app's own filter; prefer `RedactHandler` only affects slog, **not** StreamFunc |
 | **Progress purity** | Do not put Delta into `Progress` |
 | **Error redaction** | `chunk.Err` messages passed to StreamFunc should use the same `redactError` posture as Progress when the error originates from provider HTTP layers (providers already avoid echoing bodies on bad status) |
@@ -335,13 +373,15 @@ No new packages required. Prefer `stream.go` in root to keep `llm.go` readable.
 
 ### 8.1 Unit / hermetic
 
-- `CollectStream` concatenates deltas; propagates Err; respects ctx cancel.
-- `CallOrStream` with non-StreamingLLM + sink → single Delta+Done.
-- `CallOrStream` with StreamingLLM + nil sink → still may Call only (no assert required) **or** CallStream without sink — **D-S9: if sink nil, always `Call`** (avoid extra goroutines).
-- Executor no-tools: sink receives ordered deltas; final task output equals concat.
+- `CollectStream` concatenates deltas; propagates Err; respects ctx cancel; bare close → `ErrStreamIncomplete` or `ctx.Err()`.
+- `CallOrStream` with non-StreamingLLM + sink → single Delta+Done via `emitStream`.
+- `CallOrStream` with sink nil → always `Call` (D-S9).
+- `CallStream` setup failure → non-nil chan, first chunk Err (D-S14).
+- Executor ReAct no-tools **and** native no-tools: sink receives ordered deltas with Task/Agent set; final task output equals concat.
 - Executor with tools: sink **not** called for intermediate turns (v1).
-- Mock stream + Kickoff + `WithStream` under Sequential and one Async wave (concurrency-safe sink via mutex).
-- Provider httptest: OpenAI SSE fixture; Ollama NDJSON; Anthropic SSE; cap exceeded → Err chunk.
+- Async wave: two concurrent tasks → sink sees distinct Task labels (D-S13); sink protected by mutex in test.
+- StreamFunc panic recovered; Kickoff still returns assembled text (D-S12).
+- Provider httptest: OpenAI SSE (incl. null content); Ollama NDJSON; Anthropic SSE; text cap **and** body-byte cap → `ErrStreamResponseTooLarge`.
 - Cancel mid-stream: channel closes; `Kickoff` returns `context.Canceled` / deadline.
 
 ### 8.2 Quality gates (every PR)
@@ -359,12 +399,12 @@ Same as security-residuals §6.1:
 
 ### 8.3 Acceptance (epic done)
 
-- [ ] `StreamingLLM` + `StreamChunk` + `WithStream` / `ContextWithStream` public and godoc'd
-- [ ] No-tools path streams when sink set and LLM implements `StreamingLLM`
-- [ ] Fallback single-chunk behavior for non-streaming LLMs
-- [ ] openai + ollama + anthropic + xai (delegate) + mock implement `CallStream`
-- [ ] `examples/streaming` offline
-- [ ] docs/llms.md + pt-BR + doc.go; PLAN.md checkbox
+- [ ] `StreamingLLM` (embeds `LLM`) + `StreamChunk` (Delta/Task/Agent/Done/Err) + `WithStream` / `ContextWithStream` + public `CollectStream` godoc'd
+- [ ] ReAct no-tools **and** native no-tools stream when sink set and LLM implements `StreamingLLM`
+- [ ] Fallback single-chunk behavior for non-streaming LLMs; setup/incomplete/too-large sentinels
+- [ ] openai + ollama + anthropic + xai (`CallStream` delegate) + mock implement `CallStream`
+- [ ] `examples/streaming` offline (include dual Async demux of Task labels)
+- [ ] docs/llms.md + pt-BR + doc.go + SECURITY note; PLAN.md checkbox
 - [ ] race-clean; coverage gates; CHANGELOG
 - [ ] Tag note: ship as **v0.7.0** (feature release) unless bundled with more P1 work
 
@@ -383,29 +423,32 @@ Same as security-residuals §6.1:
 | **D-S5** | Progress vs stream | (A) no new Progress events (B) stream_started/completed metadata | **A** for v1 (avoid event spam); revisit in P2 telemetry |
 | **D-S6** | Provider order | (A) all four in one PR (B) mock+openai first, then ollama, anthropic | **B** — smaller PRs; xai free via openai inner |
 | **D-S7** | Non-streaming LLM + sink set | (A) silent no deltas (B) one Delta+Done with full text | **B** — UIs always get content |
-| **D-S8** | Size limit | (A) new higher stream cap (B) reuse `MaxProviderResponseBytes` | **B** — one policy |
+| **D-S8** | Size limit | (A) new higher stream cap (B) reuse `MaxProviderResponseBytes` on **text only** (C) same cap on **text and raw body bytes read** | **C** — one constant, two meters; closes JSON-frame DoS with empty deltas |
 | **D-S9** | sink == nil | (A) still CallStream if available (B) always Call | **B** — no surprise goroutines / scheduling changes |
 | **D-S10** | Partial tool-call streaming | (A) v1 scope (B) deferred | **B** — separate decision when native stream-with-tools is designed |
-| **D-S11** | Channel buffer size | (A) unbuffered (B) 16 (C) 64 | **B** — 16 |
-| **D-S12** | StreamFunc panic | (A) crash Kickoff (B) recover + slog like Progress | **B** — recover in `emitStream`; Kickoff continues assembling text |
+| **D-S11** | Channel buffer size | (A) unbuffered (B) 16 (C) 64 | **B** — 16 (`DefaultStreamChanBuffer`) |
+| **D-S12** | StreamFunc panic | (A) crash Kickoff (B) recover + slog like Progress | **B** — recover in `emitStream` (all sink paths incl. D-S7 fallback); Kickoff continues assembling text |
+| **D-S13** | Concurrent-task demux | (A) global sink, deltas only (B) Task/Agent on chunk filled by executor (C) per-task sinks API) | **B** — providers stay text-only; executor `withTaskAgent` wrapper |
+| **D-S14** | CallStream error / channel contract | (A) `(<-chan, error)` setup return (B) chan never nil; setup → first `{Err}`; bare close → `ErrStreamIncomplete` / `ctx.Err()`; forbid Done∧Err | **B** — one consumption shape; sentinels in `errors.go` |
 
-### 9.2 Open until implementation spikes (non-blocking for plan merge)
+### 9.2 Open until implementation spikes (non-blocking for Phase 1)
 
 | ID | Topic | Notes |
 |---|---|---|
 | **O-S1** | Anthropic tool-result message mapping under stream | Only if we later stream native paths |
 | **O-S2** | Whether `CallStream` should share transport helpers with `Call` | Refactor opportunity inside each provider; no API impact |
-| **O-S3** | Expose `CollectStream` as part of stable API vs internal | Recommendation: **public** — apps building custom executors need it |
+
+~~**O-S3** `CollectStream` public vs internal~~ — **closed: public**.
 
 ---
 
 ## 10. PR / implementation order
 
 ```
-Phase 0  Close D-S1–D-S12 on this document (this PR / review)
-Phase 1  S1: stream.go API + CollectStream/CallOrStream + tests (no provider)
-Phase 2  S2: llm/mock CallStream + executor no-tools wiring + Crew.WithStream
-Phase 3  S3: llm/openai CallStream (httptest SSE) + xai compile-time assert via inner
+Phase 0  ~~Close D-S1–D-S14~~ **done in design review 2026-08-21** (this patch)
+Phase 1  S1: stream.go API + CollectStream/CallOrStream/emitStream + sentinels + tests (no provider)
+Phase 2  S2: llm/mock CallStream + executor ReAct **and** native no-tools + Crew.WithStream + D-S13 wrap
+Phase 3  S3: llm/openai CallStream (httptest SSE) + xai CallStream delegate + compile-time assert
 Phase 4  S4: llm/ollama CallStream (NDJSON)
 Phase 5  S5: llm/anthropic CallStream (SSE) + coverage ≥ 90%
 Phase 6  S6: examples/streaming + docs EN/PT + doc.go + CHANGELOG
@@ -427,7 +470,7 @@ S3 before S5 is fine; S4 independent of S3 after S2.
 | `doc.go` | Package overview paragraph + minimal example |
 | `README.md` / `README.pt-BR.md` | Why bullet + What's new when releasing |
 | `docs/crews.md` | `WithStream` field/method next to `WithProgress` |
-| `examples/streaming` | Offline mock printing deltas |
+| `examples/streaming` | Offline mock printing deltas; dual `WithAsync` tasks show Task demux |
 | `PLAN.md` / `PLAN.pt-BR.md` | Link this plan; check Streaming when shipped |
 | `SECURITY.md` | One line: stream sinks receive raw model text (app responsibility) |
 
@@ -456,6 +499,6 @@ S3 before S5 is fine; S4 independent of S3 after S2.
 
 ## 14. Summary
 
-Ship **optional `StreamingLLM`** + **`Crew.WithStream` / context sink**, reuse the **`ToolCallingLLM` type-assert pattern**, stream **final text paths only** in v1, **fallback to one-shot Call** (with single chunk if sink set), implement **mock → openai/xai → ollama → anthropic**, keep **Progress body-free** and **stdlib-only**.
+Ship **optional `StreamingLLM` (embeds `LLM`)** + **`Crew.WithStream` / context sink**, reuse the **`ToolCallingLLM` type-assert pattern**, stream **ReAct no-tools + native no-tools** in v1 (not protocol paths), **fallback to one-shot Call** (single chunk if sink set), **Task/Agent demux on chunks**, **non-nil channel + setup-as-Err**, **text and body byte caps**, implement **mock → openai/xai → ollama → anthropic**, keep **Progress body-free** and **stdlib-only**.
 
-When decisions D-S1–D-S12 are acknowledged, Phase 1 coding can start on a branch such as `feat/streaming-s1-api`.
+Decisions **D-S1–D-S14** are closed in this document. Phase 1 coding can start on a branch such as `feat/streaming-s1-api` after product ack (or proceed if no objections).

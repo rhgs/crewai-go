@@ -18,8 +18,9 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   v0.6.0; versões suportadas incluem `v0.6.x`; notas de hardening do
   FileStore + single-flight do Kickoff.
 - **Plano de design de Streaming**: `Plan/PLAN.streaming.md` (+ PT) —
-  `StreamingLLM` opcional, `WithStream`, D-S1–D-S12; linkado no P1 do
-  roadmap (ainda não implementado).
+  `StreamingLLM` opcional, `WithStream`, D-S1–D-S14 (pós-review: demux
+  Task/Agent, teto dual de bytes, contrato de canal non-nil); linkado no P1
+  do roadmap (ainda não implementado).
 
 ## [v0.6.0] — 2026-08-21
 
