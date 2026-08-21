@@ -268,7 +268,7 @@ and environment variable names in docs/README. The `.gitignore` protects
   Design archive: [`PLAN.memory-async.md`](PLAN.memory-async.md)
   ([PT](PLAN.memory-async.pt-BR.md)). Optional follow-ups deferred there:
   **M5** agent memory tools, **A5** `Process=DAG` alias.
-- [ ] **Streaming** — optional `StreamingLLM` (`CallStream` → `<-chan StreamChunk`)
+- [x] **Streaming** — optional `StreamingLLM` (`CallStream` → `<-chan StreamChunk`)
   via type assertion (does not break existing `LLM` implementers); `Crew.WithStream`
   / context sink; v1 streams final text / no-tools paths only with Call fallback.
   **Design plan:** [`PLAN.streaming.md`](PLAN.streaming.md)
@@ -327,7 +327,7 @@ unless explicitly accepted).
 
 | Priority | Item | Notes |
 |---|---|---|
-| P1 | **Streaming** | Design: [`PLAN.streaming.md`](PLAN.streaming.md) — `StreamingLLM` + `WithStream`; not started |
+| P1 | **Streaming** | Implemented (tag pending): [`PLAN.streaming.md`](PLAN.streaming.md) — `StreamingLLM` + `WithStream`; not started |
 
 | P2 | **Callbacks / telemetry** | Lifecycle hooks beyond `WithProgress` |
 | P2 | **JSON Schema `$ref` / `format` / …** | Finish subset → practical 2020-12 slice |

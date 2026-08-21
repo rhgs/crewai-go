@@ -67,6 +67,15 @@
 //	research := crewai.NewTask("research", "notes", agent).WithAsync()
 //	write := crewai.NewTask("write", "markdown", agent).WithContext(research)
 //
+// # Streaming
+//
+// Optional StreamingLLM (type assert, like ToolCallingLLM) plus
+// Crew.WithStream delivers final-answer text deltas on ReAct/native no-tools
+// paths. Chunks carry Task/Agent for Async demux. Non-streaming LLMs emit one
+// Delta+Done. See docs/llms.md and examples/streaming.
+//
+//	crew.WithStream(func(c crewai.StreamChunk) { fmt.Print(c.Delta) })
+//
 // # Structured output
 //
 // When a task needs typed, trustworthy data, set Task.Structured to a

@@ -256,7 +256,7 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   Arquivo de design: [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md)
   ([EN](PLAN.memory-async.md)). Follow-ups opcionais adiados lá: **M5** tools
   de memória do agente, **A5** alias `Process=DAG`.
-- [ ] **Streaming** — `StreamingLLM` opcional (`CallStream` → `<-chan StreamChunk`)
+- [x] **Streaming** — `StreamingLLM` opcional (`CallStream` → `<-chan StreamChunk`)
   via type assertion (não quebra implementadores de `LLM`); `Crew.WithStream`
   / sink no context; v1 streama só texto final / caminhos sem tools com
   fallback para Call. **Plano de design:**
@@ -317,7 +317,7 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 
 | Prioridade | Item | Notas |
 |---|---|---|
-| P1 | **Streaming** | Design: [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md) — `StreamingLLM` + `WithStream`; não iniciado |
+| P1 | **Streaming** | Implemented (tag pending): [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md) — `StreamingLLM` + `WithStream`; não iniciado |
 
 | P2 | **Callbacks / telemetria** | Hooks de lifecycle além de `WithProgress` |
 | P2 | **JSON Schema `$ref` / `format` / …** | Fechar subconjunto → fatia 2020-12 |

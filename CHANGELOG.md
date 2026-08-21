@@ -5,6 +5,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Streaming LLM tokens (P1)**: optional `StreamingLLM` (`CallStream` →
+  `<-chan StreamChunk`), `Crew.WithStream` / `ContextWithStream`, public
+  `CollectStream` / `CallOrStream`. Executor streams ReAct/native **no-tools**
+  paths; Task/Agent demux on chunks (D-S13); body-byte cap via
+  `MaxProviderResponseBytes`; mock + openai/ollama/anthropic/xai providers.
+  Example `examples/streaming`. Design: `Plan/PLAN.streaming.md`.
+
 ### Documentation
 
 - **README What's new**: bumped to **v0.6.0** (EN + PT); examples list and
@@ -17,10 +26,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Plan / SECURITY**: architecture tree and exclusive-features table at
   v0.6.0; supported versions include `v0.6.x`; FileStore + Kickoff
   single-flight hardening notes.
-- **Streaming design plan**: `Plan/PLAN.streaming.md` (+ PT) — optional
-  `StreamingLLM`, `WithStream`, D-S1–D-S14 (post-review: Task/Agent demux,
-  dual byte cap, non-nil chan contract); linked from roadmap P1 (not
-  implemented yet).
+- **Streaming**: `docs/llms.md` / crews guides + SECURITY stream-sink note;
+  design plan `Plan/PLAN.streaming.md` marked implemented (tag pending).
 
 ## [v0.6.0] — 2026-08-21
 

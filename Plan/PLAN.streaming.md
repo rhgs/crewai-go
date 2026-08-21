@@ -1,7 +1,7 @@
 # Plan — Streaming LLM tokens
 
-> **Status:** **Design** (not started). Next product epic after v0.6.0 (memory + async).  
-> **Decisions:** D-S1–D-S14 closed by design review 2026-08-21 (§9) — ack before Phase 1 code.  
+> **Status:** **Implemented** on branch (core + providers + example; release tag pending).  
+> **Decisions:** D-S1–D-S14 closed by design review 2026-08-21 (§9).  
 > **Related:** `llm.go` (`LLM`), `toolcall.go` (`ToolCallingLLM` pattern), `executor.go` / `structured.go` / `loop.go`, providers under `llm/*`, roadmap `PLAN.md` §6 P1.  
 > **Constraints:** zero external module dependencies in the core library (`go.mod` stays stdlib-only). Quality gates from §6.1 of `PLAN.security-residuals.md` apply to every implementation PR (coverage ≥ 90% on touched packages, race-clean, docs EN+PT-BR, CHANGELOG).  
 > **Non-goals of sibling epics:** this plan does **not** include callbacks/telemetry beyond stream delivery (P2), JSON Schema remainder (P2), Flows (P3), or memory-async M5/A5.

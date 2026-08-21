@@ -298,6 +298,36 @@ for _, h := range hits {
 Se o LLM não implementar `WebSearcher`, `SearchWeb` retorna
 `crewai.ErrWebSearchUnsupported`.
 
+## Streaming
+
+Entrega opt-in de tokens/deltas nos caminhos de texto final (ReAct/native
+**sem** tools).
+
+```go
+crew := crewai.NewCrew(agents, tasks).WithStream(func(c crewai.StreamChunk) {
+    if c.Delta != "" {
+        fmt.Print(c.Delta) // texto cru do modelo — filtre antes de clientes não confiáveis
+    }
+    if c.Err != nil {
+        fmt.Println("erro de stream:", c.Err)
+    }
+})
+```
+
+- **`StreamingLLM`** é opcional (type assert), como `ToolCallingLLM`. Providers
+  first-party (`llm/openai`, `ollama`, `anthropic`, `xai`) e `llm/mock` implementam.
+- **`Crew.WithStream` / `ContextWithStream`** anexam o sink; com sink nil o
+  executor sempre usa `Call` puro (sem goroutines extras).
+- LLMs sem stream continuam válidos: a completion inteira vira um chunk
+  `{Delta, Done: true}`.
+- Chunks carregam labels **`Task` / `Agent`** para demux de waves Async.
+- Caminhos de protocolo (ReAct+tools, structured, rodadas native com tools,
+  delegate do manager) ficam em `Call` / `CallWithTools` bufferizados.
+- Tamanho do body/resposta limitado por `MaxProviderResponseBytes`. Ver
+  `ErrStreamResponseTooLarge`, `ErrStreamIncomplete`.
+- Exemplo: `examples/streaming`.
+
+
 ## Concorrência
 
 Um mesmo `LLM` pode ser compartilhado por vários agentes. As implementações
