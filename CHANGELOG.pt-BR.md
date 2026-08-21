@@ -17,6 +17,9 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 - **Plan / SECURITY**: árvore de arquitetura e tabela de exclusivos em
   v0.6.0; versões suportadas incluem `v0.6.x`; notas de hardening do
   FileStore + single-flight do Kickoff.
+- **Plano de design de Streaming**: `Plan/PLAN.streaming.md` (+ PT) —
+  `StreamingLLM` opcional, `WithStream`, D-S1–D-S12; linkado no P1 do
+  roadmap (ainda não implementado).
 
 ## [v0.6.0] — 2026-08-21
 

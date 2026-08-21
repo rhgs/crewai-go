@@ -18,7 +18,7 @@
 They interact: async waves write memory concurrently (store must stay race-safe **and** commit-visible only at barriers — D-M7); long-term stores must not assume single-threaded Kickoff. Designing them in one plan avoids two incompatible APIs (mutex-only memory would reintroduce the staged Memory caveat under Sequential+Async).
 
 **Non-goals (this plan):**
-- Streaming LLM tokens (separate P1).
+- Streaming LLM tokens (separate P1 — see [`PLAN.streaming.md`](PLAN.streaming.md)).
 - Full vector DB / cloud RAG products inside the core module.
 - Replacing Staged process (Staged stays; async extends Sequential/Hierarchical).
 - Cgo or mandatory third-party DB drivers in `github.com/rhgs/crewai-go`.

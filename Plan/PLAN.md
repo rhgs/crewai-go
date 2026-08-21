@@ -268,12 +268,11 @@ and environment variable names in docs/README. The `.gitignore` protects
   Design archive: [`PLAN.memory-async.md`](PLAN.memory-async.md)
   ([PT](PLAN.memory-async.pt-BR.md)). Optional follow-ups deferred there:
   **M5** agent memory tools, **A5** `Process=DAG` alias.
-- [ ] **Streaming** — `CallStream(ctx, messages) (<-chan StreamChunk, error)`
-  on `LLM`, **or** optional `StreamingLLM` checked by type assertion in the
-  executor (preferred: does not break existing `LLM` implementers). Propagate
-  through the agentic/ReAct loop without buffering the full completion when
-  the provider supports it. **Separate plan when scheduled** (non-goal of
-  memory-async). Open design choice stays in §7.
+- [ ] **Streaming** — optional `StreamingLLM` (`CallStream` → `<-chan StreamChunk`)
+  via type assertion (does not break existing `LLM` implementers); `Crew.WithStream`
+  / context sink; v1 streams final text / no-tools paths only with Call fallback.
+  **Design plan:** [`PLAN.streaming.md`](PLAN.streaming.md)
+  ([PT](PLAN.streaming.pt-BR.md)). Decisions D-S1–D-S12 proposed (not coded).
 
 ### P2 — Persistence and observability
 
@@ -327,7 +326,8 @@ unless explicitly accepted).
 
 | Priority | Item | Notes |
 |---|---|---|
-| P1 | **Streaming** | `StreamingLLM` vs `LLM.CallStream`; executor propagation |
+| P1 | **Streaming** | Design: [`PLAN.streaming.md`](PLAN.streaming.md) — `StreamingLLM` + `WithStream`; not started |
+
 | P2 | **Callbacks / telemetry** | Lifecycle hooks beyond `WithProgress` |
 | P2 | **JSON Schema `$ref` / `format` / …** | Finish subset → practical 2020-12 slice |
 | P3 | **Flows** | Event-driven state + routing |
@@ -341,9 +341,10 @@ unless explicitly accepted).
 
 Product/design choices still open for **future** epics (not memory-async):
 
-- **Streaming API shape** — prefer optional `StreamingLLM` (type assert in the
-  executor) over adding `CallStream` to `LLM` (would break every implementer).
-  Confirm when the streaming plan is scheduled.
+- **Streaming API shape** — **lean locked in design plan:** optional
+  `StreamingLLM` (type assert) + `Crew.WithStream`; do **not** add `CallStream`
+  to `LLM`. Full matrix D-S1–D-S12 in
+  [`PLAN.streaming.md`](PLAN.streaming.md). Confirm/ack before Phase 1 code.
 - **Function calling vs ReAct** — **lean keep both**: ReAct remains the
   universal tool layer; native `ToolCallingLLM` stays opt-in per provider
   (already shipped). Revisit only if ReAct maintenance cost dominates.

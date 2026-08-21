@@ -17,6 +17,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Plan / SECURITY**: architecture tree and exclusive-features table at
   v0.6.0; supported versions include `v0.6.x`; FileStore + Kickoff
   single-flight hardening notes.
+- **Streaming design plan**: `Plan/PLAN.streaming.md` (+ PT) — optional
+  `StreamingLLM`, `WithStream`, D-S1–D-S12; linked from roadmap P1 (not
+  implemented yet).
 
 ## [v0.6.0] — 2026-08-21
 
