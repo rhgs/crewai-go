@@ -5,6 +5,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [v0.7.0] — 2026-08-21
+
 ### Adicionado
 
 - **Streaming de tokens do LLM (P1)**: `StreamingLLM` opcional (`CallStream` →
@@ -13,23 +15,17 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   ReAct/native **sem tools**; demux Task/Agent nos chunks (D-S13); teto de
   bytes do body via `MaxProviderResponseBytes`; providers mock +
   openai/ollama/anthropic/xai. Exemplo `examples/streaming`. Design:
-  `Plan/PLAN.streaming.md`.
+  `Plan/PLAN.streaming.md` (D-S1–D-S14). PRs #35, #36.
 
 ### Documentação
 
-- **What's new do README**: atualizado para **v0.6.0** (EN + PT); lista de
-  exemplos e tabela de comparação incluem waves async + memória plugável;
-  seção de Processos documenta waves `WithAsync`.
-- **Polimento dos guias**: guia de memory deixa de tratar embeddings/
-  persistência como só DIY; guia de tasks mostra `WithAsync` + amostra de
-  DAG; getting-started linka Memory; READMEs de examples listam
-  `async_tasks` / `memory_*` / `facts` / `guardrails` / `native_tools`.
-- **Plan / SECURITY**: árvore de arquitetura e tabela de exclusivos em
-  v0.6.0; versões suportadas incluem `v0.6.x`; notas de hardening do
-  FileStore + single-flight do Kickoff.
-- **Streaming**: guias `docs/llms.md` / crews + nota SECURITY de stream
-  sinks; plano `Plan/PLAN.streaming.md` marcado implementado (tag pendente).
-- **Higiene de review do Streaming**: Why/conceitos/comparação no README + limitações do PLAN; `drainToSink` emite cancel/incomplete ao sink; notas de godoc/timeout HTTP; cobertura do drain.
+- **What's new do README**: atualizado para **v0.7.0** (EN + PT); Why/
+  conceitos/comparação incluem Streaming; exemplo `streaming` listado.
+- **Guias de Streaming**: `docs/llms.md` / crews (+ PT), nota SECURITY de
+  stream sinks, maturidade do PLAN em v0.7.0; higiene pós-merge
+  (`drainToSink` em cancel, notas de timeout HTTP).
+- **Polimento de docs pós-v0.6** carregado: surface memory/async no README,
+  link Memory no getting-started, listas de examples, suporte SECURITY.
 
 ## [v0.6.0] — 2026-08-21
 
@@ -459,7 +455,8 @@ Primeira release pública: um port idiomático do núcleo do framework CrewAI pa
   chamadas entre agentes em tempo de execução), sem streaming, memória apenas em
   processo, sem function calling nativo. Veja `Plan/PLAN.md` para o roadmap completo.
 
-[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.7.0...HEAD
+[v0.7.0]: https://github.com/rhgs/crewai-go/compare/v0.6.0...v0.7.0
 [v0.6.0]: https://github.com/rhgs/crewai-go/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/rhgs/crewai-go/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/rhgs/crewai-go/compare/v0.3.0...v0.4.0

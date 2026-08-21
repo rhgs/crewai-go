@@ -112,11 +112,11 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 - [x] Documentação: README + guias bilíngues + MCP + SECURITY + memory/async; 17 exemplos.
 - [x] `go build`, `go vet` e `go test ./...` limpos.
 
-### Snapshot de maturidade (2026-08-21 — v0.6.0)
+### Snapshot de maturidade (2026-08-21 — v0.7.0)
 
 | Métrica | Valor |
 |---------|-------|
-| Última release | **v0.6.0** (2026-08-21) — PR #31 |
+| Última release | **v0.7.0** (2026-08-21) — Streaming PRs #35/#36 |
 | LOC Go (aprox.) | ~25k+ |
 | Dependências externas | 0 (stdlib) |
 | Cobertura — núcleo (`crewai`) | ~94%+ (epic memory/async) |
@@ -125,12 +125,12 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 | Documentação | README + guias bilíngues + MCP + SECURITY + memory/async |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
-### Limitações conhecidas (pós v0.6.0)
+### Limitações conhecidas (pós v0.7.0)
 
 - **Streaming é opt-in** — sem `WithStream` / `StreamingLLM`, `LLM.Call`
   ainda devolve a resposta completa. Stream cobre só texto final / caminhos
   sem tools (ver [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md)); tag
-  de release pendente.
+  entregue na **v0.7.0**.
 - **JSON Schema ainda é um subconjunto** — núcleo + `additionalProperties`,
   bounds, `pattern`, `oneOf`/`anyOf`/`allOf` (v0.5.0). Ainda sem `$ref`,
   `if`/`then`/`else`, `format`, unevaluated*, etc. (roadmap §6 P2).
@@ -174,7 +174,7 @@ sugerida (maior impacto / menor esforço primeiro):
 - [x] **JSON Schema expandido** + `WithStrictSchema`.
 - [x] **`RedactHandler`**, jail OutputFile, single-flight do Kickoff.
 - [x] **Tool de delegação** `delegate_to_coworker` + `EnableDelegationTool`.
-- [x] Tags **v0.1.0 … v0.6.0**; docs bilíngues; CI + CodeQL.
+- [x] Tags **v0.1.0 … v0.7.0**; docs bilíngues; CI + CodeQL.
 
 ### P0 — Publicação e fundamentos
 
@@ -261,10 +261,9 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 - [x] **Streaming** — `StreamingLLM` opcional (`CallStream` → `<-chan StreamChunk`)
   via type assertion (não quebra implementadores de `LLM`); `Crew.WithStream`
   / sink no context; v1 streama só texto final / caminhos sem tools com
-  fallback para Call. **Plano de design:**
-  [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md)
-  ([EN](PLAN.streaming.md)). Decisões D-S1–D-S14 fechadas na review de design
-  (ainda sem código).
+  fallback para Call. **Entregue na v0.7.0** (PRs #35/#36). Design:
+  [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md) ([EN](PLAN.streaming.md));
+  decisões D-S1–D-S14.
 
 ### P2 — Persistência e observabilidade
 
@@ -319,7 +318,7 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 
 | Prioridade | Item | Notas |
 |---|---|---|
-| P1 | **Streaming** | Implementado na main (tag pendente): [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md) — `StreamingLLM` + `WithStream` |
+| P1 | **Streaming** | **Entregue na v0.7.0** (PRs #35/#36): [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md) — `StreamingLLM` + `WithStream` |
 
 | P2 | **Callbacks / telemetria** | Hooks de lifecycle além de `WithProgress` |
 | P2 | **JSON Schema `$ref` / `format` / …** | Fechar subconjunto → fatia 2020-12 |
@@ -335,12 +334,10 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 Escolhas de produto/design ainda abertas para **epics futuros** (não
 memory-async):
 
-- **Forma da API de streaming** — **travada no plano de design:**
-  `StreamingLLM` opcional (embute `LLM`) + `Crew.WithStream`; **não** adicionar
-  `CallStream` em `LLM`. Matriz completa D-S1–D-S14 (demux Task/Agent, teto
-  dual de bytes, contrato de canal non-nil) em
-  [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md). Ack antes do código da
-  Fase 1.
+- **Forma da API de streaming** — **resolvida na v0.7.0:** `StreamingLLM`
+  opcional (embute `LLM`) + `Crew.WithStream`; `CallStream` **não** está em
+  `LLM` base. Matriz D-S1–D-S14 em
+  [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md).
 - **Function calling vs ReAct** — **manter os dois**: ReAct continua a camada
   universal de tools; `ToolCallingLLM` nativo permanece opt-in por provider
   (já entregue). Revisitar só se o custo de manter ReAct dominar.

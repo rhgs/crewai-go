@@ -684,34 +684,27 @@ go run ./examples/xai_oauth
 | Plano / Roadmap | [PT](Plan/PLAN.pt-BR.md) | [EN](Plan/PLAN.md) |
 | Politica de seguranca | — | [EN](SECURITY.md) |
 
-### Novidades da v0.6.0
+### Novidades da v0.7.0
 
-Todas as features são **backward compatible** — sem breaking changes.
-`Memory bool` permanece o alias permanente v0.x; o comportamento golden do
-Staged não muda.
+Todas as features são **backward compatible** — sem breaking changes em
+`LLM.Call` nem em providers que não implementam `StreamingLLM`.
 
 | Recurso | Descrição | Docs (PT) | Docs (EN) |
 |---------|-----------|-----------|-----------|
-| **Waves `Task.Async`** | Tarefas independentes se sobrepõem em Sequential/Hierarchical; `Task.Context` é a DAG; agregação por ordem de declaração. `AsyncMaxWorkers` padrão **8** (`0` = ilimitado); `AsyncFailFast`. | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) · [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) | [docs/crews.md](docs/crews.md) · [docs/tasks.md](docs/tasks.md) |
-| **`MemoryStore` + policy** | Store de longo prazo plugável; `MemoryPolicy` AutoSave/inject; barreira D-M7 (writes paralelos bufferizam, commit em ordem de declaração). | [docs/pt-BR/memory.md](docs/pt-BR/memory.md) | [docs/memory.md](docs/memory.md) |
-| **`FileStore`** | Backend JSONL durável (`OpenFileStore`); app faz `Close`; single-writer v1. | [docs/pt-BR/memory.md](docs/pt-BR/memory.md#filestore-jsonl-m3) | [docs/memory.md](docs/memory.md#filestore-jsonl-m3) |
-| **Embeddings** | `EmbeddingFunc` da app; `AutoEmbed` serial na barreira; `Query` por cosseno. | [docs/pt-BR/memory.md](docs/pt-BR/memory.md#embeddings--recall-por-cosseno-m4) | [docs/memory.md](docs/memory.md#embeddings--cosine-recall-m4) |
-| **Exemplos** | Offline `async_tasks`, `memory_file`, `memory_embed`. | [examples/pt-BR/](examples/pt-BR/) | [examples/](examples/) |
+| **`StreamingLLM` + `WithStream`** | API opcional de stream via type assert; `Crew.WithStream` / sink no context; deltas de texto final (ReAct/native sem tools); demux Task/Agent em waves Async; teto de bytes do body. | [docs/pt-BR/llms.md](docs/pt-BR/llms.md#streaming) · [docs/pt-BR/crews.md](docs/pt-BR/crews.md) | [docs/llms.md](docs/llms.md#streaming) · [docs/crews.md](docs/crews.md) |
+| **`CallStream` nos providers** | OpenAI (SSE), Ollama (NDJSON), Anthropic (SSE), xAI (delegate), `llm/mock`. | [docs/pt-BR/llms.md](docs/pt-BR/llms.md#streaming) | [docs/llms.md](docs/llms.md#streaming) |
+| **Helpers** | `CollectStream` / `CallOrStream` públicos; sentinelas `ErrStreamIncomplete`, `ErrStreamResponseTooLarge`. | godoc | godoc |
+| **Exemplo** | Offline `examples/streaming` (demux Async). | [examples/streaming](examples/streaming) | [examples/](examples/) |
+
+**Também na v0.6.0**: waves `Task.Async`, `MemoryStore` / `MemoryPolicy` / D-M7, `FileStore`, embeddings + Query por cosseno.
 
 **Também na v0.5.0**: MCP hardening, jail OutputFile, `RedactHandler`, single-flight Kickoff, keywords de schema, `delegate_to_coworker`.
 
 **Também na v0.4.x**: processo staged, agentic loop, cliente MCP, progress callbacks, warnings por tarefa, structured `emit_result`.
 
-**Também na v0.3.0**: native tool calling, web search (agent-driven + model-driven), logging estruturado via `log/slog`, redação de segredos.
+**Também na v0.3.0**: native tool calling, web search, logging estruturado via `log/slog`, redação de segredos.
 
-### Streaming (em `main`, tag pendente)
-
-Entregue após a v0.6.0 (ainda sem tag): `StreamingLLM` opcional, `Crew.WithStream`,
-`CallStream` nos providers (OpenAI/Ollama/Anthropic/xAI + mock), exemplo
-`examples/streaming`. Veja [docs/pt-BR/llms.md](docs/pt-BR/llms.md#streaming) e
-[CHANGELOG Unreleased](CHANGELOG.pt-BR.md).
-
-Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.6.0](https://github.com/rhgs/crewai-go/releases/tag/v0.6.0) para detalhes.
+Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.7.0](https://github.com/rhgs/crewai-go/releases/tag/v0.7.0) para detalhes.
 
 
 ## Testes
