@@ -8,7 +8,7 @@ Uma **Crew** reúne agentes e tarefas e os orquestra segundo um **Process**.
 
 Apenas **um** `Kickoff` pode rodar por vez em um dado `*Crew`. Uma chamada concorrente retorna `ErrCrewRunning` imediatamente (fail fast — nao enfileira). Crie valores `Crew` separados para runs paralelos. Reuso sequencial do mesmo Crew e suportado.
 
-Para **semantic races** (ordem de conclusão vs ordem de fold), Memory D-M7 e como grupos Staged/Async ficam determinísticos, veja o **[modelo de concorrência](concurrency.md)** — inclusive a discussão no [fio do dev.to](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm#comments).
+Para **semantic races** (ordem de conclusão vs ordem de fold), Memory D-M7 e como grupos Staged/Async ficam determinísticos, veja o **[modelo de concorrência](concurrency.md)**.
 
 ## Criando e executando
 

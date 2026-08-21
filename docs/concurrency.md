@@ -4,10 +4,8 @@
 
 This page is the library’s contract for **data races** vs **semantic races**
 when tasks run in parallel (Staged stages and Sequential/Hierarchical
-`Task.Async` waves). It expands the answers given on the
-[dev.to concurrency thread](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm#comments)
-and matches the implementation as of **v0.6+** (async waves + D-M7 memory
-barrier) and **v0.7+** (streaming demux).
+`Task.Async` waves). It matches the implementation as of **v0.6+** (async
+waves + D-M7 memory barrier) and **v0.7+** (streaming demux).
 
 ## Two different problems
 
