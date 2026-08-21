@@ -192,11 +192,11 @@ func executeTaskWithTools(ctx context.Context, a *Agent, t *Task, contextText st
 
 	tools := effectiveTools(a, t)
 	if len(tools) == 0 {
-		// No tools: fall through to a plain call (same as ReAct no-tools path).
-		out, err := a.LLM.Call(ctx, []Message{
+		// No tools: same streaming path as ReAct no-tools (D-S4).
+		out, err := callLLMText(ctx, a.LLM, []Message{
 			SystemMessage(buildSystemPrompt(a)),
 			UserMessage(buildTaskPrompt(t, contextText)),
-		})
+		}, t, a)
 		return strings.TrimSpace(stripFinalAnswer(out)), nil, nil, err
 	}
 

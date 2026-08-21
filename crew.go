@@ -125,6 +125,12 @@ type Crew struct {
 	// thread-safe. Panics inside the callback are recovered.
 	progress ProgressFunc
 
+	// stream is invoked with LLM text deltas when a streaming path runs
+	// (D-S3/D-S4). Set via WithStream before Kickoff. The callback MAY be
+	// called from multiple goroutines (Async waves / Staged) and MUST be
+	// concurrency-safe. Panics are recovered (D-S12).
+	stream StreamFunc
+
 	// runMu enforces a single in-flight Kickoff per Crew value. Concurrent
 	// Kickoff calls return ErrCrewRunning (fail fast; they do not queue).
 	runMu sync.Mutex
@@ -148,6 +154,21 @@ type Crew struct {
 // Kickoff is running is undefined.
 func (c *Crew) WithProgress(fn ProgressFunc) *Crew {
 	c.progress = fn
+	return c
+}
+
+// WithStream registers a StreamFunc invoked with LLM text deltas during
+// Kickoff on path-matrix Yes paths (ReAct/native no-tools). The callback
+// MAY run from multiple goroutines when tasks execute concurrently, so it
+// MUST be safe for concurrent use. Chunks carry Task/Agent labels for
+// demux (D-S13). Panics are recovered; Kickoff is not aborted (D-S12).
+// Passing nil disables streaming callbacks (executor uses plain Call).
+//
+// Set BEFORE Kickoff. Mutating this field while Kickoff is running is
+// undefined. Stream sinks receive raw model text — filter before exposing
+// to untrusted clients (see SECURITY.md).
+func (c *Crew) WithStream(fn StreamFunc) *Crew {
+	c.stream = fn
 	return c
 }
 
@@ -365,6 +386,8 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 
 	// Inject the progress callback into ctx so every executor sees it.
 	ctx = ContextWithProgress(ctx, c.progress)
+	// Inject the stream sink (nil is a no-op inside ContextWithStream).
+	ctx = ContextWithStream(ctx, c.stream)
 
 	switch c.Process {
 	case Sequential:

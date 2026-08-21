@@ -103,11 +103,20 @@ func (c *Client) CallWithTools(ctx context.Context, messages []crewai.Message, t
 	return c.inner.CallWithTools(ctx, messages, tools)
 }
 
+// CallStream implements crewai.StreamingLLM by delegating to the underlying
+// OpenAI-compatible client.
+func (c *Client) CallStream(ctx context.Context, messages []crewai.Message) <-chan crewai.StreamChunk {
+	return c.inner.CallStream(ctx, messages)
+}
+
 // Model implements crewai.LLM.
 func (c *Client) Model() string { return c.inner.Model() }
 
-// Compile-time check.
-var _ crewai.ToolCallingLLM = (*Client)(nil)
+// Compile-time checks.
+var (
+	_ crewai.ToolCallingLLM = (*Client)(nil)
+	_ crewai.StreamingLLM   = (*Client)(nil)
+)
 
 // WebSearch implements crewai.WebSearcher by delegating to the underlying
 // OpenAI-compatible client. xAI (Grok) supports web search via the chat

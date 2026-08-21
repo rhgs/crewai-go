@@ -61,4 +61,12 @@ var (
 	// same wave as its dependency (a cycle, or a dependency that cannot run
 	// strictly earlier). Validated before any task runs (G12, fail fast).
 	ErrTaskDependencyCycle = errors.New("crewai: invalid task dependency (cycle or same-wave)")
+	// ErrStreamIncomplete is returned by CollectStream when the chunk
+	// channel closes without a terminal Done or Err chunk while ctx is
+	// still OK (D-S14).
+	ErrStreamIncomplete = errors.New("crewai: stream ended without Done or Err")
+	// ErrStreamResponseTooLarge is returned when a streaming completion
+	// exceeds MaxProviderResponseBytes on accumulated text or on raw HTTP
+	// body bytes read (D-S8).
+	ErrStreamResponseTooLarge = errors.New("crewai: stream response exceeds size limit")
 )

@@ -295,6 +295,35 @@ llm := &mock.LLM{
 hits, err := crewai.SearchWeb(ctx, llm, "Go", 5)
 ```
 
+## Streaming
+
+Opt-in token/delta delivery for final text paths (ReAct/native **without** tools).
+
+```go
+crew := crewai.NewCrew(agents, tasks).WithStream(func(c crewai.StreamChunk) {
+    if c.Delta != "" {
+        fmt.Print(c.Delta) // raw model text — filter before untrusted clients
+    }
+    if c.Err != nil {
+        fmt.Println("stream err:", c.Err)
+    }
+})
+```
+
+- **`StreamingLLM`** is optional (type assert), like `ToolCallingLLM`. First-party
+  providers (`llm/openai`, `ollama`, `anthropic`, `xai`) and `llm/mock` implement it.
+- **`Crew.WithStream` / `ContextWithStream`** attach the sink; when the sink is
+  nil the executor always uses plain `Call` (no extra goroutines).
+- Non-streaming LLMs still work: the full completion is emitted as one
+  `{Delta, Done: true}` chunk.
+- Chunks include **`Task` / `Agent`** labels so Async waves can be demuxed.
+- Protocol paths (ReAct+tools, structured output, native tool rounds, manager
+  delegate) stay on buffered `Call` / `CallWithTools`.
+- Body and response size are capped at `MaxProviderResponseBytes` (same as
+  non-stream). See `ErrStreamResponseTooLarge`, `ErrStreamIncomplete`.
+- Example: `examples/streaming`.
+
+
 ## Concurrency
 
 A single `LLM` can be shared by multiple agents. The included implementations

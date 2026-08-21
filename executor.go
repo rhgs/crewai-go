@@ -71,9 +71,9 @@ func executeTaskDefault(ctx context.Context, a *Agent, t *Task, contextText stri
 		UserMessage(buildTaskPrompt(t, contextText)),
 	}
 
-	// No tools: a single call is enough.
+	// No tools: a single call is enough (streaming path matrix Yes — D-S4).
 	if len(tools) == 0 {
-		out, err := a.LLM.Call(ctx, messages)
+		out, err := callLLMText(ctx, a.LLM, messages, t, a)
 		if err != nil {
 			return "", nil, fmt.Errorf("agent %q: %w", a.Role, err)
 		}

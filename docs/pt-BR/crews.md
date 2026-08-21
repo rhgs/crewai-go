@@ -55,6 +55,7 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 | `Guardrails`   | `[]Guardrail`  | Hooks de validação pós-saída no nível da crew. |
 | `OutputDir` | `string` | Jail opcional para `Task.OutputFile` quando a task nao define o seu. Symlink-aware; ver tasks. |
 | `EnableDelegationTool` | `bool` | Se true, anexa `delegate_to_coworker` a cada agent no Kickoff (default false). Alvos ainda precisam de `AllowDelegation`. |
+| `stream`       | `StreamFunc`   | Interno — set via `WithStream` (deltas de texto do LLM). |
 | `progress`     | `ProgressFunc` | Interno — definido via `WithProgress`. |
 
 ## O resultado: `CrewOutput`
@@ -238,6 +239,13 @@ tarefa := crewai.NewTask("...", "...", agente).
 
 A validacao de schema checa a **forma**; guardrails checam o **significado**.
 Use ambos para maxima seguranca.
+
+## Streaming (deltas do LLM)
+
+Registre um `StreamFunc` com `WithStream` para receber deltas de texto da
+resposta final nos caminhos sem tools. Tasks concorrentes podem chamar o
+callback em paralelo — DEVE ser concurrency-safe. Chunks carregam `Task` e
+`Agent` para demux. Panics são recuperados. Veja [llms.md](llms.md#streaming).
 
 ## Observabilidade de progresso
 

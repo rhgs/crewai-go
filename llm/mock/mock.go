@@ -29,11 +29,19 @@ type LLM struct {
 	WebSearchResults []crewai.SearchHit
 	// WebSearchHandler, when set, takes precedence over WebSearchResults.
 	WebSearchHandler func(ctx context.Context, query string, max int) ([]crewai.SearchHit, error)
+	// StreamChunks optionally supplies per-CallStream sequences. When the
+	// outer slice runs out, CallStream synthesizes chunks by splitting the
+	// Call result into fixed-size rune groups (streamChunkRunes).
+	StreamChunks [][]crewai.StreamChunk
+	// StreamChunkRunes is the rune group size used when StreamChunks is
+	// empty (default 4).
+	StreamChunkRunes int
 
 	mu             sync.Mutex
 	calls          int
 	toolCallIndex  int
 	webSearchCalls int
+	streamIndex    int
 	log            [][]crewai.Message
 }
 
@@ -104,6 +112,81 @@ func (m *LLM) CallWithTools(ctx context.Context, messages []crewai.Message, tool
 	return resp, nil
 }
 
+// CallStream implements crewai.StreamingLLM.
+func (m *LLM) CallStream(ctx context.Context, messages []crewai.Message) <-chan crewai.StreamChunk {
+	ch := make(chan crewai.StreamChunk, crewai.DefaultStreamChanBuffer)
+
+	m.mu.Lock()
+	idx := m.streamIndex
+	m.streamIndex++
+	var scripted []crewai.StreamChunk
+	if idx < len(m.StreamChunks) {
+		scripted = m.StreamChunks[idx]
+	}
+	m.mu.Unlock()
+
+	go func() {
+		defer close(ch)
+		if len(scripted) > 0 {
+			for _, c := range scripted {
+				select {
+				case <-ctx.Done():
+					return
+				case ch <- c:
+				}
+			}
+			return
+		}
+		// Synthesize from Call (records the call in the log).
+		text, err := m.Call(ctx, messages)
+		if err != nil {
+			select {
+			case <-ctx.Done():
+			case ch <- crewai.StreamChunk{Err: err}:
+			}
+			return
+		}
+		n := m.StreamChunkRunes
+		if n <= 0 {
+			n = 4
+		}
+		for _, part := range splitRunes(text, n) {
+			select {
+			case <-ctx.Done():
+				return
+			case ch <- crewai.StreamChunk{Delta: part}:
+			}
+		}
+		select {
+		case <-ctx.Done():
+		case ch <- crewai.StreamChunk{Done: true}:
+		}
+	}()
+	return ch
+}
+
+func splitRunes(s string, n int) []string {
+	if s == "" || n <= 0 {
+		if s == "" {
+			return nil
+		}
+		return []string{s}
+	}
+	var parts []string
+	var b []rune
+	for _, r := range s {
+		b = append(b, r)
+		if len(b) >= n {
+			parts = append(parts, string(b))
+			b = b[:0]
+		}
+	}
+	if len(b) > 0 {
+		parts = append(parts, string(b))
+	}
+	return parts
+}
+
 // WebSearch implements crewai.WebSearcher.
 func (m *LLM) WebSearch(ctx context.Context, query string, max int) ([]crewai.SearchHit, error) {
 	m.mu.Lock()
@@ -126,5 +209,9 @@ func (m *LLM) WebSearchCalls() int {
 	return m.webSearchCalls
 }
 
-// Compile-time check.
-var _ crewai.WebSearcher = (*LLM)(nil)
+// Compile-time checks.
+var (
+	_ crewai.WebSearcher    = (*LLM)(nil)
+	_ crewai.StreamingLLM   = (*LLM)(nil)
+	_ crewai.ToolCallingLLM = (*LLM)(nil)
+)
