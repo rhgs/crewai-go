@@ -50,6 +50,12 @@ type Crew struct {
 	// defaults — use NewMemoryPolicy and override fields.
 	MemoryPolicy *MemoryPolicy
 
+	// Embed is an optional application-provided embedding function (M4).
+	// When MemoryPolicy.AutoEmbed is true and Embed is non-nil, the Crew
+	// embeds each AutoSave entry serially at the commit barrier (G8) —
+	// never inside parallel workers. The core never bundles an embedder.
+	Embed EmbeddingFunc
+
 	// ManagerLLM is the model used by the manager agent in the hierarchical
 	// process.
 	ManagerLLM LLM
@@ -1045,6 +1051,9 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, [
 		if buffering {
 			c.stashMemoryBuffer(task, entry)
 		} else {
+			// Serial path: embed (if configured) then Put immediately so the
+			// next task in the same Kickoff can recall it.
+			entry = c.maybeEmbedEntry(ctx, entry, task, c.policy)
 			if _, putErr := c.store.Put(ctx, entry); putErr != nil {
 				// G11: warn+capture, do not abort Kickoff.
 				c.logger.WarnContext(ctx, "memory AutoSave failed",

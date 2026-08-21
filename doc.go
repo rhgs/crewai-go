@@ -230,7 +230,8 @@
 //	hits, _ := store.Query(ctx, crewai.MemoryQuery{Text: "revenue", Limit: 5})
 //
 // OpenFileStore(dir) provides a durable JSONL backend (caller-trusted root,
-// app owns Close). See docs/memory.md.
+// app owns Close). Crew.Embed + MemoryPolicy.AutoEmbed persist vectors at the
+// commit barrier; Query with MemoryQuery.Embedding ranks by cosine. See docs/memory.md.
 //
 // # Logging
 //

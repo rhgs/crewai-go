@@ -21,13 +21,14 @@ type Memory struct {
 }
 
 // memorySlot is the internal unit: a MemoryRecord plus the store-bridge
-// fields (ID, Scope, CreatedAt) needed to implement MemoryStore without
-// breaking the public MemoryRecord shape.
+// fields (ID, Scope, CreatedAt, Embedding) needed to implement MemoryStore
+// without breaking the public MemoryRecord shape.
 type memorySlot struct {
 	rec       MemoryRecord
 	id        string
 	scope     MemoryScope
 	createdAt time.Time
+	embedding []float32
 }
 
 // MemoryRecord is an annotation stored in memory.
@@ -142,6 +143,12 @@ func (m *Memory) Put(_ context.Context, e MemoryEntry) (MemoryEntry, error) {
 	}
 	e.ID = id
 
+	var emb []float32
+	if len(e.Embedding) > 0 {
+		emb = make([]float32, len(e.Embedding))
+		copy(emb, e.Embedding)
+		e.Embedding = emb // return the stored copy, not the caller's buffer
+	}
 	m.records = append(m.records, memorySlot{
 		rec: MemoryRecord{
 			Agent:   e.Agent,
@@ -151,66 +158,57 @@ func (m *Memory) Put(_ context.Context, e MemoryEntry) (MemoryEntry, error) {
 		id:        id,
 		scope:     e.Scope,
 		createdAt: e.CreatedAt,
+		embedding: emb,
 	})
 	return e, nil
 }
 
 // Query returns the entries matching q over the same in-memory data used by
-// the rest of the package. When q.Text is empty it returns the latest
-// entries in stable reverse order (most recent first), which is what M2's
-// "latest N" injection needs. Scope partitions results.
+// the rest of the package. Scope partitions results.
+//
+// When q.Embedding is non-empty, results are ranked by cosine similarity
+// (M4) and substring Text is ignored for filtering (semantic path). When
+// q.Embedding is empty, behavior matches M1/M2: empty Text ⇒ latest N;
+// non-empty Text ⇒ case-insensitive substring on Content/Task.
 func (m *Memory) Query(_ context.Context, q MemoryQuery) ([]MemoryEntry, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	limit := q.Limit
-	if limit <= 0 || limit > MaxMemoryQueryLimit {
-		limit = DefaultMemoryQueryLimit
-	}
-	maxChars := q.MaxChars
-	if maxChars == 0 {
-		maxChars = DefaultMemoryMaxChars
-	}
+	limit, maxChars := clampQueryBounds(q)
 
-	// Build the matching entry list in insertion order first; the latest-N
-	// step below reverses it. IDs are materialized lazily so records created
-	// by Save() (not only by Put) keep a stable ID.
-	indices := make([]int, 0, len(m.records))
+	// Materialize scope-matching entries in insertion order.
+	semantic := len(q.Embedding) > 0
 	text := strings.ToLower(strings.TrimSpace(q.Text))
+	var candidates []MemoryEntry
 	for i, s := range m.records {
 		if s.scope != q.Scope {
 			continue
 		}
 		r := s.rec
-		if text != "" &&
+		if !semantic && text != "" &&
 			!strings.Contains(strings.ToLower(r.Content), text) &&
 			!strings.Contains(strings.ToLower(r.Task), text) {
 			continue
 		}
-		indices = append(indices, i)
-	}
-
-	var out []MemoryEntry
-	totalChars := 0
-	// Latest N: iterate matching indices from newest to oldest.
-	for n := len(indices) - 1; n >= 0 && len(out) < limit; n-- {
-		i := indices[n]
-		s := m.records[i]
-		r := s.rec
-		if maxChars >= 0 && totalChars+len(r.Content) > maxChars {
-			break
+		var emb []float32
+		if len(s.embedding) > 0 {
+			emb = make([]float32, len(s.embedding))
+			copy(emb, s.embedding)
 		}
-		out = append(out, MemoryEntry{
+		candidates = append(candidates, MemoryEntry{
 			ID:        m.idForLocked(i),
 			Scope:     s.scope,
 			Agent:     r.Agent,
 			Task:      r.Task,
 			Content:   r.Content,
 			CreatedAt: s.createdAt,
+			Embedding: emb,
 		})
-		totalChars += len(r.Content)
 	}
-	return out, nil
+	if semantic {
+		return rankByEmbedding(q.Embedding, candidates, limit, maxChars), nil
+	}
+	return takeLatestN(candidates, limit, maxChars), nil
 }
 
 // Delete removes the entry with the given ID within scope. An unknown ID is

@@ -569,7 +569,7 @@ Não estavam numerados em §2.10/§3.11; ficam aqui para os PRs de implementaç�
 |---|---|---|---|
 | Memory interfaces + policy + **barreira D-M7** | P2 | M1–M2 | M1+M2 entregues 2026-08-21 (branch feat/phase1-a1-m1) |
 | FileStore | P2 | M3 | Entregue 2026-08-21 (branch feat/phase1-a1-m1) |
-| Embeddings hook | P2 | M4 | Planejado |
+| Embeddings hook | P2 | M4 | Entregue 2026-08-21 (branch feat/phase1-a1-m1) |
 | runTaskGroup | P1 | A1 | Entregue 2026-08-21 (branch feat/phase1-a1-m1) — testes dourados do Staged inalterados |
 | DAG + Async | P1 | A2–A4 | A2–A4 entregues 2026-08-21 (branch feat/phase1-a1-m1); A3 worker-cap + wave mista + FailFast dependents corrigidos |
 | Tools / sugar opcional | P3 | M5/A5 | Adiado |

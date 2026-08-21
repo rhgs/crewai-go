@@ -158,8 +158,8 @@ func (c *Crew) stashMemoryBuffer(task *Task, entry MemoryEntry) {
 // the provided tasks slice (declaration order within the group). Entries
 // for tasks not in tasks, or tasks without a buffer slot, are skipped.
 // Buffering is turned off before any Put so a nested path cannot re-stash.
-// AutoEmbed (M4) is reserved for a serial pass here (G8); not implemented
-// until M4.
+// When AutoEmbed is set, each entry is embedded serially here (G8) before
+// Put — never inside worker goroutines.
 func (c *Crew) commitMemoryBuffer(ctx context.Context, tasks []*Task, p *MemoryPolicy) {
 	c.memBufMu.Lock()
 	buf := c.memBuf
@@ -182,6 +182,7 @@ func (c *Crew) commitMemoryBuffer(ctx context.Context, tasks []*Task, p *MemoryP
 		if !ok {
 			continue
 		}
+		e = c.maybeEmbedEntry(ctx, e, t, p)
 		if _, err := c.store.Put(ctx, e); err != nil {
 			// G11: warn+capture, do not abort Kickoff.
 			c.logger.WarnContext(ctx, "memory AutoSave failed",
@@ -191,6 +192,39 @@ func (c *Crew) commitMemoryBuffer(ctx context.Context, tasks []*Task, p *MemoryP
 			}
 		}
 	}
+}
+
+// maybeEmbedEntry runs Embed serially when AutoEmbed is enabled. Soft-fails
+// on embedder errors / short results (entry saved without embedding).
+func (c *Crew) maybeEmbedEntry(ctx context.Context, e MemoryEntry, t *Task, p *MemoryPolicy) MemoryEntry {
+	if p == nil || !p.AutoEmbed || c.Embed == nil || e.Content == "" {
+		return e
+	}
+	// Respect cancellation between serial embeds without aborting Kickoff.
+	if err := ctx.Err(); err != nil {
+		c.logger.WarnContext(ctx, "memory AutoEmbed skipped",
+			"task", taskLabel(t, 0), "error", redactError(err))
+		return e
+	}
+	vecs, err := c.Embed(ctx, []string{e.Content})
+	if err != nil {
+		c.logger.WarnContext(ctx, "memory AutoEmbed failed",
+			"task", taskLabel(t, 0), "error", redactError(err))
+		if t != nil {
+			t.AddWarning(fmt.Sprintf("memory AutoEmbed failed: %v", err))
+		}
+		return e
+	}
+	if len(vecs) < 1 || len(vecs[0]) == 0 {
+		c.logger.WarnContext(ctx, "memory AutoEmbed returned empty vector",
+			"task", taskLabel(t, 0))
+		return e
+	}
+	// Copy so the embedder cannot retain a live alias into the store.
+	emb := make([]float32, len(vecs[0]))
+	copy(emb, vecs[0])
+	e.Embedding = emb
+	return e
 }
 
 // autoSaveEntry builds the MemoryEntry for a successful task output.

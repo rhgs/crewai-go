@@ -631,7 +631,8 @@ for _, r := range crew.MemorySnapshot().Records() {
 `*Memory` also implements the pluggable `crewai.MemoryStore` contract
 (Put/Query/Delete/Close with entry/query caps) used by long-term memory
 backends. `OpenFileStore(dir)` adds durable JSONL persistence
-(app owns Close). See [docs/memory.md](docs/memory.md).
+(app owns Close). Optional `Crew.Embed` + `AutoEmbed` add cosine recall.
+See [docs/memory.md](docs/memory.md).
 
 ## Examples
 

@@ -640,7 +640,7 @@ Not originally numbered in §2.10/§3.11; recorded here so implementation PRs do
 |---|---|---|---|
 | Memory interfaces + policy + **D-M7 commit barrier** | P2 | M1–M2 | M1+M2 shipped 2026-08-21 (branch feat/phase1-a1-m1) |
 | FileStore | P2 | M3 | Shipped 2026-08-21 (branch feat/phase1-a1-m1) |
-| Embeddings hook | P2 | M4 | Planned |
+| Embeddings hook | P2 | M4 | Shipped 2026-08-21 (branch feat/phase1-a1-m1) |
 | runTaskGroup extract | P1 | A1 | Shipped 2026-08-21 (branch feat/phase1-a1-m1) — Staged tests golden unchanged |
 | DAG + Async wire-up | P1 | A2–A4 | A2–A4 shipped 2026-08-21 (branch feat/phase1-a1-m1); A3 worker-cap + mixed-wave + FailFast dependents fixed |
 | Optional tools / sugar | P3 | M5/A5 | Deferred |

@@ -70,6 +70,19 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   dependentes da tarefa que falhou (D-A3). `0` continua ilimitado por design;
   `NewCrew` ainda define 8.
 
+### Adicionado (embeddings: M4)
+
+- **`EmbeddingFunc` + Query por cosseno (M4)**: `Crew.Embed` aceita um
+  embedder da app. Com `MemoryPolicy.AutoEmbed = true`, cada entrada de
+  AutoSave é embedada **em série na barreira de commit** (G8) antes do Put —
+  nunca dentro dos workers paralelos. Stores embutidos (*Memory, FileStore)
+  ranqueiam `MemoryQuery.Embedding` por similaridade de cosseno (stdlib);
+  `Text` substring é ignorado no caminho semântico. Dim mismatch / norma
+  zero pontuam 0; matches positivos cortam linhas zero; se nada estiver
+  embedado, Query cai no latest-N. Erros de AutoEmbed são soft
+  (warn+capture, entrada ainda salva). Exemplo: `examples/memory_embed`
+  (mock bag-of-words offline).
+
 ### Adicionado (FileStore: M3)
 
 - **Backend `FileStore` JSONL**: `OpenFileStore(dir)` abre um `MemoryStore`

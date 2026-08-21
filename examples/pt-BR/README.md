@@ -14,6 +14,7 @@ Cada subpasta é um programa executável independente.
 | `staged`        | Estágios em sequência, tarefas de um estágio em paralelo | ✅ OpenAI        |
 | `async_tasks`   | Waves `Task.Async` sob Sequential + merge com `WithContext` (mock offline) | ❌ Não / ✅ OpenAI |
 | `memory_file`   | Persistência `FileStore` JSONL entre dois Kickoffs (offline) | ❌ Não |
+| `memory_embed`  | `AutoEmbed` + Query por cosseno com embedder mock (offline) | ❌ Não |
 | `agentic_loop`  | Ciclo Planejar-Executar-Avaliar-Refinar (mock LLM)| ❌ Não                  |
 | `tools`         | Agente usando ferramentas via ReAct               | ✅ OpenAI               |
 | `xai_oauth`     | Grok por chave de API ou OAuth de assinatura      | ✅ xAI                  |

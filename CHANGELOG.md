@@ -68,6 +68,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   subset (previously dropped). `AsyncFailFast=false` skips only dependents of
   failed tasks (D-A3). `0` remains unlimited by design; `NewCrew` still sets 8.
 
+### Added (embeddings: M4)
+
+- **`EmbeddingFunc` + cosine Query (M4)**: `Crew.Embed` accepts an
+  app-provided embedder. With `MemoryPolicy.AutoEmbed = true`, each AutoSave
+  entry is embedded **serially at the commit barrier** (G8) before Put —
+  never inside parallel workers. Built-in stores (*Memory, FileStore) rank
+  `MemoryQuery.Embedding` by stdlib cosine similarity; substring `Text` is
+  ignored on the semantic path. Dim mismatch / zero-norm score 0; positive
+  matches trim zero-score rows; if nothing is embedded, Query falls back to
+  latest-N. AutoEmbed errors are soft (warn+capture, entry still saved).
+  Example: `examples/memory_embed` (offline bag-of-words mock).
+
 ### Added (FileStore: M3)
 
 - **`FileStore` JSONL backend**: `OpenFileStore(dir)` opens a durable

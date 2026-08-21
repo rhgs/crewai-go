@@ -100,6 +100,42 @@ Tarefas que falham nunca entram no AutoSave (G2). Erros de AutoSave geram
 warn+capture; não abortam o Kickoff (G11).
 
 
+
+## Embeddings + recall por cosseno (M4)
+
+Forneça um `EmbeddingFunc` e defina `MemoryPolicy.AutoEmbed = true` para
+persistir vetores no AutoSave. O embed roda **em série na barreira de
+commit** (G8) — nunca dentro dos workers paralelos. O core nunca embute
+modelo; a app é dona da chamada HTTP (mesma confiança dos providers de LLM).
+
+```go
+crew.Embed = func(ctx context.Context, texts []string) ([][]float32, error) {
+    // chame OpenAI / Ollama / modelo local…
+    return vectors, nil
+}
+p := crewai.NewMemoryPolicy()
+p.AutoEmbed = true
+crew.MemoryPolicy = p
+crew.Memory = true
+```
+
+**Ranking no Query:** passe um `MemoryQuery.Embedding` pré-computado para
+ranquear por similaridade de cosseno (só stdlib). Os stores embutidos
+(*Memory, FileStore) ignoram o `Text` substring no caminho semântico.
+Entradas sem vetor usável pontuam 0 e são cortadas quando há match
+positivo; se nada estiver embedado, Query cai no latest-N do conjunto
+candidato.
+
+```go
+hits, _ := store.Query(ctx, crewai.MemoryQuery{
+    Embedding: queryVec, // embede q você mesmo via EmbeddingFunc
+    Limit:     5,
+})
+```
+
+Erros de AutoEmbed são soft (warn+capture, entrada ainda salva sem
+vetor) — nunca abortam o Kickoff. Veja `examples/memory_embed`.
+
 ## FileStore (JSONL, M3)
 
 `OpenFileStore(dir)` abre um backend durável só-stdlib sob um root
@@ -156,4 +192,4 @@ _ = store.Delete(ctx, "", e.ID)
   escopo padrão (vazio).
 
 `Crew.Memory` permanece o alias permanente v0.x que garante um store InMemory
-quando `MemoryStore` é nil. Ranking por embeddings vem em M4.
+quando `MemoryStore` é nil.

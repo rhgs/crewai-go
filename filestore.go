@@ -166,9 +166,12 @@ func (fs *FileStore) Put(ctx context.Context, e MemoryEntry) (MemoryEntry, error
 }
 
 // Query returns matching entries from the RAM index (loaded at Open and
-// kept current by Put/Delete). Semantics match *Memory: empty Text ⇒ latest
-// N; Limit/MaxChars clamped; Scope partitions. Embedding is ignored in M3
-// (M4 adds cosine ranking).
+// kept current by Put/Delete). Semantics match *Memory:
+//
+//   - q.Embedding non-empty → cosine ranking (M4); substring Text ignored
+//   - otherwise empty Text ⇒ latest N; non-empty Text ⇒ substring filter
+//
+// Limit/MaxChars are clamped; Scope partitions results.
 func (fs *FileStore) Query(ctx context.Context, q MemoryQuery) ([]MemoryEntry, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -179,46 +182,31 @@ func (fs *FileStore) Query(ctx context.Context, q MemoryQuery) ([]MemoryEntry, e
 		return nil, ErrFileStoreClosed
 	}
 
-	limit := q.Limit
-	if limit <= 0 || limit > MaxMemoryQueryLimit {
-		limit = DefaultMemoryQueryLimit
-	}
-	maxChars := q.MaxChars
-	if maxChars == 0 {
-		maxChars = DefaultMemoryMaxChars
-	}
+	limit, maxChars := clampQueryBounds(q)
 
 	idx := fs.byScope[q.Scope]
 	if idx == nil {
 		return nil, nil
 	}
 
+	semantic := len(q.Embedding) > 0
 	text := strings.ToLower(strings.TrimSpace(q.Text))
-	// Collect live entry indexes in insertion order, then walk newest-first.
-	var live []int
+	var candidates []MemoryEntry
 	for i, e := range idx.entries {
 		if i2, ok := idx.byID[e.ID]; !ok || i2 != i {
 			continue // tombstoned or replaced slot
 		}
-		if text != "" &&
+		if !semantic && text != "" &&
 			!strings.Contains(strings.ToLower(e.Content), text) &&
 			!strings.Contains(strings.ToLower(e.Task), text) {
 			continue
 		}
-		live = append(live, i)
+		candidates = append(candidates, cloneEntry(e))
 	}
-
-	var out []MemoryEntry
-	total := 0
-	for n := len(live) - 1; n >= 0 && len(out) < limit; n-- {
-		e := idx.entries[live[n]]
-		if maxChars >= 0 && total+len(e.Content) > maxChars {
-			break
-		}
-		out = append(out, cloneEntry(e))
-		total += len(e.Content)
+	if semantic {
+		return rankByEmbedding(q.Embedding, candidates, limit, maxChars), nil
 	}
-	return out, nil
+	return takeLatestN(candidates, limit, maxChars), nil
 }
 
 // Delete removes the entry with the given id within scope. Unknown id is a

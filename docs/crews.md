@@ -47,6 +47,7 @@ See [LLMs > Logging](llms.md#logging) for the full reference.
 | `Memory`       | `bool`         | Ensures InMemory store when `MemoryStore` is nil (permanent v0.x alias). |
 | `MemoryStore`  | `MemoryStore`  | Optional long-term backend; app owns `Close`. |
 | `MemoryPolicy` | `*MemoryPolicy`| AutoSave/inject policy; nil ⇒ `NewMemoryPolicy()` defaults. |
+| `Embed`        | `EmbeddingFunc`| Optional app embedder; used when `AutoEmbed` is true (serial at barrier). |
 | `Name`         | `string`       | Optional crew id; default `MemoryPolicy.Scope` when set. |
 | `AsyncMaxWorkers` | `int`       | Cap on concurrent Async tasks per wave (default 8 via `NewCrew`; 0 = unlimited). |
 | `AsyncFailFast` | `bool`        | Cancel wave on first failure (default true). |

@@ -60,10 +60,13 @@ type MemoryEntry struct {
 // MemoryQuery controls recall.
 type MemoryQuery struct {
 	Scope MemoryScope
-	// Text filters by keyword/substring (the M1 in-memory store path).
-	// Embedding (len>0) requests similarity ranking on stores that support
-	// it; the M1 in-memory store ignores Embedding entirely (it computes no
-	// embeddings) and falls back to Text / latest-N when Text is empty.
+	// Text filters by keyword/substring when Embedding is empty.
+	// Embedding (len>0) requests cosine similarity ranking over stored
+	// vectors (M4). Built-in stores (*Memory, FileStore) rank by cosine and
+	// ignore Text for filtering on the semantic path; when no entry has a
+	// usable embedding the result may be empty (or all-zero scores trimmed).
+	// The core never computes query embeddings — pass them pre-computed, or
+	// embed q.Text yourself via EmbeddingFunc before Query.
 	Text      string
 	Embedding []float32
 	// Limit is the maximum number of hits; values outside
