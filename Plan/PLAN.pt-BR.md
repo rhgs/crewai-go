@@ -236,16 +236,21 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   à interface `LLM` (ou interface opcional `StreamingLLM`) e propagar no executor.
 - [x] **Function calling nativo** por provedor (OpenAI/Anthropic/Ollama/xAI)
   via `ToolModeNative` + `ToolCallingLLM` — ReAct continua default/fallback.
-- [ ] **Async/paralelismo** de tarefas (`async_execution`) com `sync.WaitGroup`
-  / `errgroup`-like usando goroutines e canais.
+- [ ] **Async/paralelismo** de tarefas (`async_execution` / `Task.Async` + DAG
+  via `Task.Context`) com `sync.WaitGroup` / waves — além do parallel-within-stage
+  do Staged. Design: [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md)
+  ([EN](PLAN.memory-async.md)).
 - [x] **Delegação real** entre agentes — `NewDelegationTool` /
   `delegate_to_coworker` + `EnableDelegationTool` (v0.5.0). Atribuição do
   manager hierárquico permanece separada.
 
 ### P2 — Persistência e observabilidade
 
-- [ ] **Memória de longo prazo** com embeddings/busca semântica e persistência
-  (interface `MemoryStore` + implementação em arquivo/sqlite como padrão).
+- [ ] **Memória de longo prazo** com `MemoryStore`, FileStore JSONL (stdlib),
+  policy de injeção orçada e hook opcional de embeddings (sem deps no core;
+  SQLite fica fora do módulo). Design:
+  [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md)
+  ([EN](PLAN.memory-async.md)).
 - [ ] **Callbacks e telemetria** — hooks de início/fim de tarefa e iteração
   ReAct, exportáveis (log estruturado, métricas).
 - [x] **Guardrails** — validacao de saida com retry via loop de reparo da saida

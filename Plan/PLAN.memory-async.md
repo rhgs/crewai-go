@@ -1,0 +1,574 @@
+# Plan — Long-term Memory & Async beyond Staged
+
+> **Status:** Plan only — do not implement until scheduled and open decisions are closed.  
+> **Related:** current in-RAM `Memory` (`memory.go`), `Crew.Memory` / `MemorySnapshot`, `Process=Staged` (`runStaged`), roadmap items in `PLAN.md` §6 P1/P2.  
+> **Constraints:** zero external module dependencies in the core library (`go.mod` stays stdlib-only). Quality gates from §6.1 of `PLAN.security-residuals.md` apply to every implementation PR (coverage ≥ 90% on touched packages, race-clean, docs EN+PT-BR, CHANGELOG).
+
+---
+
+## 0. Why these two together
+
+| Capability | Today | Gap |
+|---|---|---|
+| **Memory** | Per-Kickoff in-RAM bag of `MemoryRecord`; substring `Search`; injected only when `Task.Context` is empty | No cross-run persistence, no semantic recall, no scoping (crew/agent/session), no budgeted injection into prompts |
+| **Async** | Parallelism **only** inside a Staged stage (`WaitGroup` + cancel-on-fail) | Sequential/Hierarchical always serial; no DAG of independent tasks; no `Task.Async` / wave scheduler |
+
+They interact: async waves write memory concurrently (store must stay race-safe); long-term stores must not assume single-threaded Kickoff. Designing them in one plan avoids two incompatible APIs.
+
+**Non-goals (this plan):**
+- Streaming LLM tokens (separate P1).
+- Full vector DB / cloud RAG products inside the core module.
+- Replacing Staged process (Staged stays; async extends Sequential/Hierarchical).
+- Cgo or mandatory third-party DB drivers in `github.com/rhgs/crewai-go`.
+
+---
+
+## 1. Baseline (code truth as of v0.5.0)
+
+### 1.1 Memory today
+
+```go
+type Memory struct { /* RWMutex + []MemoryRecord */ }
+type MemoryRecord struct { Agent, Task, Content string }
+
+// Crew
+Memory bool          // if true, Kickoff does c.mem = NewMemory()
+mem    *Memory       // private
+MemorySnapshot() *Memory
+
+// Crew.execute
+contextText := task.contextText()
+if c.mem != nil && contextText == "" {
+    contextText = c.mem.String()   // dump ALL records into the prompt
+}
+// after success:
+c.mem.Save(MemoryRecord{Agent, Task: task.Name, Content: result})
+```
+
+Implications:
+- Memory is **Kickoff-scoped** and discarded when the `Crew` value is GC'd.
+- Injection is **all-or-nothing** and only when there is no `WithContext` chain — large crews blow the context window.
+- No timestamps, IDs, namespaces, importance, or embeddings.
+- Docs already say custom embeddings/persistence are “application-side”.
+
+### 1.2 Concurrency today
+
+| Process | Parallelism |
+|---|---|
+| `Sequential` | None — one task after another |
+| `Hierarchical` | None — manager picks agent, then serial execute |
+| `Staged` | All tasks in a stage concurrent; stages serial; optional stage continues on failure; panic recovery per task |
+
+`Kickoff` is single-flight (`ErrCrewRunning`). Staged already proves the pattern: derived `stageCtx`, `WaitGroup`, ordered aggregation, first-error tracking.
+
+### 1.3 Dependency signal already present
+
+`Task.Context []*Task` is an explicit dependency list used to build `contextText()`. Async scheduling should **reuse** this as the DAG edge set (no second dependency DSL in v1).
+
+---
+
+## 2. Part A — Long-term memory
+
+### 2.1 Goals
+
+1. **Pluggable store** so apps can persist and reload memory across process restarts.
+2. **Queryable recall** beyond substring: at least keyword/`Search`, optionally embedding similarity **without** forcing a vector dependency into core.
+3. **Budgeted prompt injection** (top-K, max chars) so memory cannot DoS the context window.
+4. **Backward compatible** `Crew.Memory bool` and existing `Memory` type remain valid for short-term runs.
+5. **Facts stay separate** — `Fact` / `FactSource` remain provenance-grade connector data; long-term memory is soft working/episodic context, not a substitute for Facts.
+
+### 2.2 Layered design
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Crew / executor                                         │
+│  - MemoryPolicy (when/how to inject & save)             │
+│  - MemorySession (run-scoped handle bound to Kickoff)   │
+└──────────────────────────┬──────────────────────────────┘
+                           │ uses
+┌──────────────────────────▼──────────────────────────────┐
+│ MemoryStore (interface)                                 │
+│  Put / Query / Delete / Close                           │
+└────────────┬─────────────────────────────┬──────────────┘
+             │                             │
+   ┌─────────▼─────────┐         ┌─────────▼──────────────┐
+   │ InMemoryStore     │         │ FileStore (stdlib)     │
+   │ (wraps/extends    │         │ JSONL append + index   │
+   │  today's Memory)  │         │ under a directory      │
+   └───────────────────┘         └────────────────────────┘
+             │                             │
+             └────────── optional ─────────┘
+                    EmbeddingFunc (app-provided)
+                    for QueryModeSemantic
+```
+
+### 2.3 Public API sketch (stdlib-only core)
+
+```go
+// MemoryScope identifies a logical partition (tenant/crew/project).
+// Empty scope is valid (default partition).
+type MemoryScope string
+
+// MemoryEntry is the persisted unit (superset of MemoryRecord).
+type MemoryEntry struct {
+    ID        string      // stable id (uuid-ish hex); assigned by store if empty
+    Scope     MemoryScope
+    Agent     string
+    Task      string
+    Content   string
+    CreatedAt time.Time
+    // Metadata is optional small key/value (string values only in v1).
+    Metadata  map[string]string
+    // Embedding is optional; nil means "not embedded yet".
+    // Stored as float32 for compactness when present.
+    Embedding []float32
+}
+
+// MemoryQuery controls recall.
+type MemoryQuery struct {
+    Scope     MemoryScope
+    Text      string            // keyword / substring; optional if embedding set
+    Embedding []float32         // if len>0 and store supports it → similarity
+    Limit     int               // default e.g. 8; hard cap MaxMemoryQueryLimit
+    MaxChars  int               // total Content chars across hits; 0 = no cap
+    // Since, until optional time bounds (v1.1 if needed)
+}
+
+// MemoryStore is implemented by built-in and application stores.
+// All methods must be safe for concurrent use.
+type MemoryStore interface {
+    Put(ctx context.Context, e MemoryEntry) (MemoryEntry, error)
+    Query(ctx context.Context, q MemoryQuery) ([]MemoryEntry, error)
+    // Delete removes by id within scope. Unknown id → nil error (idempotent).
+    Delete(ctx context.Context, scope MemoryScope, id string) error
+    Close() error
+}
+
+// EmbeddingFunc is provided by the application (HTTP call to OpenAI/Ollama/etc.).
+// Core never bundles an embedding model.
+type EmbeddingFunc func(ctx context.Context, texts []string) ([][]float32, error)
+
+// MemoryPolicy configures automatic save/inject during Kickoff.
+type MemoryPolicy struct {
+    // AutoSave stores each successful task output (default true when store set).
+    AutoSave bool
+    // AutoEmbed runs EmbeddingFunc on save when non-nil (default false if func nil).
+    AutoEmbed bool
+    // InjectWhenEmptyContext keeps today's behavior: inject only if task.Context empty.
+    // If false, always attempt inject (merged with explicit context — see D-M3).
+    InjectWhenEmptyContext bool
+    // Query defaults used for injection.
+    DefaultLimit    int
+    DefaultMaxChars int
+    // Scope defaults to Crew.Name or a configured Scope.
+    Scope MemoryScope
+}
+
+// On Crew:
+//   Store MemoryStore      // optional; if nil && Memory bool → InMemoryStore
+//   MemoryPolicy *MemoryPolicy
+//   Embed EmbeddingFunc    // optional
+//   Memory bool            // DEPRECATED alias: true ⇒ ensure InMemoryStore for this Kickoff
+```
+
+**Compatibility bridge:**
+
+```go
+// *Memory continues to work for simple apps.
+// Prefer: var _ MemoryStore = (*Memory)(nil) via adapter methods,
+// OR keep Memory as today and wrap it:
+
+func (m *Memory) AsStore() MemoryStore // returns in-memory store sharing m's data
+```
+
+Recommended: evolve `*Memory` to implement `MemoryStore` with `Put`/`Query` mapping to `Save`/`Search`, `Close` no-op, so existing tests stay green.
+
+### 2.4 Built-in stores
+
+| Store | Package location | Persistence | Search |
+|---|---|---|---|
+| **InMemoryStore** | root (`memory.go` / `memory_store.go`) | Process lifetime | substring (and cosine if embeddings present in entries) |
+| **FileStore** | root or `memory/filestore` subfolder **same module** | Directory of JSONL + small JSON index | substring on load/index; cosine if embeddings on entries |
+
+**FileStore format (v1):**
+
+```
+{root}/
+  scopes/{urlsafeScope}/
+    entries.jsonl      # append-only MemoryEntry JSON lines
+    meta.json          # schema version, counters
+```
+
+- Load index into RAM on `Open` (acceptable for tens of thousands of short entries).
+- `Put` appends line + updates RAM index under mutex.
+- Optional compaction API later (`Compact(ctx)` rewrite).
+- File mode `0600` for files, `0700` for dirs (match OutputFile / token hygiene).
+- Path must be caller-trusted; document jail expectations (no model-controlled roots).
+
+**Explicitly deferred:** SQLite **inside core**. Reasons: zero-deps policy; `database/sql` + modernc is an external module. Document an **example** `examples/memory_sqlite` pattern *outside* the library or a future optional module `github.com/rhgs/crewai-go-memory-sqlite` if needed — not in this plan’s core PRs.
+
+### 2.5 Embedding / semantic search (optional path)
+
+1. App sets `Crew.Embed = myEmbedder`.
+2. On `Put` with `AutoEmbed`, store calls embedder once, saves `Embedding`.
+3. `Query` with `Embedding` or with `Text` (embed query text then score) ranks by cosine similarity, then applies `Limit` / `MaxChars`.
+4. If no embeddings available, fall back to substring `Search` behavior.
+
+```go
+func cosine(a, b []float32) float64 // stdlib only; reject dim mismatch
+```
+
+**Security:** embedder is outbound HTTP under app control — same trust as LLM providers. Core must pass `ctx` and not log full text at Info by default.
+
+### 2.6 Prompt injection policy
+
+Replace blind `c.mem.String()` with:
+
+```go
+hits, err := store.Query(ctx, MemoryQuery{
+    Scope: policy.Scope,
+    Text: injectionQueryFromTask(task), // see D-M4
+    Limit: policy.DefaultLimit,
+    MaxChars: policy.DefaultMaxChars,
+})
+contextText = formatMemoryBlock(hits) // bounded, labeled
+```
+
+Format sketch:
+
+```text
+## Memory (recalled)
+- [Researcher | task=market] …truncated content…
+- [Writer | task=brief] …
+```
+
+Hard caps (constants):
+- `MaxMemoryQueryLimit = 32`
+- `MaxMemoryEntryBytes = 32 << 10` (reject/truncate oversized Content on Put)
+- `DefaultMemoryMaxChars = 4000`
+
+### 2.7 Interaction with Facts
+
+| | Memory | Facts |
+|---|---|---|
+| Source | Usually LLM task outputs (soft) | `FactSource` tools only |
+| Trust | Untrusted for compliance | Provenanced |
+| Use | Prompt context / recall | Guardrails, audit, final reports |
+
+Do **not** auto-copy Facts into MemoryStore in v1 (apps may do so explicitly).
+
+### 2.8 Memory — PR breakdown
+
+| PR | Deliverable | Notes |
+|---|---|---|
+| **M1** | `MemoryEntry`, `MemoryStore`, `MemoryQuery`; `*Memory` implements store; adapter tests | No Crew behavior change yet |
+| **M2** | `MemoryPolicy` + Crew wiring (`Store`, inject/save paths); deprecate reliance on dump-all | Backward compatible `Memory bool` |
+| **M3** | `FileStore` JSONL + docs EN/PT + example `examples/memory_file` | Path security, 0600 |
+| **M4** | `EmbeddingFunc` + cosine query path + docs; example with mock embedder | No network in tests |
+| **M5** (opt) | Memory tool for agents (`recall_memory` / `remember`) | Only if product wants agent-driven recall |
+
+### 2.9 Memory — tests & gates
+
+- Unit: Put/Query/Delete concurrency (`-race`), limit/maxchars, scope isolation, oversized content.
+- FileStore: restart durability (Put → Close → Open → Query), corrupt line skip/fail policy (**D-M5**).
+- Crew integration: `Memory bool` still works; policy inject doesn’t exceed MaxChars; async Kickoff (once async ships) doesn’t race the store.
+- Coverage ≥ 90% on new files/packages.
+- Docs: `docs/memory.md` + pt-BR rewrite; README blurb; CHANGELOG.
+
+### 2.10 Memory — open decisions
+
+| ID | Question | Options | Recommendation |
+|---|---|---|---|
+| **D-M1** | Default store when `Memory=true` and `Store==nil`? | (A) InMemory only (B) require explicit Store | **A** — zero surprise |
+| **D-M2** | FileStore in root vs `memory/` subpackage? | (A) root (B) subpackage | **B** `memoryfile` or keep types in root, file impl in `memory/file` — prefer **root types + `memoryfile` package** only if import cycles; else single root files |
+| **D-M3** | Inject when task already has `Context`? | (A) never (today) (B) append memory block (C) policy flag | **C** default=A |
+| **D-M4** | Automatic injection query text | (A) empty → latest N (B) task description keywords (C) embed description | **A** for v1; **B** later |
+| **D-M5** | Corrupt JSONL line | (A) fail Open (B) skip line + warning | **B** with counter in meta |
+| **D-M6** | Cross-Kickoff FileStore lifecycle | (A) app opens/closes Store (B) Crew.Close | **A** + optional `Crew.WithStore` docs; Crew does not Close app stores automatically unless `StoreOwner` flag |
+
+---
+
+## 3. Part B — Async beyond Staged
+
+### 3.1 Goals
+
+1. Run **independent** tasks concurrently outside Staged when the user opts in.
+2. Honor **dependencies** via existing `Task.Context` (DAG).
+3. Deterministic **aggregation order** (declaration order), like Staged.
+4. Clear failure policy (fail-fast vs collect).
+5. Keep Staged semantics unchanged; avoid two conflicting parallel runtimes if possible by **sharing a scheduler primitive**.
+
+### 3.2 Mental model
+
+```
+Tasks with edges t → d in t.Context means: t depends on d (d before t).
+
+Wave 0: tasks with no unmet deps
+Wave 1: tasks unblocked after wave 0 completes
+…
+```
+
+This is a **DAG scheduler**. Cycles → hard error before execution (`ErrTaskDependencyCycle`).
+
+### 3.3 API sketch
+
+```go
+// Task.Async, when true, marks the task as eligible to run concurrently
+// with other eligible tasks once dependencies are satisfied.
+// Default false ⇒ behavior identical to today (fully serial in Sequential/
+// Hierarchical, except Staged which ignores this flag and uses stage batches).
+Async bool
+
+// Optional future sugar:
+func (t *Task) WithAsync() *Task { t.Async = true; return t }
+
+// Crew-level defaults:
+// AsyncMaxWorkers int // 0 = unlimited (bounded by number of ready tasks)
+// AsyncFailFast bool  // default true — cancel siblings on first error
+```
+
+**Process interaction:**
+
+| Process | Behavior |
+|---|---|
+| `Sequential` | Build DAG from `c.Tasks`. Schedule ready `Async` tasks in parallel; non-Async tasks still wait for deps but run alone in their slot (no sharing a wave with others) **or** simpler rule: **D-A1**. |
+| `Hierarchical` | Same DAG on `c.Tasks`, but agent resolution still via manager when `task.Agent==nil` **before** execute (serial manager calls or parallel — **D-A2**). |
+| `Staged` | **Unchanged.** Stage membership defines batches; `Task.Async` ignored (document). Reuse internal `runParallelTasks` helper underneath both. |
+
+### 3.4 Recommended Sequential rule (D-A1 recommendation)
+
+**Wave-based for all tasks; `Async` only controls whether multiple ready tasks may start together:**
+
+- Ready set R = tasks whose deps are done.
+- Let P = { t in R | t.Async }, S = { t in R | !t.Async }.
+- If P non-empty: run all of P concurrently (up to MaxWorkers); then continue.
+- Else: run one task from S (stable order by index) serially.
+- Rationale: non-Async tasks never race each other; Async tasks get parallelism; deps always respected.
+
+Alternative (stricter): only tasks with `Async=true` ever parallelize; others always global-serial even if independent — simpler but weaker.
+
+### 3.5 Shared primitive (implementation core)
+
+Extract from `runStaged`:
+
+```go
+// runTaskGroup runs tasks concurrently (or serial if len==1), preserves
+// results by index, optional fail-fast cancel, panic recovery.
+func (c *Crew) runTaskGroup(
+    ctx context.Context,
+    label string, // stage name or "async-wave-N"
+    tasks []*Task,
+    agents []*Agent, // pre-resolved, parallel to tasks
+    failFast bool,
+) (results []groupResult, firstErr error)
+```
+
+Then:
+- `runStaged` → per stage call `runTaskGroup`.
+- New `runSequential` / hierarchical path → DAG waves call `runTaskGroup` for the parallel subset.
+
+### 3.6 Failure & cancel semantics
+
+Align with Staged non-optional:
+- **FailFast true (default):** cancel wave context; wait WaitGroup; return first real error (ignore sibling `context.Canceled` when possible).
+- **FailFast false:** run all ready tasks in the wave; accumulate errors; decide whether to schedule downstream (**D-A3**: block dependents of failed tasks only vs abort whole Kickoff).
+
+Recommendation **D-A3-A:** dependents of a failed task are skipped with error; unrelated branches continue if FailFast false; if FailFast true, whole Kickoff aborts.
+
+### 3.7 Memory / output safety under async
+
+- `MemoryStore` / `*Memory` already mutexed — OK for concurrent `Save`/`Put`.
+- `task.setOutputWithJail` uses per-task state — OK if one goroutine per task.
+- `CrewOutput` aggregation **after** wave join — main goroutine only.
+- Progress callbacks already required to be concurrent-safe.
+- Interpolation of inputs remains in Kickoff before schedule (single-threaded).
+
+### 3.8 Hierarchical + async caveat
+
+Manager `delegate()` is an LLM call. Options:
+1. Resolve all agents serially first, then async execute (predictable).
+2. Resolve agent lazily in each worker (manager LLM must be concurrent-safe — providers are).
+
+Recommendation: **serial resolve for tasks that need manager, then async execute** for the wave (simpler mental model).
+
+### 3.9 Async — PR breakdown
+
+| PR | Deliverable |
+|---|---|
+| **A1** | Extract `runTaskGroup` from `runStaged`; Staged behavior golden tests unchanged |
+| **A2** | DAG builder + cycle detection + wave planner unit tests |
+| **A3** | Wire Sequential (+ Hierarchical) with `Task.Async` + Crew `AsyncMaxWorkers` / `AsyncFailFast` |
+| **A4** | Docs EN/PT (`crews.md`, `tasks.md`), example `examples/async_tasks`, CHANGELOG |
+| **A5** (opt) | `Process=DAG` alias or `Crew.Schedule=Dependency` if Sequential+Async proves confusing |
+
+### 3.10 Async — tests & gates
+
+- Unit: cycle detection, topo waves, stable order.
+- Integration: two independent Async tasks run with overlapping time (channel rendezvous test); dependent task starts only after upstream `done`.
+- FailFast cancel test; optional continue test.
+- Panic in one Async task does not crash process.
+- `-race` on async Kickoff with Memory store saves.
+- Coverage ≥ 90% on scheduler files.
+
+### 3.11 Async — open decisions
+
+| ID | Question | Options | Recommendation |
+|---|---|---|---|
+| **D-A1** | Scheduling rule for mixed Async/sync | (A) wave rule above (B) global serial except pure-Async subgraph | **A** |
+| **D-A2** | Hierarchical agent resolution | (A) serial pre-resolve (B) parallel lazy | **A** |
+| **D-A3** | FailFast false + failed upstream | (A) skip dependents only (B) abort crew | **A** |
+| **D-A4** | Default `AsyncMaxWorkers` | (A) 0 unlimited (B) `GOMAXPROCS` (C) 8 | **A** with docs warning |
+| **D-A5** | Staged interaction with `Task.Async` | (A) ignore flag (B) error if set | **A** |
+| **D-A6** | New process constant vs Sequential flag | (A) Sequential+Task.Async only (B) `Process=Async` | **A** — fewer concepts |
+
+---
+
+## 4. Cross-cutting concerns
+
+### 4.1 Zero dependencies
+
+| Need | Approach |
+|---|---|
+| UUID/id | `crypto/rand` hex |
+| Persistence | JSON/JSONL + files |
+| Embeddings | App-provided `EmbeddingFunc` |
+| Vector DB | Out of core |
+| SQLite | Out of core (example/external module later) |
+
+### 4.2 Security
+
+- FileStore roots are **trusted paths** (same class as `OutputDir`).
+- Bound entry size and query limits (DoS / prompt flooding).
+- Redact paths in errors if they might contain home directories? Optional; prefer consistent `redactError` on surfaced errors.
+- Async cancel must not leave FileStore partially corrupted — append line fully under write lock; use `bufio` + flush.
+
+### 4.3 Observability
+
+- Progress events: reuse `task_started` / `task_completed`; optional `wave_started` / `wave_completed` (**D-X1** default skip in v1 to avoid event spam).
+- Debug logs: wave index, worker count, memory hit count (not full contents at Info).
+
+### 4.4 Versioning
+
+| Slice | Suggested release |
+|---|---|
+| M1–M2 (interfaces + policy + in-RAM) | v0.6.0 minor |
+| M3 FileStore | v0.6.0 or v0.6.1 |
+| M4 embeddings | v0.6.x |
+| A1–A4 async DAG | v0.6.0 if ready together; else v0.7.0 |
+
+Prefer **one minor (v0.6.0)** shipping M1–M2 + A1–A4 if capacity allows — marketed as “durable memory foundations + async tasks”. FileStore/embeddings can trail.
+
+### 4.5 Quality gates (every PR)
+
+Copied/adapted from security residuals:
+
+1. Code review checklist (trust boundaries, caps, ctx, race).
+2. `go test ./...` and `go test -race` on touched packages.
+3. Coverage ≥ 90% on new/changed packages.
+4. Docs EN + PT-BR + godoc + CHANGELOG bilíngue.
+5. No new `require` in `go.mod`.
+6. `gofmt` / `go vet` clean.
+
+---
+
+## 5. Suggested implementation order
+
+```
+Phase 0  Close open decisions D-M* and D-A* (short RFC in PR description)
+Phase 1  A1 extract runTaskGroup          } can parallelize with
+Phase 1  M1 MemoryStore interface         } independent file ownership
+Phase 2  A2 DAG planner
+Phase 2  M2 Crew MemoryPolicy wiring
+Phase 3  A3 Sequential/Hierarchical Async
+Phase 3  M3 FileStore
+Phase 4  A4 + M4 docs/examples/embeddings
+Phase 5  Optional M5 memory tools / A5 Process sugar
+```
+
+File ownership to avoid conflicts:
+- Engineer/async: `crew.go`, `process.go`, new `schedule.go`, crew tests.
+- Engineer/memory: `memory.go`, new `memory_store.go` / `memory_file.go`, memory tests, docs/memory.
+
+---
+
+## 6. Documentation plan
+
+| Doc | Updates |
+|---|---|
+| `docs/memory.md` + pt-BR | Store interface, FileStore, policy, embeddings hook, vs Facts |
+| `docs/crews.md` + pt-BR | Async waves, FailFast, MaxWorkers, Staged unchanged |
+| `docs/tasks.md` + pt-BR | `Task.Async`, Context as deps for DAG |
+| `README` EN/PT | Feature bullets when shipped |
+| `examples/memory_file` | Persist across two Kickoffs |
+| `examples/async_tasks` | Two parallel research tasks → merge task |
+| `Plan/PLAN.md` | Checkboxes when PRs merge |
+
+---
+
+## 7. Acceptance criteria (epic done)
+
+### Long-term memory
+- [ ] `MemoryStore` interface + in-memory implementation; existing `Memory bool` tests pass.
+- [ ] Policy-based inject with hard caps; no unbounded dump by default when policy uses limits.
+- [ ] FileStore survives process restart in tests.
+- [ ] Optional embedding path tested with fake embedder (cosine rank).
+- [ ] Bilingual docs + example.
+
+### Async beyond staged
+- [ ] Independent `Task.Async` tasks overlap in time under Sequential.
+- [ ] `Task.Context` dependencies enforced; cycles error clearly.
+- [ ] Staged golden behavior unchanged (same tests).
+- [ ] FailFast cancel + panic recovery covered.
+- [ ] `-race` clean with memory saves under async.
+- [ ] Bilingual docs + example.
+
+### Global
+- [ ] `go.mod` still free of new deps.
+- [ ] Coverage gates met.
+- [ ] CHANGELOG EN/PT under Unreleased until release tag.
+
+---
+
+## 8. Risk register
+
+| Risk | Mitigation |
+|---|---|
+| Prompt bloat from memory | Default MaxChars + Limit; metrics in debug |
+| DAG UX confusion vs Staged | Docs comparison table; Staged ignores Async |
+| FileStore growth | Document compaction later; entry size cap |
+| Hierarchical manager bottleneck | Serial pre-resolve agents |
+| Scope creep into RAG product | Embeddings are hooks only; no chunking pipeline in core |
+| Import cycles Crew ↔ memory file | Keep interfaces in root; file impl same package or thin subpackage |
+
+---
+
+## 9. Decision log (fill before coding)
+
+| ID | Decision | Date | Notes |
+|---|---|---|---|
+| D-M1 | _TBD_ | | Default store |
+| D-M2 | _TBD_ | | Package layout |
+| D-M3 | _TBD_ | | Inject vs Context |
+| D-M4 | _TBD_ | | Query text |
+| D-M5 | _TBD_ | | Corrupt line |
+| D-M6 | _TBD_ | | Close ownership |
+| D-A1 | _TBD_ | | Wave rule |
+| D-A2 | _TBD_ | | Hierarchical resolve |
+| D-A3 | _TBD_ | | Partial failure |
+| D-A4 | _TBD_ | | MaxWorkers default |
+| D-A5 | _TBD_ | | Staged × Async |
+| D-A6 | _TBD_ | | Process constant |
+
+---
+
+## 10. Status tracking
+
+| Workstream | Phase | PRs | Status |
+|---|---|---|---|
+| Memory interfaces + policy | P2 | M1–M2 | Planned |
+| FileStore | P2 | M3 | Planned |
+| Embeddings hook | P2 | M4 | Planned |
+| runTaskGroup extract | P1 | A1 | Planned |
+| DAG + Async wire-up | P1 | A2–A4 | Planned |
+| Optional tools / sugar | P3 | M5/A5 | Deferred |
+

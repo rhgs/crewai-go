@@ -249,16 +249,21 @@ and environment variable names in docs/README. The `.gitignore` protects
   in the executor.
 - [x] **Native function calling** per provider (OpenAI/Anthropic/Ollama/xAI)
   via `ToolModeNative` + `ToolCallingLLM` — ReAct remains the default/fallback.
-- [ ] **Async/parallelism** of tasks (`async_execution`) with `sync.WaitGroup`
-  / an errgroup-like pattern using goroutines and channels.
+- [ ] **Async/parallelism** of tasks (`async_execution` / `Task.Async` + DAG
+  via `Task.Context`) with `sync.WaitGroup` / waves — beyond Staged
+  parallel-within-stage. Design: [`PLAN.memory-async.md`](PLAN.memory-async.md)
+  ([PT](PLAN.memory-async.pt-BR.md)).
 - [x] **Real delegation** between agents — `NewDelegationTool` /
   `delegate_to_coworker` + `Crew.EnableDelegationTool` (v0.5.0). Hierarchical
   manager assignment remains separate.
 
 ### P2 — Persistence and observability
 
-- [ ] **Long-term memory** with embeddings/semantic search and persistence
-  (`MemoryStore` interface + file/sqlite implementation as default).
+- [ ] **Long-term memory** with `MemoryStore`, JSONL FileStore (stdlib),
+  budgeted injection policy, and optional embedding hook (no core deps;
+  SQLite stays out of module). Design:
+  [`PLAN.memory-async.md`](PLAN.memory-async.md)
+  ([PT](PLAN.memory-async.pt-BR.md)).
 - [ ] **Callbacks and telemetry** — task and ReAct-iteration start/end hooks,
   exportable (structured logs, metrics).
 - [x] **Guardrails** — output validation with retry via the structured-output
