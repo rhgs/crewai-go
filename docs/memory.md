@@ -74,13 +74,38 @@ The built-in `Memory` is in-RAM and concurrency-safe. For semantic search
 (embeddings) or persistence, you can wrap/replace this logic in your
 application — the `MemoryRecord` structure is intentionally simple.
 
-## Long-term store interface (v0.6 preview)
+## MemoryPolicy + commit barrier (M2)
+
+`Crew.MemoryPolicy` controls automatic save/inject. Nil means
+`NewMemoryPolicy()` defaults (`AutoSave=true`, `InjectWhenEmptyContext=true`,
+budgeted `DefaultLimit` / `DefaultMaxChars`). A literal `MemoryPolicy{}` is
+**not** those defaults — use `NewMemoryPolicy` and override fields.
+
+```go
+crew.Memory = true // ensures InMemory store when MemoryStore is nil
+crew.Name = "my-crew" // default MemoryPolicy.Scope (G3)
+crew.MemoryPolicy = crewai.NewMemoryPolicy()
+crew.MemoryPolicy.DefaultMaxChars = 2000
+// or supply an external store (app owns Close — D-M6):
+// crew.MemoryStore = myStore
+```
+
+**D-M7 visibility invariant:** during a parallel wave/stage, AutoSave writes
+go into a per-task buffer. They are committed to the store **only at the
+barrier**, in declaration order. The next wave's inject/`Query` sees only the
+committed snapshot — never in-flight sibling writes. Do **not** use Memory as
+the merge channel for parallel siblings; use `WithContext`.
+
+Failed tasks are never AutoSaved (G2). AutoSave errors are warned and
+captured; they do not abort Kickoff (G11).
+
+## Long-term store interface
 
 `*Memory` also implements `crewai.MemoryStore`, the pluggable long-term
 memory contract the durable backends will use:
 
 ```go
-var store crewai.MemoryStore = crew.NewMemory() // or existing *Memory
+var store crewai.MemoryStore = crewai.NewMemory() // or existing *Memory
 
 e, _ := store.Put(ctx, crewai.MemoryEntry{Agent: "Analyst", Content: "revenue grew 12%"})
 hits, _ := store.Query(ctx, crewai.MemoryQuery{Limit: 5})
@@ -97,6 +122,6 @@ _ = store.Delete(ctx, "", e.ID)
 - Entries are partitioned by `MemoryScope`; short-term `Save` records live in
   the default (empty) scope.
 
-`Crew.Memory` still wires only the in-RAM short-term memory in v0.5; the Crew
-never calls `MemoryStore` yet — a `MemoryPolicy` integration arrives with M2.
-FileStore/JSONL (`filestore.go`) and embedding ranking follow as M3/M4.
+`Crew.Memory` remains the permanent v0.x alias that ensures an InMemory store
+when `MemoryStore` is nil. FileStore/JSONL (`filestore.go`) and embedding
+ranking follow as M3/M4.

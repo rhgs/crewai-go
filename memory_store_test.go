@@ -163,8 +163,12 @@ func TestMemoryQueryScopePartitionsResults(t *testing.T) {
 	m.Save(crewai.MemoryRecord{Agent: "A", Content: "short-term record"})
 	ids := seedMemoryWithIDs(t, m, 2)
 
-	if _, err := crewai.NewMemory().Query(context.Background(), crewai.MemoryQuery{}); err != nil {
-		t.Fatalf("empty memory Query: %v", err)
+	// Explicit scoped Put.
+	scoped, err := m.Put(context.Background(), crewai.MemoryEntry{
+		Scope: "tenant-a", Agent: "B", Content: "tenant content",
+	})
+	if err != nil {
+		t.Fatalf("scoped Put: %v", err)
 	}
 
 	def, err := m.Query(context.Background(), crewai.MemoryQuery{Limit: 32})
@@ -175,12 +179,12 @@ func TestMemoryQueryScopePartitionsResults(t *testing.T) {
 		t.Errorf("default scope sees %d entries, want 3 (Save + 2 Put)", len(def))
 	}
 
-	other, err := m.Query(context.Background(), crewai.MemoryQuery{Scope: "tenant-a"})
+	other, err := m.Query(context.Background(), crewai.MemoryQuery{Scope: "tenant-a", Limit: 32})
 	if err != nil {
 		t.Fatalf("other scope query: %v", err)
 	}
-	if len(other) != 0 {
-		t.Errorf("non-empty scope should see 0 entries, got %d", len(other))
+	if len(other) != 1 || other[0].ID != scoped.ID {
+		t.Errorf("tenant-a scope = %+v, want 1 entry id %q", other, scoped.ID)
 	}
 
 	// Put records are visible in the default scope and keep their IDs.

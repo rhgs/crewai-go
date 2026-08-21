@@ -210,19 +210,22 @@
 //
 // # Memory
 //
-// Setting Crew.Memory = true enables short-term, in-RAM memory: later tasks
-// with no explicit Task.Context receive the accumulated outputs of earlier
-// tasks. MemorySnapshot returns that short-term *Memory.
+// Setting Crew.Memory = true ensures an InMemory MemoryStore for the Kickoff
+// (permanent v0.x alias). Later tasks with no explicit Task.Context receive
+// recalled memory from the committed snapshot. MemorySnapshot returns the
+// short-term *Memory when that is the active store.
 //
-// *Memory also implements MemoryStore, the long-term memory contract used
-// by pluggable backends. MemoryEntry adds ID/Scope/CreatedAt/Metadata/
-// Embedding on top of MemoryRecord; MemoryQuery bounds recall (Limit, MaxChars,
-// hard cap MaxMemoryQueryLimit; Content is capped at MaxMemoryEntryBytes on
-// Put). Query searches Content/Task case-insensitively and returns the latest
-// entries first when Text is empty. The Crew does not consume MemoryStore yet
-// (MemoryPolicy integration and the D-M7 commit barrier arrive with M2); the
-// interface lets applications depend on a stable backend contract today.
+// *Memory also implements MemoryStore. MemoryEntry adds ID/Scope/CreatedAt/
+// Metadata/Embedding on top of MemoryRecord; MemoryQuery bounds recall
+// (Limit, MaxChars, hard cap MaxMemoryQueryLimit; Content is capped at
+// MaxMemoryEntryBytes on Put). Crew.MemoryStore + Crew.MemoryPolicy wire
+// AutoSave/inject into Kickoff. During parallel waves/stages, AutoSave is
+// buffered per task and committed at the barrier in declaration order (D-M7);
+// next-wave inject sees only the committed snapshot. Prefer WithContext over
+// Memory as the merge channel for parallel siblings.
 //
+//	crew.Memory = true
+//	crew.MemoryPolicy = crewai.NewMemoryPolicy()
 //	var store crewai.MemoryStore = mem // *crewai.Memory
 //	hits, _ := store.Query(ctx, crewai.MemoryQuery{Text: "revenue", Limit: 5})
 //

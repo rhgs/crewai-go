@@ -52,6 +52,26 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   `true` cancela os irmãos e aborta o Kickoff. Ambos são ignorados em
   `Staged`.
 
+
+- **`MemoryPolicy` + barreira de commit D-M7 (M2)**: `Crew.MemoryStore` e
+  `Crew.MemoryPolicy` ligam memória de longo prazo ao Kickoff. `Memory=true`
+  permanece o alias permanente v0.x que garante store InMemory quando nenhum
+  store externo é definido (D-M1/G4). AutoSave só em sucesso (G2); inject usa
+  `queryCommitted` sobre o snapshot commitado (latest N, orçado por
+  `DefaultLimit`/`DefaultMaxChars`). Em waves/stages paralelas, AutoSave é
+  bufferizado por tarefa e commitado na barreira em **ordem de declaração**
+  (D-M7/G9) — o inject da próxima wave não vê writes de irmãos em voo.
+  Buffers de falha/cancelamento são descartados. Erros de AutoSave geram
+  warn+capture e não abortam o Kickoff (G11). `Scope` padrão = `Crew.Name`
+  quando definido (G3). Use `NewMemoryPolicy()` para os defaults da lib (um
+  `MemoryPolicy{}` zero não é esses defaults).
+
+- **Correções A3**: `AsyncMaxWorkers` agora limita de fato os workers em
+  flight nas waves async (semáforo). Waves mistas rodam as non-Async depois
+  do subset Async (antes eram dropadas). `AsyncFailFast=false` ignora só
+  dependentes da tarefa que falhou (D-A3). `0` continua ilimitado por design;
+  `NewCrew` ainda define 8.
+
 ### Alterado
 
 - **Interno**: o runtime paralelo staged foi extraído para a primitiva

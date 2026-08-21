@@ -30,8 +30,25 @@ type Crew struct {
 	// WithLogger.
 	Verbose bool
 
-	// Memory, when enabled, stores task outputs for later reference.
+	// Name is an optional human-readable identifier for the crew. When set,
+	// it is the default MemoryPolicy.Scope for this Kickoff (G3).
+	Name string
+
+	// Memory, when enabled, ensures an in-memory MemoryStore for this
+	// Kickoff (D-M1 / G4 permanent v0.x alias). Existing short-term
+	// MemorySnapshot behavior is preserved via the same *Memory.
 	Memory bool
+
+	// MemoryStore is an optional long-term memory backend. When nil and
+	// Memory is true, Kickoff installs an InMemory *Memory (D-M1). When set,
+	// the Crew uses it for AutoSave / inject under MemoryPolicy; the app
+	// owns Close (D-M6) unless the store was created by Kickoff.
+	MemoryStore MemoryStore
+
+	// MemoryPolicy configures automatic save/inject. Nil at Kickoff means
+	// NewMemoryPolicy() defaults. A literal MemoryPolicy{} is NOT those
+	// defaults — use NewMemoryPolicy and override fields.
+	MemoryPolicy *MemoryPolicy
 
 	// ManagerLLM is the model used by the manager agent in the hierarchical
 	// process.
@@ -62,8 +79,8 @@ type Crew struct {
 	// default set by NewCrew and by WithAsyncMaxWorkers is
 	// DefaultAsyncMaxWorkers (8). Setting it explicitly via
 	// WithAsyncMaxWorkers(0) disables the cap (unlimited, bounded by the
-	// ready set); assigning the field to 0 on a Crew built by NewCrew also
-	// expresses unlimited for the next Kickoff. Ignored under Staged.
+	// ready set). Ignored under Staged (stage batches are uncapped; they
+	// already own their own fan-out).
 	AsyncMaxWorkers int
 
 	// AsyncFailFast controls what happens after the first task failure in an
@@ -73,17 +90,28 @@ type Crew struct {
 	// Ignored under Staged (Stage.Optional owns that axis).
 	AsyncFailFast bool
 
-	// asyncConfigured is set when the caller explicitly chose the wave cap
-	// via WithAsyncMaxWorkers (including 0 = unlimited), so Kickoff will not
-	// silently overwrite an explicit 0 with the default on the zero-value
-	// Crew path.
-	asyncConfigured bool
-
 	// logger is the structured logger used during Kickoff. Set via
 	// WithLogger before Kickoff. NOT CONCURRENT-SAFE: must be set before
 	// Kickoff starts and not mutated while Kickoff is running.
 	logger *slog.Logger
-	mem    *Memory
+	// mem is the short-term *Memory snapshot used by MemorySnapshot and,
+	// when Memory=true with no external store, also the MemoryStore.
+	mem *Memory
+	// store is the effective MemoryStore for this Kickoff (external or mem).
+	store MemoryStore
+	// policy is the resolved MemoryPolicy for this Kickoff.
+	policy *MemoryPolicy
+	// storeOwner is true when Kickoff created the default InMemory store;
+	// the Crew may Close it at the end of Kickoff (D-M6).
+	storeOwner bool
+
+	// memBuf / buffering implement the D-M7 per-group AutoSave buffer.
+	// Workers stash successful outputs; the barrier commits them in
+	// declaration order. Fail-fast abort discards the buffer.
+	memBufMu  sync.Mutex
+	memBuf    []bufferEntry
+	buffering bool
+
 	// progress is invoked during Kickoff to surface execution events.
 	// Set via WithProgress before Kickoff. NOT CONCURRENT-SAFE in the
 	// same sense as logger (set once before Kickoff). The callback
@@ -94,6 +122,11 @@ type Crew struct {
 	// runMu enforces a single in-flight Kickoff per Crew value. Concurrent
 	// Kickoff calls return ErrCrewRunning (fail fast; they do not queue).
 	runMu sync.Mutex
+
+	// failedTasks tracks tasks that failed (or whose upstream failed under
+	// AsyncFailFast=false) so dependents can be skipped (D-A3). Reset at
+	// each Kickoff start. Keyed by task pointer.
+	failedTasks map[*Task]error
 }
 
 // WithProgress registers a progress callback invoked during Kickoff.
@@ -177,7 +210,8 @@ const DefaultAsyncMaxWorkers = 8
 // applies the library defaults for async scheduling (AsyncMaxWorkers =
 // DefaultAsyncMaxWorkers, AsyncFailFast = true); override them on the
 // returned Crew if needed. A composite literal Crew{} (no NewCrew) has
-// AsyncMaxWorkers = 0 = unlimited by design.
+// AsyncMaxWorkers = 0 = unlimited by design until Kickoff applies the
+// default for the unset path.
 func NewCrew(agents []*Agent, tasks []*Task) *Crew {
 	return &Crew{
 		Agents:          agents,
@@ -254,28 +288,37 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 	if c.logger == nil {
 		c.logger = defaultLogger(c.Verbose)
 	}
-	if c.Memory {
+
+	// Resolve memory: Memory bool is a permanent v0.x alias (G4) that ensures
+	// an InMemory store when no external MemoryStore is set (D-M1).
+	c.policy = resolvePolicy(c.MemoryPolicy)
+	c.storeOwner = false
+	c.store = c.MemoryStore
+	c.mem = nil
+	c.failedTasks = make(map[*Task]error)
+	c.discardMemoryBuffer()
+
+	if c.store == nil && c.Memory {
 		c.mem = NewMemory()
+		c.store = c.mem
+		c.storeOwner = true
+	} else if mem, ok := c.store.(*Memory); ok {
+		// External *Memory: keep MemorySnapshot working against it.
+		c.mem = mem
 	}
 
-	// D-A4: a zero-value Crew{} (no NewCrew) still gets the safe default wave
-	// cap. Only crews built via NewCrew or that explicitly set the field skip
-	// this branch, so an explicit AsyncMaxWorkers=0 (unlimited) is preserved.
-	if !c.asyncConfigured && c.AsyncMaxWorkers == 0 {
-		c.AsyncMaxWorkers = DefaultAsyncMaxWorkers
-	}
+	// D-A4: AsyncMaxWorkers 0 is always unlimited. NewCrew sets the safe
+	// default of DefaultAsyncMaxWorkers (8); a composite literal Crew{} that
+	// leaves the field at 0 is unlimited by design (documented risk).
 
-	// G12: validate the async DAG before any task runs. Any dependency issue
-	// (cycle, same-wave Context for an Async task, duplicate task pointer)
-	// fails fast here instead of mid-wave.
+	// G12: validate the async DAG before any task runs.
 	if c.Process != Staged {
 		if _, err := planWaves(c.Tasks); err != nil {
 			c.logger.ErrorContext(ctx, "invalid async task graph", "error", redactError(err))
 			return nil, err
 		}
 	} else {
-		// G5: Async is ignored under Staged; surface it once when set so a
-		// silent no-op flag does not go unnoticed.
+		// G5: Async is ignored under Staged; surface it once when set.
 		for _, stage := range c.Stages {
 			for _, t := range stage.Tasks {
 				if t.Async {
@@ -321,6 +364,7 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 		out, err = c.runStaged(ctx)
 	}
 	if err != nil {
+		c.discardMemoryBuffer()
 		return nil, err
 	}
 	out.Duration = time.Since(start)
@@ -335,10 +379,10 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 
 // WithAsyncMaxWorkers sets the cap on concurrent Async tasks per wave.
 // Pass DefaultAsyncMaxWorkers for the default, or 0 for unlimited (the
-// explicit "unlimited" escape hatch of D-A4, distinct from an unset field).
+// explicit "unlimited" escape hatch of D-A4). NewCrew already sets 8;
+// calling this is only needed to change that value.
 func (c *Crew) WithAsyncMaxWorkers(n int) *Crew {
 	c.AsyncMaxWorkers = n
-	c.asyncConfigured = true
 	return c
 }
 
@@ -348,10 +392,10 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 }
 
 // runSequentialWithPlan runs the sequential process. When no task is Async
-// the behavior is byte-identical to the pre-async serial path. When any task
-// is marked Async the crew schedules ready Async tasks per wave (already
-// validated at Kickoff by planWaves) and only folds results into the output
-// after each wave barrier, in declaration order.
+// the behavior matches the pre-async serial path. When any task is marked
+// Async the crew schedules ready Async tasks per wave (already validated at
+// Kickoff by planWaves) and only folds results into the output after each
+// wave barrier, in declaration order.
 func (c *Crew) runSequentialWithPlan(ctx context.Context, plan *asyncPlan) (*CrewOutput, error) {
 	hasAsync := false
 	for _, t := range c.Tasks {
@@ -370,13 +414,21 @@ func (c *Crew) runSequentialWithPlan(ctx context.Context, plan *asyncPlan) (*Cre
 			return nil, err // already validated at Kickoff; never reached
 		}
 	}
-	return c.runAsyncWaves(ctx, plan)
+	return c.runAsyncWaves(ctx, plan, nil)
 }
 
-// runSequentialSerial is the unchanged pre-async sequential executor.
+// runSequentialSerial is the pre-async sequential executor. Memory AutoSave
+// commits immediately (no open wave barrier) so serial behavior matches
+// today's Memory.Save path for single-task-at-a-time runs.
 func (c *Crew) runSequentialSerial(ctx context.Context) (*CrewOutput, error) {
 	out := &CrewOutput{}
 	for i, task := range c.Tasks {
+		if err := c.failedUpstream(task); err != nil {
+			c.markFailed(task, err)
+			c.logger.WarnContext(ctx, "skipping task; upstream failed",
+				"task_index", i+1, "error", redactError(err))
+			continue
+		}
 		agent := task.Agent
 		if agent == nil {
 			agent = c.agentForIndex(i)
@@ -422,152 +474,182 @@ func (c *Crew) runSequentialSerial(ctx context.Context) (*CrewOutput, error) {
 	return out, nil
 }
 
-// runAsyncWaves executes the sequential process when at least one task is
-// Async. Tasks not marked Async still run one at a time in a wave of their
-// own (they never share a wave with a sibling). Aggregation folds each wave
-// by ascending task index after its barrier — the same declaration-order
-// contract as the staged process.
-func (c *Crew) runAsyncWaves(ctx context.Context, plan *asyncPlan) (*CrewOutput, error) {
+// runAsyncWaves executes the sequential (or hierarchical-with-agents)
+// process when at least one task is Async. Tasks not marked Async still run
+// one at a time (they never share a wave with a sibling). Aggregation folds
+// each sub-group by ascending task index after its barrier — the same
+// declaration-order contract as the staged process.
+//
+// agents, when non-nil, is parallel to c.Tasks and supplies pre-resolved
+// agents (hierarchical D-A2 path). When nil, agents are resolved via
+// agentForIndex as before.
+func (c *Crew) runAsyncWaves(ctx context.Context, plan *asyncPlan, agents []*Agent) (*CrewOutput, error) {
 	out := &CrewOutput{}
-	// waveOrder runs every wave; within a wave only Async tasks run
-	// concurrently — non-Async ready tasks run one at a time in a group of
-	// size 1. Waves are bounded by AsyncMaxWorkers when non-zero.
-	waves := plan.waves
-	for w, wave := range waves {
-		label := fmt.Sprintf("wave %d", w+1)
+	// Track which tasks have been executed so a mixed wave can drain
+	// non-Async leftovers after the Async subset finishes.
+	done := make([]bool, len(c.Tasks))
 
-		// Split the ready wave into concurrent (Async) tasks and the first
-		// non-Async task. D-A1: only Async tasks may share a wave.
-		var groupIdx []int
+	for w, wave := range plan.waves {
+		// Drain the wave: first run all ready Async tasks (chunked by
+		// AsyncMaxWorkers), then each remaining non-Async task alone.
+		// D-A1: non-Async never share a group with a sibling.
+		remaining := make([]int, 0, len(wave))
 		for _, i := range wave {
+			if done[i] {
+				continue
+			}
+			// Skip dependents of failed tasks (D-A3 FailFast=false).
+			if err := c.failedUpstream(c.Tasks[i]); err != nil {
+				c.markFailed(c.Tasks[i], err)
+				c.logger.WarnContext(ctx, "skipping task; upstream failed",
+					"task_index", i+1, "error", redactError(err))
+				done[i] = true
+				continue
+			}
+			remaining = append(remaining, i)
+		}
+
+		// Partition into Async and non-Async within the remaining set.
+		var asyncIdx, syncIdx []int
+		for _, i := range remaining {
 			if c.Tasks[i].Async {
-				groupIdx = append(groupIdx, i)
+				asyncIdx = append(asyncIdx, i)
+			} else {
+				syncIdx = append(syncIdx, i)
 			}
 		}
-		if len(groupIdx) == 0 {
-			groupIdx = wave[:1] // one non-Async task, alone in its slot
+
+		// 1) Async subset, chunked by AsyncMaxWorkers (0 = unlimited).
+		for start := 0; start < len(asyncIdx); {
+			end := len(asyncIdx)
+			if c.AsyncMaxWorkers > 0 && start+c.AsyncMaxWorkers < end {
+				end = start + c.AsyncMaxWorkers
+			}
+			chunk := asyncIdx[start:end]
+			label := fmt.Sprintf("wave %d", w+1)
+			if err := c.runWaveGroup(ctx, label, chunk, agents, out); err != nil {
+				return nil, err
+			}
+			for _, i := range chunk {
+				done[i] = true
+			}
+			start = end
 		}
-		groupTasks := make([]*Task, len(groupIdx))
-		groupAgents := make([]*Agent, len(groupIdx))
-		for k, i := range groupIdx {
-			task := c.Tasks[i]
-			groupTasks[k] = task
-			agent := task.Agent
+
+		// 2) Non-Async ready tasks, one at a time (stable by declaration index).
+		for _, i := range syncIdx {
+			label := fmt.Sprintf("wave %d", w+1)
+			if err := c.runWaveGroup(ctx, label, []int{i}, agents, out); err != nil {
+				return nil, err
+			}
+			done[i] = true
+		}
+	}
+	return out, nil
+}
+
+// runWaveGroup runs one barrier-bounded group of tasks (by crew-task index),
+// folds successful results into out in declaration order, and applies the
+// D-M7 memory commit at the barrier. On fail-fast abort the buffer is
+// discarded and the first real error is returned.
+func (c *Crew) runWaveGroup(ctx context.Context, label string, idxs []int, agents []*Agent, out *CrewOutput) error {
+	if len(idxs) == 0 {
+		return nil
+	}
+	groupTasks := make([]*Task, len(idxs))
+	groupAgents := make([]*Agent, len(idxs))
+	for k, i := range idxs {
+		groupTasks[k] = c.Tasks[i]
+		if agents != nil {
+			groupAgents[k] = agents[i]
+		} else {
+			agent := c.Tasks[i].Agent
 			if agent == nil {
 				agent = c.agentForIndex(i)
 			}
 			groupAgents[k] = agent
 		}
-
-		results, firstErr, firstIdx := c.runTaskGroup(ctx, groupRun{
-			label:    label,
-			labelKey: "wave",
-			tasks:    groupTasks,
-			agents:   groupAgents,
-			failFast: c.AsyncFailFast,
-		})
-		if firstErr != nil && c.AsyncFailFast {
-			return nil, fmt.Errorf("async wave %q: task %d: %w", label, firstIdx+1, firstErr)
-		}
-
-		// Fold results into the output in declaration order (not completion
-		// order), then mark the group's tasks done so later waves can see
-		// their outputs via Context.
-		for k, res := range results {
-			i := groupIdx[k]
-			if res.err != nil {
-				if c.AsyncFailFast {
-					return nil, fmt.Errorf("async wave %q: task %d: %w", label, i+1, res.err)
-				}
-				c.logger.WarnContext(ctx, "async task failed; skipping dependents (FailFast=false)",
-					"task_index", i+1, "error", redactError(res.err))
-				continue
-			}
-			warnings := res.task.Warnings()
-			out.TasksOutput = append(out.TasksOutput, TaskOutput{
-				Task:       taskLabel(res.task, i),
-				Agent:      res.agent.Role,
-				Output:     res.out,
-				Facts:      res.facts,
-				ToolTraces: res.task.ToolTraces(),
-				Warnings:   warnings,
-			})
-			out.Facts = dedupFacts(out.Facts, res.facts)
-			out.Warnings = append(out.Warnings, warnings...)
-			out.Final = res.out
-		}
-
-		// TODO(M2/D-M7): memory commit happens here, at the barrier join,
-		// not inside runTaskGroup workers, once MemoryPolicy wiring lands.
 	}
-	return out, nil
+
+	// D-M7: arm the per-group AutoSave buffer before workers start.
+	c.beginMemoryBuffer()
+
+	results, firstErr, firstIdx := c.runTaskGroup(ctx, groupRun{
+		label:    label,
+		labelKey: "wave",
+		tasks:    groupTasks,
+		agents:   groupAgents,
+		failFast: c.AsyncFailFast,
+	})
+	if firstErr != nil && c.AsyncFailFast {
+		// Discard uncommitted buffers — failed/cancelled never commit (G2).
+		c.discardMemoryBuffer()
+		// Mark every task in the group failed so dependents are skipped if
+		// a higher layer ever continues (defensive; FailFast aborts Kickoff).
+		for _, t := range groupTasks {
+			c.markFailed(t, firstErr)
+		}
+		return fmt.Errorf("async wave %q: task %d: %w", label, firstIdx+1, firstErr)
+	}
+
+	// Commit successful buffers in declaration order (D-M7 / G1).
+	c.commitMemoryBuffer(ctx, groupTasks, c.policy)
+
+	// Fold results into the output in declaration order (not completion order).
+	for k, res := range results {
+		i := idxs[k]
+		if res.err != nil {
+			c.markFailed(c.Tasks[i], res.err)
+			if c.AsyncFailFast {
+				return fmt.Errorf("async wave %q: task %d: %w", label, i+1, res.err)
+			}
+			c.logger.WarnContext(ctx, "async task failed; skipping dependents (FailFast=false)",
+				"task_index", i+1, "error", redactError(res.err))
+			continue
+		}
+		if res.agent == nil {
+			// Defensive: should not happen (nil agent recorded as firstErr).
+			continue
+		}
+		warnings := res.task.Warnings()
+		out.TasksOutput = append(out.TasksOutput, TaskOutput{
+			Task:       taskLabel(res.task, i),
+			Agent:      res.agent.Role,
+			Output:     res.out,
+			Facts:      res.facts,
+			ToolTraces: res.task.ToolTraces(),
+			Warnings:   warnings,
+		})
+		out.Facts = dedupFacts(out.Facts, res.facts)
+		out.Warnings = append(out.Warnings, warnings...)
+		out.Final = res.out
+	}
+	return nil
 }
 
-// runAsyncWavesWithAgents is the async wave executor with pre-resolved
-// agents (used by the hierarchical process after its serial D-A2 manager
-// pre-resolve). It shares the exact same barrier/fold loop as the sequential
-// async path.
-func (c *Crew) runAsyncWavesWithAgents(ctx context.Context, plan *asyncPlan, agents []*Agent) (*CrewOutput, error) {
-	// Temporarily expose pre-resolved agents: agentForIndex is replaced by a
-	// closure over the agents slice by resolving groups per index here. The
-	// shared aggregation logic is factorized through a group runner over
-	// explicit task+agent pairs.
-	out := &CrewOutput{}
-	waves := plan.waves
-	for w, wave := range waves {
-		label := fmt.Sprintf("wave %d", w+1)
+// markFailed records that task (and, transitively, its dependents via
+// failedUpstream checks) should be skipped under FailFast=false.
+func (c *Crew) markFailed(task *Task, err error) {
+	if c.failedTasks == nil {
+		c.failedTasks = make(map[*Task]error)
+	}
+	if task != nil {
+		c.failedTasks[task] = err
+	}
+}
 
-		var groupIdx []int
-		for _, i := range wave {
-			if c.Tasks[i].Async {
-				groupIdx = append(groupIdx, i)
-			}
-		}
-		if len(groupIdx) == 0 {
-			groupIdx = wave[:1]
-		}
-		groupTasks := make([]*Task, len(groupIdx))
-		groupAgents := make([]*Agent, len(groupIdx))
-		for k, i := range groupIdx {
-			groupTasks[k] = c.Tasks[i]
-			groupAgents[k] = agents[i]
-		}
-
-		results, firstErr, firstIdx := c.runTaskGroup(ctx, groupRun{
-			label:    label,
-			labelKey: "wave",
-			tasks:    groupTasks,
-			agents:   groupAgents,
-			failFast: c.AsyncFailFast,
-		})
-		if firstErr != nil && c.AsyncFailFast {
-			return nil, fmt.Errorf("async wave %q: task %d: %w", label, firstIdx+1, firstErr)
-		}
-		for k, res := range results {
-			i := groupIdx[k]
-			if res.err != nil {
-				if c.AsyncFailFast {
-					return nil, fmt.Errorf("async wave %q: task %d: %w", label, i+1, res.err)
-				}
-				c.logger.WarnContext(ctx, "async task failed; skipping dependents (FailFast=false)",
-					"task_index", i+1, "error", redactError(res.err))
-				continue
-			}
-			warnings := res.task.Warnings()
-			out.TasksOutput = append(out.TasksOutput, TaskOutput{
-				Task:       taskLabel(res.task, i),
-				Agent:      res.agent.Role,
-				Output:     res.out,
-				Facts:      res.facts,
-				ToolTraces: res.task.ToolTraces(),
-				Warnings:   warnings,
-			})
-			out.Facts = dedupFacts(out.Facts, res.facts)
-			out.Warnings = append(out.Warnings, warnings...)
-			out.Final = res.out
+// failedUpstream returns a non-nil error when any direct Context dependency
+// of task is in the failed set (D-A3: skip dependents of failed tasks only).
+func (c *Crew) failedUpstream(task *Task) error {
+	if task == nil || c.failedTasks == nil {
+		return nil
+	}
+	for _, dep := range task.Context {
+		if err, ok := c.failedTasks[dep]; ok {
+			return fmt.Errorf("dependency %q failed: %w", taskLabel(dep, 0), err)
 		}
 	}
-	return out, nil
+	return nil
 }
 
 // runHierarchical uses a manager to assign each task to the best agent.
@@ -607,7 +689,7 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 		if err != nil {
 			return nil, err
 		}
-		return c.runAsyncWavesWithAgents(ctx, plan, agents)
+		return c.runAsyncWaves(ctx, plan, agents)
 	}
 
 	out := &CrewOutput{}
@@ -662,10 +744,9 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 // stage concurrently. The output of each stage is available as context to the
 // tasks of the following stages (via Task.Context, resolved by contextText).
 //
-// Each stage delegates its parallel work to runTaskGroup; the stage loop only
-// owns the per-stage barrier (optional vs. fail-fast) and the ordered fold of
-// results into CrewOutput. This extraction (A1) does not change the public
-// behavior of the staged process.
+// Each stage delegates its parallel work to runTaskGroup; the stage loop owns
+// the per-stage barrier (optional vs. fail-fast), the D-M7 memory commit
+// (G9), and the ordered fold of results into CrewOutput.
 func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 	out := &CrewOutput{}
 
@@ -680,17 +761,28 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 			Event: "stage_started",
 		})
 
+		// D-M7 / G9: arm the per-stage AutoSave buffer before workers start.
+		c.beginMemoryBuffer()
+
 		results, firstErr, firstIdx := c.runStage(ctx, stageName, stage.Tasks, stage.Optional)
+
+		// A non-optional stage aborts on the first failure — discard buffer.
+		if firstErr != nil && !stage.Optional {
+			c.discardMemoryBuffer()
+			emitProgress(ctx, Progress{
+				Stage: stageName,
+				Event: "stage_completed",
+			})
+			return nil, fmt.Errorf("stage %q: task %d: %w", stageName, firstIdx+1, firstErr)
+		}
+
+		// Commit successful buffers in declaration order (D-M7 / G1 / G9).
+		c.commitMemoryBuffer(ctx, stage.Tasks, c.policy)
 
 		emitProgress(ctx, Progress{
 			Stage: stageName,
 			Event: "stage_completed",
 		})
-
-		// A non-optional stage aborts on the first failure.
-		if firstErr != nil && !stage.Optional {
-			return nil, fmt.Errorf("stage %q: task %d: %w", stageName, firstIdx+1, firstErr)
-		}
 
 		// Aggregate results in declaration order (not completion order).
 		for ti, res := range results {
@@ -699,6 +791,9 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 				// returned above).
 				c.logger.WarnContext(ctx, "task failed in optional stage",
 					"stage", stageName, "task_index", ti+1, "error", redactError(res.err))
+				continue
+			}
+			if res.agent == nil {
 				continue
 			}
 			warnings := res.task.Warnings()
@@ -744,21 +839,19 @@ func (c *Crew) runStage(ctx context.Context, stageName string, tasks []*Task, op
 type groupRun struct {
 	// label is the human-readable stage/wave name used in logs and progress.
 	label string
-	// labelKey is the slog key for label ("stage" for Staged). Async waves
-	// reuse runTaskGroup with labelKey "wave".
+	// labelKey is the slog key for label ("stage" for Staged, "wave" for async).
 	labelKey string
 	tasks    []*Task
 	// agents is parallel to tasks; entries may be nil when no agent can be
 	// resolved (surfaced as the first result error, matching Staged).
 	agents []*Agent
-	// failFast cancels siblings on the first failure (Staged non-optional).
+	// failFast cancels siblings on the first failure (Staged non-optional /
+	// AsyncFailFast true).
 	failFast bool
 }
 
 // groupResult is the outcome of a single task inside a runTaskGroup barrier,
-// collected by index so the fold preserves declaration order. It is the
-// renamed former stageResult, kept identical so callers outside crew.go keep
-// compiling. Memory commit (D-M7) hooks into the same join later.
+// collected by index so the fold preserves declaration order.
 type groupResult struct {
 	task  *Task
 	agent *Agent
@@ -771,7 +864,9 @@ type groupResult struct {
 // compatibility with pre-A1 staged code/tests.
 type stageResult = groupResult
 
-// runTaskGroup runs tasks concurrently, recovers panics per task, and joins
+// runTaskGroup runs tasks concurrently (bounded by AsyncMaxWorkers when
+// positive and the group is an async wave — Staged groups pass through
+// uncapped, matching pre-A3 behavior), recovers panics per task, and joins
 // with a barrier before returning. Results are always indexed by the task's
 // position in the group (declaration order), never by completion order. When
 // failFast is true the first failure cancels the sibling goroutines; the
@@ -780,6 +875,7 @@ type stageResult = groupResult
 //
 // The barrier (join) is the only place a process may fold results or commit
 // memory: workers never observe each other's results while the group is open.
+// Worker concurrency is limited by a weighted semaphore when maxWorkers > 0.
 func (c *Crew) runTaskGroup(ctx context.Context, g groupRun) ([]groupResult, error, int) {
 	results := make([]groupResult, len(g.tasks))
 
@@ -809,6 +905,14 @@ func (c *Crew) runTaskGroup(ctx context.Context, g groupRun) ([]groupResult, err
 		}
 	}
 
+	// Worker cap: only applied when the caller is an async wave
+	// (labelKey == "wave") AND AsyncMaxWorkers > 0. Staged groups stay
+	// uncapped so their historical fan-out is unchanged.
+	var sem chan struct{}
+	if g.labelKey == "wave" && c.AsyncMaxWorkers > 0 {
+		sem = make(chan struct{}, c.AsyncMaxWorkers)
+	}
+
 	var wg sync.WaitGroup
 	for ti, task := range g.tasks {
 		agent := g.agents[ti]
@@ -832,6 +936,20 @@ func (c *Crew) runTaskGroup(ctx context.Context, g groupRun) ([]groupResult, err
 					recordErr(ti, err)
 				}
 			}()
+
+			// Acquire a worker slot when capped. Respect cancellation so a
+			// fail-fast sibling does not leave this goroutine blocked forever.
+			if sem != nil {
+				select {
+				case sem <- struct{}{}:
+					defer func() { <-sem }()
+				case <-groupCtx.Done():
+					err := groupCtx.Err()
+					results[ti] = groupResult{task: task, agent: agent, err: err}
+					recordErr(ti, err)
+					return
+				}
+			}
 
 			c.logger.InfoContext(groupCtx, "task started",
 				g.labelKey, g.label, "task_index", ti+1, "agent", agent.Role)
@@ -871,6 +989,10 @@ func (c *Crew) runTaskGroup(ctx context.Context, g groupRun) ([]groupResult, err
 // execute runs a task, assembles the context, and persists the output/memory.
 // It returns the task result string, collected facts, and an error.
 //
+// Memory inject uses queryCommitted (committed snapshot only — D-M7) under
+// MemoryPolicy. AutoSave either stashes into the per-group buffer (when a
+// wave/stage barrier is open) or Puts immediately on the serial path.
+//
 // If a task is supplied, it is attached to ctx as a WarningSink so tools
 // (including adapters from mcp/, tools/, etc.) can record non-fatal
 // diagnostics via AddWarningFromCtx or by retrieving the sink from ctx
@@ -884,10 +1006,19 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, [
 		ctx = ContextWithWarningSink(ctx, task)
 	}
 	contextText := task.contextText()
-	if c.mem != nil && contextText == "" {
-		// With no explicit context, inject the accumulated memory.
-		if mem := strings.TrimSpace(c.mem.String()); mem != "" {
-			contextText = mem
+	// D-M3 / D-M7: inject from the committed snapshot only. Default policy
+	// keeps InjectWhenEmptyContext=true (today's behavior). Never read the
+	// in-wave buffer on the prompt path.
+	if c.store != nil && c.policy != nil {
+		shouldInject := !c.policy.InjectWhenEmptyContext || contextText == ""
+		if shouldInject {
+			if mem := c.queryCommitted(ctx, c.policy); mem != "" {
+				if contextText == "" {
+					contextText = mem
+				} else {
+					contextText = contextText + "\n\n" + mem
+				}
+			}
 		}
 	}
 
@@ -902,12 +1033,25 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, [
 	if err := task.setOutputWithJail(result, jail); err != nil {
 		return "", nil, fmt.Errorf("writing task output: %w", err)
 	}
-	if c.mem != nil {
-		c.mem.Save(MemoryRecord{
-			Agent:   agent.Role,
-			Task:    task.Name,
-			Content: result,
-		})
+
+	// AutoSave (G2: success only). Buffer under an open wave/stage barrier
+	// (D-M7); otherwise Put immediately so the serial path stays visible to
+	// the next task in the same Kickoff.
+	if c.store != nil && c.policy != nil && c.policy.AutoSave {
+		entry := c.autoSaveEntry(agent, task, result, c.policy)
+		c.memBufMu.Lock()
+		buffering := c.buffering
+		c.memBufMu.Unlock()
+		if buffering {
+			c.stashMemoryBuffer(task, entry)
+		} else {
+			if _, putErr := c.store.Put(ctx, entry); putErr != nil {
+				// G11: warn+capture, do not abort Kickoff.
+				c.logger.WarnContext(ctx, "memory AutoSave failed",
+					"task", taskLabel(task, 0), "error", redactError(putErr))
+				task.AddWarning(fmt.Sprintf("memory AutoSave failed: %v", putErr))
+			}
+		}
 	}
 
 	// Run task-level guardrail (if any) after the output is stored.
@@ -991,11 +1135,13 @@ func (c *Crew) agentForIndex(i int) *Agent {
 	return c.Agents[len(c.Agents)-1]
 }
 
-// MemorySnapshot returns the accumulated memory (nil if memory is disabled).
+// MemorySnapshot returns the accumulated short-term memory (nil if memory is
+// disabled and no *Memory store was supplied). When Memory=true, this is the
+// same *Memory that backs MemoryStore for the Kickoff.
 func (c *Crew) MemorySnapshot() *Memory { return c.mem }
 
 func taskLabel(t *Task, i int) string {
-	if t.Name != "" {
+	if t != nil && t.Name != "" {
 		return t.Name
 	}
 	return fmt.Sprintf("Task %d", i+1)

@@ -51,6 +51,25 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with an error (D-A3); the default `true` cancels siblings and aborts
   Kickoff. Both are ignored under `Staged`.
 
+
+- **`MemoryPolicy` + D-M7 commit barrier (M2)**: `Crew.MemoryStore` and
+  `Crew.MemoryPolicy` wire long-term memory into Kickoff. `Memory=true`
+  remains the permanent v0.x alias that ensures an InMemory store when no
+  external store is set (D-M1/G4). AutoSave is success-only (G2); inject uses
+  `queryCommitted` over the committed snapshot only (latest N, budgeted by
+  `DefaultLimit`/`DefaultMaxChars`). During parallel waves/stages, AutoSave
+  is buffered per task and committed at the barrier in **declaration order**
+  (D-M7/G9) — next-wave inject cannot see in-flight sibling writes. Failed/
+  cancelled buffers are discarded. AutoSave errors warn+capture and do not
+  abort Kickoff (G11). Default `Scope` = `Crew.Name` when set (G3). Use
+  `NewMemoryPolicy()` for library defaults (a zero `MemoryPolicy{}` is not
+  those defaults).
+
+- **A3 fixes**: `AsyncMaxWorkers` now actually caps in-flight workers in async
+  waves (semaphore). Mixed ready waves run non-Async tasks after the Async
+  subset (previously dropped). `AsyncFailFast=false` skips only dependents of
+  failed tasks (D-A3). `0` remains unlimited by design; `NewCrew` still sets 8.
+
 ### Changed
 
 - **Internal**: the staged parallel runtime was extracted into a shared

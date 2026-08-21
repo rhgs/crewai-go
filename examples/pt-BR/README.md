@@ -12,6 +12,7 @@ Cada subpasta é um programa executável independente.
 | `sequential`    | Pipeline de agentes + contexto + memória          | ✅ OpenAI               |
 | `hierarchical`  | Gerente delegando tarefas dinamicamente           | ✅ OpenAI               |
 | `staged`        | Estágios em sequência, tarefas de um estágio em paralelo | ✅ OpenAI        |
+| `async_tasks`   | Waves `Task.Async` sob Sequential + merge com `WithContext` (mock offline) | ❌ Não / ✅ OpenAI |
 | `agentic_loop`  | Ciclo Planejar-Executar-Avaliar-Refinar (mock LLM)| ❌ Não                  |
 | `tools`         | Agente usando ferramentas via ReAct               | ✅ OpenAI               |
 | `xai_oauth`     | Grok por chave de API ou OAuth de assinatura      | ✅ xAI                  |

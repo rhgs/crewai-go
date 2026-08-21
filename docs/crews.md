@@ -44,7 +44,12 @@ See [LLMs > Logging](llms.md#logging) for the full reference.
 | `Stages`       | `[]Stage`      | Stages for the `Staged` process (takes precedence over `Tasks`). |
 | `Verbose`      | `bool`         | Enables detailed logs (maps to `LevelDebug` when no logger is injected via `WithLogger`). |
 | `logger`       | `*slog.Logger` | Internal — set via `WithLogger`. When nil, `Kickoff` creates a default text logger on stderr. |
-| `Memory`       | `bool`         | Enables shared memory. |
+| `Memory`       | `bool`         | Ensures InMemory store when `MemoryStore` is nil (permanent v0.x alias). |
+| `MemoryStore`  | `MemoryStore`  | Optional long-term backend; app owns `Close`. |
+| `MemoryPolicy` | `*MemoryPolicy`| AutoSave/inject policy; nil ⇒ `NewMemoryPolicy()` defaults. |
+| `Name`         | `string`       | Optional crew id; default `MemoryPolicy.Scope` when set. |
+| `AsyncMaxWorkers` | `int`       | Cap on concurrent Async tasks per wave (default 8 via `NewCrew`; 0 = unlimited). |
+| `AsyncFailFast` | `bool`        | Cancel wave on first failure (default true). |
 | `ManagerLLM`   | `LLM`          | The manager's LLM (hierarchical process). |
 | `ManagerAgent` | `*Agent`       | Explicit manager (takes precedence over `ManagerLLM`). |
 | `Guardrails`   | `[]Guardrail`  | Crew-level post-output validation hooks. |

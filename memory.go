@@ -14,15 +14,20 @@ import (
 //
 // This is a simple, concurrency-safe, in-memory implementation. For advanced
 // scenarios (semantic search/embeddings), provide your own implementation
-// satisfying the same minimal interface used by the Crew.
+// satisfying MemoryStore, or use the built-in FileStore (M3).
 type Memory struct {
 	mu      sync.RWMutex
-	records []MemoryRecord
-	// ids is parallel to records. It stores the stable ID each record
-	// received the first time it crossed the MemoryStore bridge so the same
-	// record keeps the same ID across repeated reads and Query/Put. Save()
-	// appends an empty id; it is filled lazily on first read of that record.
-	ids []string
+	records []memorySlot
+}
+
+// memorySlot is the internal unit: a MemoryRecord plus the store-bridge
+// fields (ID, Scope, CreatedAt) needed to implement MemoryStore without
+// breaking the public MemoryRecord shape.
+type memorySlot struct {
+	rec       MemoryRecord
+	id        string
+	scope     MemoryScope
+	createdAt time.Time
 }
 
 // MemoryRecord is an annotation stored in memory.
@@ -40,12 +45,11 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
-// Save adds a record to the memory.
+// Save adds a record to the memory (default / empty scope).
 func (m *Memory) Save(rec MemoryRecord) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.records = append(m.records, rec)
-	m.ids = append(m.ids, "")
+	m.records = append(m.records, memorySlot{rec: rec})
 }
 
 // Records returns a copy of all stored records.
@@ -53,7 +57,9 @@ func (m *Memory) Records() []MemoryRecord {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	out := make([]MemoryRecord, len(m.records))
-	copy(out, m.records)
+	for i, s := range m.records {
+		out[i] = s.rec
+	}
 	return out
 }
 
@@ -65,12 +71,15 @@ func (m *Memory) Search(query string) []MemoryRecord {
 	defer m.mu.RUnlock()
 	if strings.TrimSpace(query) == "" {
 		out := make([]MemoryRecord, len(m.records))
-		copy(out, m.records)
+		for i, s := range m.records {
+			out[i] = s.rec
+		}
 		return out
 	}
 	q := strings.ToLower(query)
 	var out []MemoryRecord
-	for _, r := range m.records {
+	for _, s := range m.records {
+		r := s.rec
 		if strings.Contains(strings.ToLower(r.Content), q) ||
 			strings.Contains(strings.ToLower(r.Task), q) {
 			out = append(out, r)
@@ -85,7 +94,8 @@ func (m *Memory) String() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	var b strings.Builder
-	for _, r := range m.records {
+	for _, s := range m.records {
+		r := s.rec
 		b.WriteString("- [")
 		b.WriteString(r.Agent)
 		b.WriteString("] ")
@@ -111,9 +121,8 @@ var _ MemoryStore = (*Memory)(nil)
 // AsStore returns m itself as a MemoryStore. The store shares m's data.
 func (m *Memory) AsStore() MemoryStore { return m }
 
-// Put stores an entry in the default short-term memory. The returned entry
-// embeds a copy of e.Content (never aliasing beyond the 32 KiB cap), a
-// CreatedAt set to now when zero, and a stable store-assigned ID.
+// Put stores an entry. The returned entry embeds a store-assigned ID (when
+// empty), CreatedAt set to now when zero, and the caller's Scope.
 func (m *Memory) Put(_ context.Context, e MemoryEntry) (MemoryEntry, error) {
 	if len(e.Content) > MaxMemoryEntryBytes {
 		return MemoryEntry{}, ErrMemoryEntryTooLarge
@@ -126,27 +135,30 @@ func (m *Memory) Put(_ context.Context, e MemoryEntry) (MemoryEntry, error) {
 	if id == "" {
 		id = m.generateIDLocked()
 	}
-	now := time.Now()
 	if e.CreatedAt.IsZero() {
-		e.CreatedAt = now
+		e.CreatedAt = time.Now().UTC()
+	} else {
+		e.CreatedAt = e.CreatedAt.UTC()
 	}
 	e.ID = id
-	e.CreatedAt = e.CreatedAt.UTC()
 
-	m.records = append(m.records, MemoryRecord{
-		Agent:   e.Agent,
-		Task:    e.Task,
-		Content: e.Content,
+	m.records = append(m.records, memorySlot{
+		rec: MemoryRecord{
+			Agent:   e.Agent,
+			Task:    e.Task,
+			Content: e.Content,
+		},
+		id:        id,
+		scope:     e.Scope,
+		createdAt: e.CreatedAt,
 	})
-	m.ids = append(m.ids, id)
 	return e, nil
 }
 
 // Query returns the entries matching q over the same in-memory data used by
 // the rest of the package. When q.Text is empty it returns the latest
 // entries in stable reverse order (most recent first), which is what M2's
-// "latest N" injection needs. Scope partitions results; an entry with an
-// empty scope belongs to the default partition.
+// "latest N" injection needs. Scope partitions results.
 func (m *Memory) Query(_ context.Context, q MemoryQuery) ([]MemoryEntry, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -161,11 +173,15 @@ func (m *Memory) Query(_ context.Context, q MemoryQuery) ([]MemoryEntry, error) 
 	}
 
 	// Build the matching entry list in insertion order first; the latest-N
-	// step below reverses it. We materialize IDs lazily so records created by
-	// Save() (not only by Put) keep a stable ID.
+	// step below reverses it. IDs are materialized lazily so records created
+	// by Save() (not only by Put) keep a stable ID.
 	indices := make([]int, 0, len(m.records))
 	text := strings.ToLower(strings.TrimSpace(q.Text))
-	for i, r := range m.records {
+	for i, s := range m.records {
+		if s.scope != q.Scope {
+			continue
+		}
+		r := s.rec
 		if text != "" &&
 			!strings.Contains(strings.ToLower(r.Content), text) &&
 			!strings.Contains(strings.ToLower(r.Task), text) {
@@ -179,22 +195,18 @@ func (m *Memory) Query(_ context.Context, q MemoryQuery) ([]MemoryEntry, error) 
 	// Latest N: iterate matching indices from newest to oldest.
 	for n := len(indices) - 1; n >= 0 && len(out) < limit; n-- {
 		i := indices[n]
-		r := m.records[i]
-		if scopeOf(r) != q.Scope {
-			continue
-		}
+		s := m.records[i]
+		r := s.rec
 		if maxChars >= 0 && totalChars+len(r.Content) > maxChars {
-			// The next newest entries only get larger-or-equal; stop.
 			break
 		}
 		out = append(out, MemoryEntry{
 			ID:        m.idForLocked(i),
-			Scope:     scopeOf(r),
+			Scope:     s.scope,
 			Agent:     r.Agent,
 			Task:      r.Task,
 			Content:   r.Content,
-			CreatedAt: time.Time{}, // Creation time is informational (G6);
-			// the in-memory store keeps insertion order, not wall-clock.
+			CreatedAt: s.createdAt,
 		})
 		totalChars += len(r.Content)
 	}
@@ -206,10 +218,9 @@ func (m *Memory) Query(_ context.Context, q MemoryQuery) ([]MemoryEntry, error) 
 func (m *Memory) Delete(_ context.Context, scope MemoryScope, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	for i, r := range m.records {
-		if m.idForLocked(i) == id && scopeOf(r) == scope {
+	for i, s := range m.records {
+		if m.idForLocked(i) == id && s.scope == scope {
 			m.records = append(m.records[:i], m.records[i+1:]...)
-			m.ids = append(m.ids[:i], m.ids[i+1:]...)
 			return nil
 		}
 	}
@@ -222,10 +233,10 @@ func (m *Memory) Close() error { return nil }
 // idForLocked returns the stable ID of record i, generating and storing one
 // on first demand. Callers must hold m.mu.
 func (m *Memory) idForLocked(i int) string {
-	if m.ids[i] == "" {
-		m.ids[i] = newMemoryID()
+	if m.records[i].id == "" {
+		m.records[i].id = newMemoryID()
 	}
-	return m.ids[i]
+	return m.records[i].id
 }
 
 // generateIDLocked returns a fresh ID that is not already assigned. Callers
@@ -234,8 +245,8 @@ func (m *Memory) generateIDLocked() string {
 	for {
 		candidate := newMemoryID()
 		used := false
-		for _, id := range m.ids {
-			if id == candidate {
+		for _, s := range m.records {
+			if s.id == candidate {
 				used = true
 				break
 			}
@@ -247,16 +258,9 @@ func (m *Memory) generateIDLocked() string {
 }
 
 // newMemoryID returns a random 16-byte hex ID (32 chars) using crypto/rand.
-// This is not a UUID; it is a stable opaque identifier for one store
-// partition, matching the plan's "uuid-ish hex from crypto/rand" note.
 func newMemoryID() string {
 	var b [16]byte
 	// crypto/rand.Read never returns an error on supported platforms.
 	_, _ = rand.Read(b[:])
 	return hex.EncodeToString(b[:])
 }
-
-// scopeOf returns the scope a short-term record belongs to. Records created
-// via Save() carry no scope metadata (the short-term Memory type has no
-// scope field), so they all live in the default (empty) partition.
-func scopeOf(MemoryRecord) MemoryScope { return "" }
