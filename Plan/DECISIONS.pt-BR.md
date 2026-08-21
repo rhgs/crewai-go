@@ -110,41 +110,41 @@ Fonte: [`PLAN.streaming.md`](PLAN.streaming.md). PRs #35–#36.
 
 ---
 
-## 6. Eventos de lifecycle (D-C1–D-C10) — fechadas 2026-08-21 · main (tag v0.8.0 pendente)
+## 6. Eventos de lifecycle (D-C1–D-C10) — fechadas 2026-08-21 · v0.8.0
 
 Fonte: [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md). PR #39.
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue |
 |----|----------|--------|---------|--------|----------|
-| **D-C1** | API nova vs Progress | (A) só expandir Progress (B) CrewEvent+EventFunc | **B** | closed | main |
-| **D-C2** | Destino do Progress | (A) dual-emit (B) soft-deprecar | **A** | closed | main |
-| **D-C3** | Hook ReAct | (A) react_iteration + par llm_call (B) só start/end | **A** | closed | main |
-| **D-C4** | Corpos nos events | (A) nunca na v1 (B) tiers | **A** | closed | main |
-| **D-C5** | OTEL no core | (A) dependência (B) bridge no example | **B** | closed | main |
-| **D-C6** | ID de correlação | (A) nenhum (B) auto no ctx | **B** | closed | main |
-| **D-C7** | Vários EventFuncs | (A) um slot (B) slice | **A** | closed | main |
-| **D-C8** | Eventos wave_* | (A) pular (B) emitir | **B** | closed | main |
-| **D-C9** | llm_call no path stream | (A) um par (B) por delta | **A** | closed | main |
-| **D-C10** | Panic no EventFunc | (A) crash (B) recover | **B** | closed | main |
+| **D-C1** | API nova vs Progress | (A) só expandir Progress (B) CrewEvent+EventFunc | **B** | closed | v0.8.0 |
+| **D-C2** | Destino do Progress | (A) dual-emit (B) soft-deprecar | **A** | closed | v0.8.0 |
+| **D-C3** | Hook ReAct | (A) react_iteration + par llm_call (B) só start/end | **A** | closed | v0.8.0 |
+| **D-C4** | Corpos nos events | (A) nunca na v1 (B) tiers | **A** | closed | v0.8.0 |
+| **D-C5** | OTEL no core | (A) dependência (B) bridge no example | **B** | closed | v0.8.0 |
+| **D-C6** | ID de correlação | (A) nenhum (B) auto no ctx | **B** | closed | v0.8.0 |
+| **D-C7** | Vários EventFuncs | (A) um slot (B) slice | **A** | closed | v0.8.0 |
+| **D-C8** | Eventos wave_* | (A) pular (B) emitir | **B** | closed | v0.8.0 |
+| **D-C9** | llm_call no path stream | (A) um par (B) por delta | **A** | closed | v0.8.0 |
+| **D-C10** | Panic no EventFunc | (A) crash (B) recover | **B** | closed | v0.8.0 |
 
 ---
 
-## 7. Remainder JSON Schema (D-J1–D-J12) — fechadas 2026-08-21 · main (tag v0.8.0 pendente)
+## 7. Remainder JSON Schema (D-J1–D-J12) — fechadas 2026-08-21 · v0.8.0
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue |
 |----|----------|--------|---------|--------|----------|
-| **D-J1** | Escopo $ref | (A) só local (B) arquivo (C) http | **A** | closed | main |
-| **D-J2** | $ref + siblings | (A) ignora (B) interseção | **B** | closed | main |
-| **D-J3** | Set de format | (A) nenhum (B) allowlist (C) grande | **B** | closed | main |
-| **D-J4** | format desconhecido | (A) ignora (B) erro | **A** | closed | main |
-| **D-J5** | const | (A) adiar (B) ship | **B** | closed | main |
-| **D-J6** | if/then/else | (A) adiar (B) ship básico | **B** | closed | main |
-| **D-J7** | not | (A) adiar (B) ship | **B** | closed | main |
-| **D-J8** | min/maxProperties, uniqueItems | (A) adiar (B) ship | **B** | closed | main |
+| **D-J1** | Escopo $ref | (A) só local (B) arquivo (C) http | **A** | closed | v0.8.0 |
+| **D-J2** | $ref + siblings | (A) ignora (B) interseção | **B** | closed | v0.8.0 |
+| **D-J3** | Set de format | (A) nenhum (B) allowlist (C) grande | **B** | closed | v0.8.0 |
+| **D-J4** | format desconhecido | (A) ignora (B) erro | **A** | closed | v0.8.0 |
+| **D-J5** | const | (A) adiar (B) ship | **B** | closed | v0.8.0 |
+| **D-J6** | if/then/else | (A) adiar (B) ship básico | **B** | closed | v0.8.0 |
+| **D-J7** | not | (A) adiar (B) ship | **B** | closed | v0.8.0 |
+| **D-J8** | min/maxProperties, uniqueItems | (A) adiar (B) ship | **B** | closed | v0.8.0 |
 | **D-J9** | unevaluated* | (A) ship (B) adiar | **B** | closed | — |
-| **D-J10** | schemas booleanos | (A) frouxo (B) draft-accurate | **B** | closed | main |
-| **D-J11** | unidade de length | bytes vs runes | **bytes** | closed | main |
-| **D-J12** | caps de ref | 32 / 256 | **sim** | closed | main |
+| **D-J10** | schemas booleanos | (A) frouxo (B) draft-accurate | **B** | closed | v0.8.0 |
+| **D-J11** | unidade de length | bytes vs runes | **bytes** | closed | v0.8.0 |
+| **D-J12** | caps de ref | 32 / 256 | **sim** | closed | v0.8.0 |
 
 ---
 

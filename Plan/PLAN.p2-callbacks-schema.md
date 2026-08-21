@@ -1,6 +1,6 @@
 # Plan — P2: Callbacks / Telemetry & JSON Schema remainder
 
-> **Status:** **Implemented** on branch (tag v0.8.0 pending).  
+> **Status:** **Shipped in v0.8.0** (PR #39).  
 > **Decisions:** D-C1–D-C10 (callbacks) and D-J1–D-J12 (JSON Schema) proposed below (§9); close before Phase 1 code.  
 > **Related:** `progress.go`, `stream.go` (emit patterns), `executor.go` / `toolcall.go` / `loop.go` / `crew.go`, `schema.go` / `structured.go`, roadmap `PLAN.md` §6 P2.  
 > **Constraints:** zero external module dependencies in the core library (`go.mod` stays stdlib-only). Quality gates from §6.1 of `PLAN.security-residuals.md` apply to every implementation PR (coverage ≥ 90% on touched packages, race-clean, docs EN+PT-BR, CHANGELOG).  
