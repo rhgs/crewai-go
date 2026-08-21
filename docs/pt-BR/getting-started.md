@@ -84,8 +84,9 @@ go run github.com/rhgs/crewai-go/examples/custom_llm
 ## Próximos passos
 
 - [Agents](agents.md) — configurar papéis, objetivos, ferramentas e o agentic loop.
-- [Tasks](tasks.md) — encadear tarefas com contexto, saída estruturada e warnings.
-- [Crews](crews.md) — processos sequencial, hierárquico e staged; callbacks de progresso.
+- [Tasks](tasks.md) — encadear tarefas com contexto, waves `Async`, saída estruturada e warnings.
+- [Crews](crews.md) — processos sequencial, hierárquico, staged e agendamento async; callbacks de progresso.
+- [Memory](memory.md) — bag de curto prazo, `MemoryStore`, FileStore, embeddings.
 - [Tools](tools.md) — dar "mãos" aos seus agentes (incluindo web search).
 - [LLMs](llms.md) — provedores, native tool calling e logging.
 - [MCP](mcp.md) — conectar servidores externos do Model Context Protocol.

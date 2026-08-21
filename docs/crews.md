@@ -49,7 +49,7 @@ See [LLMs > Logging](llms.md#logging) for the full reference.
 | `MemoryPolicy` | `*MemoryPolicy`| AutoSave/inject policy; nil ⇒ `NewMemoryPolicy()` defaults. |
 | `Embed`        | `EmbeddingFunc`| Optional app embedder; used when `AutoEmbed` is true (serial at barrier). |
 | `Name`         | `string`       | Optional crew id; default `MemoryPolicy.Scope` when set. |
-| `AsyncMaxWorkers` | `int`       | Cap on concurrent Async tasks per wave (default 8 via `NewCrew`; 0 = unlimited). |
+| `AsyncMaxWorkers` | `int`       | Cap on concurrent Async tasks per wave (default 8 via `NewCrew`; **0 = unlimited**). Prefer `NewCrew` — a bare `Crew{}` literal leaves 0 (unlimited) by design. |
 | `AsyncFailFast` | `bool`        | Cancel wave on first failure (default true). |
 | `ManagerLLM`   | `LLM`          | The manager's LLM (hierarchical process). |
 | `ManagerAgent` | `*Agent`       | Explicit manager (takes precedence over `ManagerLLM`). |

@@ -4,6 +4,8 @@
 
 | Version | Supported          |
 |---------|--------------------|
+| v0.6.x  | ✅                 |
+| v0.5.x  | ✅                 |
 | v0.4.x  | ✅                 |
 | v0.3.x  | ✅                 |
 | < v0.3  | ❌                 |
@@ -38,4 +40,6 @@ Issues related to third-party LLM APIs (OpenAI, Anthropic, xAI, Ollama) or third
 - **SSRF.** `WebSearchTool` filters result URLs (non-http(s), userinfo, loopback/private/link-local/unspecified/multicast/CGNAT, DNS rebinding, fail-closed). It does **not** fetch those URLs — only presents them. Do not build a follow-up "fetch URL" tool without your own allowlist.
 - **MCP.** Treat remote MCP servers as trusted code (see `docs/en/mcp.md` threat model). The client defaults to a 30s HTTP timeout (`DefaultHTTPTimeout`); override via `WithHTTPTimeout`, `WithHTTPClient`, or JSON `servers[].timeout` (`"0s"` disables). Protect JSON config files that hold bearer tokens (`0600`). Prefer `FilterTools` / minimal tool attach; optional `WithDescriptionLimit` for description hygiene.
 - **Output files.** `Task.OutputFile` is written with mode `0600`. Paths are cleaned; empty paths are rejected. Optional `Task.OutputDir` / `Crew.OutputDir` jails writes (symlink-aware `EvalSymlinks`, fail closed with `ErrOutputPathRejected`). Still treat paths as application-trusted — never pass unvalidated model output as `OutputFile`.
+- **Memory FileStore.** `OpenFileStore(dir)` roots are **caller-trusted** — never pass model-controlled paths. v1 is single-writer per root; the app owns `Close`. Files `0600`, dirs `0700`. Corrupt JSONL lines are skipped on open (`CorruptSkipped()`).
+- **Kickoff single-flight.** Concurrent `Kickoff` on the same `*Crew` returns `ErrCrewRunning` (fail fast; does not queue).
 - **Native tool calling.** Argument size/depth and tool output size are capped (`MaxToolArgsBytes`, `MaxToolArgsDepth`, `MaxToolOutputBytes`). Provider response bodies are capped at `MaxProviderResponseBytes` (10 MiB).

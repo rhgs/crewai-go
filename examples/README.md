@@ -17,6 +17,9 @@ Each subfolder is a standalone executable program.
 | `memory_embed`  | `AutoEmbed` + cosine Query with mock embedder (offline) | ❌ No |
 | `agentic_loop`  | Plan-Execute-Evaluate-Refine cycle (mock LLM)      | ❌ No                   |
 | `tools`         | An agent using tools via ReAct                     | ✅ OpenAI               |
+| `native_tools`  | Provider-native function calling (`ToolModeNative`) | ✅ OpenAI / offline wiring |
+| `facts`         | `Fact` provenance from deterministic tools         | ❌ No                   |
+| `guardrails`    | Post-output `Guardrail` blocking invalid results   | ❌ No                   |
 | `xai_oauth`     | Grok via API key or subscription OAuth             | ✅ xAI                  |
 | `logging`       | Custom `*slog.Logger` with `RedactHandler`           | ❌ No                   |
 | `delegation`    | Inter-agent `delegate_to_coworker` tool (opt-in)   | ✅ OpenAI / wiring only |

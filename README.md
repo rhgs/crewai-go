@@ -67,7 +67,8 @@
 - ⚡ **Async waves (v0.6)**: independent `Task.Async` tasks run in parallel under
   Sequential/Hierarchical, honoring `Task.Context` dependencies, always folding
   by declaration order. `NewCrew` defaults to `AsyncMaxWorkers = 8`.
-- 🧠 **Memory** between tasks and chainable **context**.
+- 🧠 **Memory** between tasks and chainable **context** — pluggable
+  `MemoryStore`, durable `FileStore` (JSONL), optional embeddings + cosine recall.
 - 👔 **Hierarchical process** with a manager that delegates dynamically.
 - 🪜 **Staged process** — stages run in sequence, tasks within a stage run in parallel.
 - 🔁 **Agentic loop** — optional Plan-Execute-Evaluate-Refine cycle with self-evaluation and iterative refinement.
@@ -85,7 +86,7 @@
 | **Process**  | Execution strategy: `Sequential`, `Hierarchical`, or `Staged`.        |
 | **Tool**     | A capability an agent can invoke (calculation, search, API…).          |
 | **LLM**      | Abstraction over the language model. Several providers ready to use.   |
-| **Memory**   | Stores task outputs to give context to following tasks.                |
+| **Memory**   | Short-term bag + pluggable `MemoryStore` (FileStore, embeddings).      |
 | **StructuredOutput** | Configures a task to require JSON validated against a JSON Schema. |
 | **Guardrail** | Post-output validation hook that blocks publication of invalid outputs. |
 | **Fact** | Data from a deterministic connector tool with provenance (source, hash). |
@@ -452,6 +453,20 @@ analysis := crewai.NewTask("Analyze the data", "insights", analyst).
 	WithContext(collection) // receives the output of the 'collection' task
 ```
 
+**Async waves (Sequential / Hierarchical)** — mark independent tasks with
+`WithAsync()` so they overlap without switching to Staged. `Task.Context`
+is the DAG; each wave folds by **declaration order** after a barrier.
+`NewCrew` defaults to `AsyncMaxWorkers = 8` (`0` = unlimited). Ignored under
+Staged (one-shot Warn). See [docs/crews.md](docs/crews.md#async-tasks-under-sequential--hierarchical-a3)
+and `examples/async_tasks`.
+
+```go
+research := crewai.NewTask("research topic", "notes", agent).WithAsync()
+outline  := crewai.NewTask("draft outline", "bullets", agent).WithAsync()
+write    := crewai.NewTask("write article", "markdown", agent).
+	WithContext(research, outline)
+```
+
 ## Agentic loop
 
 By default an agent uses a single-pass ReAct executor. For tasks that benefit
@@ -619,7 +634,7 @@ Depth/cycle/self guards apply (`DefaultMaxDelegationDepth` = 2). See
 ## Memory
 
 ```go
-crew.Memory = true
+crew.Memory = true // permanent v0.x alias → ensures InMemory store
 // ...
 crew.Kickoff(ctx, nil)
 
@@ -629,10 +644,22 @@ for _, r := range crew.MemorySnapshot().Records() {
 ```
 
 `*Memory` also implements the pluggable `crewai.MemoryStore` contract
-(Put/Query/Delete/Close with entry/query caps) used by long-term memory
-backends. `OpenFileStore(dir)` adds durable JSONL persistence
-(app owns Close). Optional `Crew.Embed` + `AutoEmbed` add cosine recall.
-See [docs/memory.md](docs/memory.md).
+(Put/Query/Delete/Close with entry/query caps). Wire long-term backends with
+`Crew.MemoryStore` + `Crew.MemoryPolicy` (`NewMemoryPolicy()` for defaults).
+During parallel waves/stages, AutoSave commits at the barrier in declaration
+order (D-M7) — next-wave inject never sees in-flight siblings.
+
+```go
+store, _ := crewai.OpenFileStore("/var/lib/myapp/crew-memory") // app owns Close
+defer store.Close()
+crew.MemoryStore = store
+crew.MemoryPolicy = crewai.NewMemoryPolicy()
+// Optional semantic recall (app-provided embedder; serial at barrier):
+// crew.Embed = myEmbedder; crew.MemoryPolicy.AutoEmbed = true
+```
+
+See [docs/memory.md](docs/memory.md), `examples/memory_file`, and
+`examples/memory_embed`.
 
 ## Examples
 
@@ -641,14 +668,20 @@ Run the included examples:
 ```bash
 go run ./examples/custom_llm     # offline, no API key
 go run ./examples/ollama         # local Ollama (or OLLAMA_CLOUD=1)
+go run ./examples/async_tasks    # Task.Async waves (offline mock)
+go run ./examples/memory_file    # FileStore JSONL across Kickoffs
+go run ./examples/memory_embed   # AutoEmbed + cosine Query (mock)
+go run ./examples/agentic_loop   # offline, mock LLM
+go run ./examples/logging        # RedactHandler demo
+go run ./examples/mcp            # MCP wiring (live with MCP_ENDPOINT)
 
 export OPENAI_API_KEY=sk-...
 go run ./examples/basic
 go run ./examples/sequential
 go run ./examples/hierarchical
 go run ./examples/staged
-go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
+go run ./examples/delegation
 
 export XAI_API_KEY=xai-...        # or XAI_OAUTH=1 + XAI_CLIENT_ID
 go run ./examples/xai_oauth
@@ -673,24 +706,26 @@ go run ./examples/xai_oauth
 | Plan / Roadmap | [EN](Plan/PLAN.md) | [PT](Plan/PLAN.pt-BR.md) |
 | Security policy | [EN](SECURITY.md) | — |
 
-### What's new in v0.5.0
+### What's new in v0.6.0
 
 All features are **backward compatible** — no breaking changes.
+`Memory bool` remains the permanent v0.x alias; Staged golden behavior is unchanged.
 
 | Feature | Description | Docs (EN) | Docs (PT) |
 |---------|-------------|-----------|-----------|
-| **MCP hardening** | Default 30s HTTP timeout; `WithHTTPTimeout`; JSON `timeout`; `FilterTools` + `WithDescriptionLimit`; threat-model docs. | [docs/en/mcp.md](docs/en/mcp.md) | [docs/pt-BR/mcp.md](docs/pt-BR/mcp.md) |
-| **OutputFile jail** | Path clean + optional `OutputDir` with symlink-aware checks (`ErrOutputPathRejected`). | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
-| **RedactHandler** | Opt-in `slog.Handler` secret masking in the root package. | [README §Logging](#logging) | [README.pt-BR](README.pt-BR.md#logging) |
-| **Kickoff single-flight** | Concurrent `Kickoff` on the same `*Crew` returns `ErrCrewRunning`. | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
-| **Schema keywords** | Expanded JSON Schema subset + `WithStrictSchema` / `WithAllowTools`. | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
-| **Delegation tool** | `delegate_to_coworker` + `EnableDelegationTool` (opt-in). | [docs/agents.md](docs/agents.md) | [docs/pt-BR/agents.md](docs/pt-BR/agents.md) |
+| **`Task.Async` waves** | Independent tasks overlap under Sequential/Hierarchical; `Task.Context` is the DAG; fold by declaration order. `AsyncMaxWorkers` default **8** (`0` = unlimited); `AsyncFailFast`. | [docs/crews.md](docs/crews.md) · [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) · [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
+| **`MemoryStore` + policy** | Pluggable long-term store; `MemoryPolicy` AutoSave/inject; D-M7 commit barrier (parallel writes buffer, commit in declaration order). | [docs/memory.md](docs/memory.md) | [docs/pt-BR/memory.md](docs/pt-BR/memory.md) |
+| **`FileStore`** | Durable JSONL backend (`OpenFileStore`); app owns `Close`; single-writer v1. | [docs/memory.md](docs/memory.md#filestore-jsonl-m3) | [docs/pt-BR/memory.md](docs/pt-BR/memory.md#filestore-jsonl-m3) |
+| **Embeddings** | App-provided `EmbeddingFunc`; `AutoEmbed` serial at barrier; cosine `Query`. | [docs/memory.md](docs/memory.md#embeddings--cosine-recall-m4) | [docs/pt-BR/memory.md](docs/pt-BR/memory.md#embeddings--recall-por-cosseno-m4) |
+| **Examples** | Offline `async_tasks`, `memory_file`, `memory_embed`. | [examples/](examples/) | [examples/pt-BR/](examples/pt-BR/) |
+
+**Also in v0.5.0**: MCP hardening, OutputFile jail, `RedactHandler`, Kickoff single-flight, schema keywords, `delegate_to_coworker`.
 
 **Also in v0.4.x**: staged process, agentic loop, MCP client, progress callbacks, per-task warnings, structured `emit_result`.
 
 **Also in v0.3.0**: native tool calling, web search (agent-driven + model-driven), structured logging via `log/slog`, secret redaction.
 
-See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.5.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.5.0) for details.
+See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.6.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.6.0) for details.
 
 
 ## Tests
@@ -725,6 +760,8 @@ Tests are **hermetic**: they use the `mock` LLM and `httptest`, with no real net
 |---------|-----------|-----------------|
 | **Zero dependencies** | ✅ stdlib only — no external packages | ❌ 50+ PyPI packages (litellm, langchain, pydantic, chromadb, etc.) |
 | **Staged process** | ✅ stages in sequence, tasks within a stage concurrent; optional stages continue on failure | ❌ no staged/parallel-within-stage process |
+| **Async waves under Sequential/Hierarchical** | ✅ `Task.Async` + DAG via `Task.Context`; declaration-order fold; worker cap default 8 | ⚠️ async exists via asyncio / event loops, not as a first-class wave scheduler with barrier fold |
+| **Pluggable long-term memory (stdlib)** | ✅ `MemoryStore` + JSONL `FileStore` + optional cosine embeddings; zero extra deps | ⚠️ typically needs Chroma/external vector stores |
 | **Agentic loop** | ✅ opt-in Plan-Execute-Evaluate-Refine with independent evaluator and bounded refinements | ⚠️ agentic workflows exist, but not as a first-class Plan-Execute-Evaluate-Refine loop with score threshold |
 | **Native tool calling with fallback** | ✅ `Agent.ToolMode` auto-falls back to ReAct if provider doesn't support `ToolCallingLLM` | ❌ no automatic fallback; requires compatible provider |
 | **Facts & provenance** | ✅ first-class `Fact` type with `source_org`, `source_url`, `payload_hash`, `collection_time` — populated only by deterministic tools, never by the LLM | ❌ no provenance tracking; LLM can hallucinate "facts" |

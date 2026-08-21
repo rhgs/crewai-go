@@ -5,6 +5,19 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Documentação
+
+- **What's new do README**: atualizado para **v0.6.0** (EN + PT); lista de
+  exemplos e tabela de comparação incluem waves async + memória plugável;
+  seção de Processos documenta waves `WithAsync`.
+- **Polimento dos guias**: guia de memory deixa de tratar embeddings/
+  persistência como só DIY; guia de tasks mostra `WithAsync` + amostra de
+  DAG; getting-started linka Memory; READMEs de examples listam
+  `async_tasks` / `memory_*` / `facts` / `guardrails` / `native_tools`.
+- **Plan / SECURITY**: árvore de arquitetura e tabela de exclusivos em
+  v0.6.0; versões suportadas incluem `v0.6.x`; notas de hardening do
+  FileStore + single-flight do Kickoff.
+
 ## [v0.6.0] — 2026-08-21
 
 ### Alterado
@@ -105,12 +118,17 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   indexados pela posição da tarefa (ordem de declaração), nunca por ordem de
   conclusão. Sem mudança de comportamento público no processo staged — é a
   base que o agendador de waves async (A2/A3) e a barreira de commit de
-  memória (M2, D-M7) vão usar.
+  memória (M2, D-M7) usam.
 
-### Documentacao
+### Documentação
 
-- **Sync do Plan**: `Plan/PLAN.md` e `PLAN.pt-BR.md` alinhados a v0.5.0
-  (arquitetura com `mcp/`, residuais marcados, limitacoes atualizadas).
+- **Docs de usuário para memory + async**: `docs/memory.md`, `docs/crews.md`,
+  `docs/tasks.md` (+ espelhos PT) cobrem `MemoryStore` / `MemoryPolicy` /
+  D-M7, `FileStore`, embeddings e waves `Task.Async`. Godoc do pacote
+  (`doc.go`) atualizado. Exemplos offline `async_tasks`, `memory_file`,
+  `memory_embed`.
+- **Sync do Plan**: snapshot de maturidade e itens do roadmap marcados como
+  shipped na v0.6.0 (PR #31).
 
 ## [v0.5.0] — 2026-08-20
 
