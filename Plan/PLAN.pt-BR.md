@@ -256,12 +256,12 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   Arquivo de design: [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md)
   ([EN](PLAN.memory-async.md)). Follow-ups opcionais adiados lá: **M5** tools
   de memória do agente, **A5** alias `Process=DAG`.
-- [ ] **Streaming** — `CallStream(ctx, messages) (<-chan StreamChunk, error)`
-  em `LLM`, **ou** `StreamingLLM` opcional via type assertion no executor
-  (preferido: não quebra implementadores existentes de `LLM`). Propagar no
-  loop agentic/ReAct sem bufferar a completion inteira quando o provider
-  suportar. **Plano separado quando agendado** (non-goal do memory-async).
-  Escolha de design permanece no §7.
+- [ ] **Streaming** — `StreamingLLM` opcional (`CallStream` → `<-chan StreamChunk`)
+  via type assertion (não quebra implementadores de `LLM`); `Crew.WithStream`
+  / sink no context; v1 streama só texto final / caminhos sem tools com
+  fallback para Call. **Plano de design:**
+  [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md)
+  ([EN](PLAN.streaming.md)). Decisões D-S1–D-S12 propostas (ainda sem código).
 
 ### P2 — Persistência e observabilidade
 
@@ -316,7 +316,8 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 
 | Prioridade | Item | Notas |
 |---|---|---|
-| P1 | **Streaming** | `StreamingLLM` vs `LLM.CallStream`; propagação no executor |
+| P1 | **Streaming** | Design: [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md) — `StreamingLLM` + `WithStream`; não iniciado |
+
 | P2 | **Callbacks / telemetria** | Hooks de lifecycle além de `WithProgress` |
 | P2 | **JSON Schema `$ref` / `format` / …** | Fechar subconjunto → fatia 2020-12 |
 | P3 | **Flows** | Estado event-driven + roteamento |
@@ -331,9 +332,11 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 Escolhas de produto/design ainda abertas para **epics futuros** (não
 memory-async):
 
-- **Forma da API de streaming** — preferir `StreamingLLM` opcional (type
-  assert no executor) a adicionar `CallStream` em `LLM` (quebraria todos os
-  implementadores). Confirmar quando o plano de streaming for agendado.
+- **Forma da API de streaming** — **lean travado no plano de design:**
+  `StreamingLLM` opcional (type assert) + `Crew.WithStream`; **não** adicionar
+  `CallStream` em `LLM`. Matriz completa D-S1–D-S12 em
+  [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md). Confirmar/ack antes do
+  código da Fase 1.
 - **Function calling vs ReAct** — **manter os dois**: ReAct continua a camada
   universal de tools; `ToolCallingLLM` nativo permanece opt-in por provider
   (já entregue). Revisitar só se o custo de manter ReAct dominar.
