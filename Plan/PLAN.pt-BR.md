@@ -261,7 +261,8 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   / sink no context; v1 streama só texto final / caminhos sem tools com
   fallback para Call. **Plano de design:**
   [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md)
-  ([EN](PLAN.streaming.md)). Decisões D-S1–D-S12 propostas (ainda sem código).
+  ([EN](PLAN.streaming.md)). Decisões D-S1–D-S14 fechadas na review de design
+  (ainda sem código).
 
 ### P2 — Persistência e observabilidade
 
@@ -332,11 +333,12 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 Escolhas de produto/design ainda abertas para **epics futuros** (não
 memory-async):
 
-- **Forma da API de streaming** — **lean travado no plano de design:**
-  `StreamingLLM` opcional (type assert) + `Crew.WithStream`; **não** adicionar
-  `CallStream` em `LLM`. Matriz completa D-S1–D-S12 em
-  [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md). Confirmar/ack antes do
-  código da Fase 1.
+- **Forma da API de streaming** — **travada no plano de design:**
+  `StreamingLLM` opcional (embute `LLM`) + `Crew.WithStream`; **não** adicionar
+  `CallStream` em `LLM`. Matriz completa D-S1–D-S14 (demux Task/Agent, teto
+  dual de bytes, contrato de canal non-nil) em
+  [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md). Ack antes do código da
+  Fase 1.
 - **Function calling vs ReAct** — **manter os dois**: ReAct continua a camada
   universal de tools; `ToolCallingLLM` nativo permanece opt-in por provider
   (já entregue). Revisitar só se o custo de manter ReAct dominar.

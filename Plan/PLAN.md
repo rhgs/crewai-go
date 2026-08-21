@@ -272,7 +272,8 @@ and environment variable names in docs/README. The `.gitignore` protects
   via type assertion (does not break existing `LLM` implementers); `Crew.WithStream`
   / context sink; v1 streams final text / no-tools paths only with Call fallback.
   **Design plan:** [`PLAN.streaming.md`](PLAN.streaming.md)
-  ([PT](PLAN.streaming.pt-BR.md)). Decisions D-S1–D-S12 proposed (not coded).
+  ([PT](PLAN.streaming.pt-BR.md)). Decisions D-S1–D-S14 closed in design
+  review (not coded).
 
 ### P2 — Persistence and observability
 
@@ -341,10 +342,11 @@ unless explicitly accepted).
 
 Product/design choices still open for **future** epics (not memory-async):
 
-- **Streaming API shape** — **lean locked in design plan:** optional
-  `StreamingLLM` (type assert) + `Crew.WithStream`; do **not** add `CallStream`
-  to `LLM`. Full matrix D-S1–D-S12 in
-  [`PLAN.streaming.md`](PLAN.streaming.md). Confirm/ack before Phase 1 code.
+- **Streaming API shape** — **locked in design plan:** optional
+  `StreamingLLM` (embeds `LLM`) + `Crew.WithStream`; do **not** add
+  `CallStream` to `LLM`. Full matrix D-S1–D-S14 (Task/Agent demux, dual byte
+  cap, non-nil chan contract) in [`PLAN.streaming.md`](PLAN.streaming.md).
+  Ack before Phase 1 code.
 - **Function calling vs ReAct** — **lean keep both**: ReAct remains the
   universal tool layer; native `ToolCallingLLM` stays opt-in per provider
   (already shipped). Revisit only if ReAct maintenance cost dominates.
