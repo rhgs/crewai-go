@@ -29,6 +29,7 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   FileStore + single-flight do Kickoff.
 - **Streaming**: guias `docs/llms.md` / crews + nota SECURITY de stream
   sinks; plano `Plan/PLAN.streaming.md` marcado implementado (tag pendente).
+- **Higiene de review do Streaming**: Why/conceitos/comparação no README + limitações do PLAN; `drainToSink` emite cancel/incomplete ao sink; notas de godoc/timeout HTTP; cobertura do drain.
 
 ## [v0.6.0] — 2026-08-21
 

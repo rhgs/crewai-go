@@ -75,6 +75,7 @@
 - 🔁 **Agentic loop** — ciclo opcional Planejar-Executar-Avaliar-Refinar com autoavaliação e refinamento iterativo.
 - 🔌 **MCP** — conecte a servidores Model Context Protocol e exponha as tools como `crewai.Tool` (schema preservado).
 - 📡 **Progresso e warnings** — callbacks `WithProgress` em tempo real e warnings não-fatais por tarefa.
+- 🌊 **Streaming** — `StreamingLLM` opcional + `Crew.WithStream` para deltas de tokens da resposta final (ReAct/native sem tools); demux Task/Agent em waves Async.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
 
 ## Conceitos
@@ -94,6 +95,8 @@
 | **FactSource** | Interface opcional para tools que produzem Facts. |
 | **ToolMode** | Estrategia de execucao de tools: `"react"` (padrao) ou `"native"`. |
 | **ToolCallingLLM** | Interface LLM opcional para function calling nativo. |
+| **StreamingLLM** | Interface opcional de LLM para streaming de tokens (`CallStream`). |
+| **StreamChunk** | Unidade de stream: `Delta`, `Task`, `Agent`, `Done`, `Err`. |
 | **ToolTrace** | Registra cada chamada nativa de tool (nome, args, output, duracao). |
 
 ## Instalação
@@ -642,6 +645,7 @@ Execute os exemplos incluídos:
 ```bash
 go run ./examples/custom_llm     # offline, sem chave de API
 go run ./examples/ollama         # Ollama local (ou OLLAMA_CLOUD=1)
+go run ./examples/streaming     # deltas WithStream (mock offline)
 go run ./examples/async_tasks    # waves Task.Async (mock offline)
 go run ./examples/memory_file    # FileStore JSONL entre Kickoffs
 go run ./examples/memory_embed   # AutoEmbed + Query por cosseno (mock)
@@ -700,6 +704,13 @@ Staged não muda.
 
 **Também na v0.3.0**: native tool calling, web search (agent-driven + model-driven), logging estruturado via `log/slog`, redação de segredos.
 
+### Streaming (em `main`, tag pendente)
+
+Entregue após a v0.6.0 (ainda sem tag): `StreamingLLM` opcional, `Crew.WithStream`,
+`CallStream` nos providers (OpenAI/Ollama/Anthropic/xAI + mock), exemplo
+`examples/streaming`. Veja [docs/pt-BR/llms.md](docs/pt-BR/llms.md#streaming) e
+[CHANGELOG Unreleased](CHANGELOG.pt-BR.md).
+
 Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.6.0](https://github.com/rhgs/crewai-go/releases/tag/v0.6.0) para detalhes.
 
 
@@ -735,6 +746,7 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 |---------|-----------|-----------------|
 | **Zero dependências** | ✅ apenas stdlib — nenhum pacote externo | ❌ 50+ pacotes PyPI (litellm, langchain, pydantic, chromadb, etc.) |
 | **Processo Staged** | ✅ estágios em sequência, tarefas de um estágio em paralelo; estágios opcionais continuam em falha | ❌ sem processo staged/paralelo-dentro-do-estágio |
+| **Streaming de deltas do LLM** | ✅ `StreamingLLM` opcional + `WithStream`; caminhos de texto final; demux Task/Agent | ⚠️ SDKs de provider streamam; sink no nível de orquestração é da app |
 | **Waves async sob Sequential/Hierarchical** | ✅ `Task.Async` + DAG via `Task.Context`; agregação por ordem de declaração; teto de workers padrão 8 | ⚠️ async existe via asyncio / event loops, não como agendador de waves first-class com fold na barreira |
 | **Memória de longo prazo plugável (stdlib)** | ✅ `MemoryStore` + `FileStore` JSONL + embeddings opcionais por cosseno; zero deps extras | ⚠️ tipicamente exige Chroma/stores vetoriais externos |
 | **Agentic loop** | ✅ ciclo opt-in Planejar-Executar-Avaliar-Refinar com avaliador independente e refinamentos limitados | ⚠️ workflows agenticos existem, mas não como loop first-class Plan-Execute-Evaluate-Refine com limiar de score |

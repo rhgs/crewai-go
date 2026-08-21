@@ -128,8 +128,9 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 
 ### Known limitations (post v0.6.0)
 
-- **No streaming** — `LLM.Call` returns the full response; there is no
-  `CallStream` / `StreamingLLM` yet (roadmap §6 P1).
+- **Streaming is opt-in** — without `WithStream` / `StreamingLLM`, `LLM.Call`
+  still returns the full response. Stream covers final text / no-tools paths
+  only (see [`PLAN.streaming.md`](PLAN.streaming.md)); tag release pending.
 - **JSON Schema is still a subset** — supports core keywords plus
   `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf`/`allOf`
   (v0.5.0). Still no `$ref`, `if`/`then`/`else`, `format`, unevaluated*, etc.
@@ -327,7 +328,7 @@ unless explicitly accepted).
 
 | Priority | Item | Notes |
 |---|---|---|
-| P1 | **Streaming** | Implemented (tag pending): [`PLAN.streaming.md`](PLAN.streaming.md) — `StreamingLLM` + `WithStream`; not started |
+| P1 | **Streaming** | Implemented on main (tag pending): [`PLAN.streaming.md`](PLAN.streaming.md) — `StreamingLLM` + `WithStream` |
 
 | P2 | **Callbacks / telemetry** | Lifecycle hooks beyond `WithProgress` |
 | P2 | **JSON Schema `$ref` / `format` / …** | Finish subset → practical 2020-12 slice |

@@ -28,6 +28,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   single-flight hardening notes.
 - **Streaming**: `docs/llms.md` / crews guides + SECURITY stream-sink note;
   design plan `Plan/PLAN.streaming.md` marked implemented (tag pending).
+- **Streaming review hygiene**: README Why/concepts/comparison + PLAN limitations; `drainToSink` emits cancel/incomplete to sink; godoc/HTTP-timeout notes; drain coverage.
 
 ## [v0.6.0] — 2026-08-21
 
