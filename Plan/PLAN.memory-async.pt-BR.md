@@ -1,9 +1,10 @@
 # Plano — Memória de longo prazo & Async além do Staged
 
-> **Status:** Apenas plano — não implementar até agendar. **Decisões D-M1–D-M7, D-A1–D-A6 e gaps G1–G12 fechadas em 2026-08-21** (ver §9).  
-> **Relacionado:** `Memory` em RAM (`memory.go`), `Crew.Memory` / `MemorySnapshot`, `Process=Staged` (`runStaged`), itens de roadmap em `PLAN.pt-BR.md` §6 P1/P2.  
-> **Restrições:** zero dependências externas no módulo core (`go.mod` só stdlib). Quality gates da §6.1 de `PLAN.security-residuals.pt-BR.md` valem em todo PR (cobertura ≥ 90% nos pacotes tocados, race-clean, docs EN+PT-BR, CHANGELOG).  
-> **Feedback externo:** thread no DEV.to sobre race **semântica** vs `-race` ([artigo](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm) — freerave): merge é contrato de orquestração (fold por ordem de declaração após barreira). Caveat de Memory por completion order → **D-M7** + reforço **D-M3**/**D-M4**. Reforçados **D-A1**/**D-A5**/**D-A6**.
+> **Status:** **Entregue na v0.6.0** (PR #31, branch `feat/phase1-a1-m1`). PRs núcleo **A1–A4** e **M1–M4** entregues; **M5** / **A5** opcionais permanecem adiados (§10).  
+> **Decisões:** D-M1–D-M7, D-A1–D-A6 e gaps G1–G12 fechados em 2026-08-21 (§9) — fonte da verdade do *porquê*.  
+> **Relacionado:** `memory.go` / `filestore.go` / `schedule.go`, `Crew.Memory` / `MemoryStore` / `MemoryPolicy`, `Task.Async`, roadmap em `PLAN.pt-BR.md` §6.  
+> **Restrições:** zero deps externas no core (`go.mod` só stdlib). Gates de qualidade do §6.1 de `PLAN.security-residuals.pt-BR.md` em todo PR de implementação.  
+> **Feedback externo:** thread DEV.to sobre semantic races vs `-race` ([artigo](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm) — freerave) → **D-M7** + reforço **D-M3**/**D-M4**/**D-A1**/**D-A5**/**D-A6**.
 
 ---
 
@@ -572,5 +573,6 @@ Não estavam numerados em §2.10/§3.11; ficam aqui para os PRs de implementaç�
 | Embeddings hook | P2 | M4 | Entregue 2026-08-21 (branch feat/phase1-a1-m1) |
 | runTaskGroup | P1 | A1 | Entregue 2026-08-21 (branch feat/phase1-a1-m1) — testes dourados do Staged inalterados |
 | DAG + Async | P1 | A2–A4 | A2–A4 entregues 2026-08-21 (branch feat/phase1-a1-m1); A3 worker-cap + wave mista + FailFast dependents corrigidos |
-| Tools / sugar opcional | P3 | M5/A5 | Adiado |
+| Tools / sugar opcionais | P3 | M5/A5 | Adiado (pós v0.6.0) |
+| **Release** | — | v0.6.0 | **Entregue 2026-08-21** (PR #31); G10 cumprido e superado (M3+M4 incluídos) |
 

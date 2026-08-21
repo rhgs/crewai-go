@@ -5,6 +5,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [v0.6.0] — 2026-08-21
+
 ### Alterado
 
 - **Pin de toolchain Go**: `go.mod` declara `toolchain go1.24.9` (linguagem
@@ -426,7 +428,8 @@ Primeira release pública: um port idiomático do núcleo do framework CrewAI pa
   chamadas entre agentes em tempo de execução), sem streaming, memória apenas em
   processo, sem function calling nativo. Veja `Plan/PLAN.md` para o roadmap completo.
 
-[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.6.0...HEAD
+[v0.6.0]: https://github.com/rhgs/crewai-go/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/rhgs/crewai-go/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/rhgs/crewai-go/compare/v0.3.0...v0.4.0
 [v0.3.0]: https://github.com/rhgs/crewai-go/compare/v0.2.0...v0.3.0

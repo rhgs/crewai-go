@@ -104,19 +104,17 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct/nati
 - [x] Documentation: bilingual README + guides + MCP + SECURITY; 14 examples.
 - [x] Clean `go build`, `go vet`, and `go test ./...`.
 
-### Maturity snapshot (2026-08-20 — v0.5.0)
+### Maturity snapshot (2026-08-21 — v0.6.0)
 
 | Metric | Value |
 |---------|-------|
-| Latest release | **v0.5.0** (2026-08-20) |
-| Go LOC (approx.) | ~23k |
-| `.go` files | ~111 |
+| Latest release | **v0.6.0** (2026-08-21) — PR #31 |
+| Go LOC (approx.) | ~25k+ |
 | External dependencies | 0 (stdlib) |
-| Coverage — core (`crewai`) | ~96.9% |
-| Coverage — `mcp` / `tools` | ~92% / ~91% |
-| Coverage — `llm/*` providers | all ≥ 90% |
-| Runnable examples | 14 (+ pt-BR mirrors) |
-| Documentation | bilingual README + guides + MCP + SECURITY |
+| Coverage — core (`crewai`) | ~94%+ (memory/async epic) |
+| Coverage — `mcp` / `tools` / `llm/*` | all ≥ 90% |
+| Runnable examples | 17 (+ pt-BR mirrors): +async_tasks, memory_file, memory_embed |
+| Documentation | bilingual README + guides + MCP + SECURITY + memory/async |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
 ### Known limitations (post v0.5.0; memory/async closed in PR #31)
@@ -136,7 +134,7 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct/nati
 - **Tool surface beyond web search** — no built-in HTTP/files/RAG tools yet
   (roadmap §6 P3). Web search shipped in v0.3+.
 
-> **Closed by PR #31 (v0.6 candidate):** long-term `MemoryStore` + FileStore
+> **Closed in **v0.6.0** (PR #31):** long-term `MemoryStore` + FileStore
 > JSONL + embeddings hook, and `Task.Async` DAG waves beyond Staged. See
 > [`PLAN.memory-async.md`](PLAN.memory-async.md).
 
@@ -167,7 +165,7 @@ priority (highest impact / lowest effort first):
 - [x] **Expanded JSON Schema** + `WithStrictSchema`.
 - [x] **`RedactHandler`**, OutputFile jail, Kickoff single-flight.
 - [x] **Real delegation tool** `delegate_to_coworker` + `EnableDelegationTool`.
-- [x] Tags **v0.1.0 … v0.5.0**; bilingual docs; CI + CodeQL.
+- [x] Tags **v0.1.0 … v0.6.0**; bilingual docs; CI + CodeQL.
 
 ### P0 — Publishing and fundamentals
 
@@ -257,7 +255,7 @@ and environment variable names in docs/README. The `.gitignore` protects
   manager assignment remains separate.
 - [x] **Async/parallelism beyond Staged** — `Task.Async` + DAG via
   `Task.Context`, wave scheduler, `AsyncMaxWorkers` (default 8; 0=unlimited),
-  `AsyncFailFast`. Staged golden unchanged. **PR #31 / v0.6 candidate.**
+  `AsyncFailFast`. Staged golden unchanged. **Shipped in v0.6.0 (PR #31).**
   Design archive: [`PLAN.memory-async.md`](PLAN.memory-async.md)
   ([PT](PLAN.memory-async.pt-BR.md)). Optional follow-ups deferred there:
   **M5** agent memory tools, **A5** `Process=DAG` alias.
@@ -272,7 +270,7 @@ and environment variable names in docs/README. The `.gitignore` protects
 
 - [x] **Long-term memory** — `MemoryStore`, JSONL `FileStore` (stdlib),
   `MemoryPolicy` + D-M7 commit barrier, optional `EmbeddingFunc` + cosine
-  recall; `Memory bool` remains the v0.x alias. **PR #31 / v0.6 candidate.**
+  recall; `Memory bool` remains the v0.x alias. **Shipped in v0.6.0 (PR #31).**
   Design archive: [`PLAN.memory-async.md`](PLAN.memory-async.md)
   ([PT](PLAN.memory-async.pt-BR.md)). SQLite stays out of core.
 - [x] **Guardrails** — structured-output repair loop (`Task.Structured` +
@@ -313,7 +311,7 @@ and environment variable names in docs/README. The `.gitignore` protects
 
 ### Out-of-epic backlog (single view)
 
-Items **not** part of `PLAN.memory-async` and **not** shipped as of PR #31.
+Items **not** part of `PLAN.memory-async` and **not** shipped as of v0.6.0.
 Schedule each with its own design note before coding (same gates as residuals:
 decisions first, ≥90% coverage, race-clean, EN+PT docs, no new core deps
 unless explicitly accepted).

@@ -1,7 +1,8 @@
 # Plan — Long-term Memory & Async beyond Staged
 
-> **Status:** Plan only — do not implement until scheduled. **Open decisions D-M1–D-M7, D-A1–D-A6 and gaps G1–G12 closed 2026-08-21** (see §9).  
-> **Related:** current in-RAM `Memory` (`memory.go`), `Crew.Memory` / `MemorySnapshot`, `Process=Staged` (`runStaged`), roadmap items in `PLAN.md` §6 P1/P2.  
+> **Status:** **Shipped in v0.6.0** (PR #31, branch `feat/phase1-a1-m1`). Core PRs **A1–A4** and **M1–M4** delivered; optional **M5** / **A5** remain deferred (§10).  
+> **Decisions:** D-M1–D-M7, D-A1–D-A6 and gaps G1–G12 closed 2026-08-21 (§9) — source of truth for *why*.  
+> **Related:** `memory.go` / `filestore.go` / `schedule.go`, `Crew.Memory` / `MemoryStore` / `MemoryPolicy`, `Task.Async`, roadmap in `PLAN.md` §6.  
 > **Constraints:** zero external module dependencies in the core library (`go.mod` stays stdlib-only). Quality gates from §6.1 of `PLAN.security-residuals.md` apply to every implementation PR (coverage ≥ 90% on touched packages, race-clean, docs EN+PT-BR, CHANGELOG).  
 > **External feedback:** DEV.to thread on staged semantic races vs `-race` ([article](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm) — freerave): merge must be orchestration contract (declaration-order fold after barrier). Memory completion-order caveat → **D-M7** visibility + stronger **D-M3**/**D-M4**. Reinforced **D-A1**/**D-A5**/**D-A6**.
 
@@ -593,7 +594,7 @@ File ownership:
 
 ## 9. Decision log (closed 2026-08-21)
 
-Closed in one pass to match residuals D1–D7 process, v0.5.0 strategy (P1–P10), and DEV.to semantic-race thread (freerave). Implementation still **not** scheduled.
+Closed in one pass to match residuals D1–D7 process, v0.5.0 strategy (P1–P10), and DEV.to semantic-race thread (freerave). Implemented in PR #31 / v0.6.0.
 
 ### 9.1 Official (D-M* / D-A*)
 
@@ -643,5 +644,6 @@ Not originally numbered in §2.10/§3.11; recorded here so implementation PRs do
 | Embeddings hook | P2 | M4 | Shipped 2026-08-21 (branch feat/phase1-a1-m1) |
 | runTaskGroup extract | P1 | A1 | Shipped 2026-08-21 (branch feat/phase1-a1-m1) — Staged tests golden unchanged |
 | DAG + Async wire-up | P1 | A2–A4 | A2–A4 shipped 2026-08-21 (branch feat/phase1-a1-m1); A3 worker-cap + mixed-wave + FailFast dependents fixed |
-| Optional tools / sugar | P3 | M5/A5 | Deferred |
+| Optional tools / sugar | P3 | M5/A5 | Deferred (post v0.6.0) |
+| **Release** | — | v0.6.0 | **Shipped 2026-08-21** (PR #31); G10 met and exceeded (M3+M4 included) |
 
