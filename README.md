@@ -625,6 +625,10 @@ for _, r := range crew.MemorySnapshot().Records() {
 }
 ```
 
+`*Memory` also implements the pluggable `crewai.MemoryStore` contract
+(Put/Query/Delete/Close with entry/query caps) used by long-term memory
+backends in M2+. See [docs/memory.md](docs/memory.md).
+
 ## Examples
 
 Run the included examples:

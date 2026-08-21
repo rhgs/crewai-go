@@ -638,10 +638,10 @@ Not originally numbered in §2.10/§3.11; recorded here so implementation PRs do
 
 | Workstream | Phase | PRs | Status |
 |---|---|---|---|
-| Memory interfaces + policy + **D-M7 commit barrier** | P2 | M1–M2 | Planned |
+| Memory interfaces + policy + **D-M7 commit barrier** | P2 | M1–M2 | M1 shipped 2026-08-21 (branch feat/phase1-a1-m1); M2 planned |
 | FileStore | P2 | M3 | Planned |
 | Embeddings hook | P2 | M4 | Planned |
-| runTaskGroup extract | P1 | A1 | Planned |
+| runTaskGroup extract | P1 | A1 | Shipped 2026-08-21 (branch feat/phase1-a1-m1) — Staged tests golden unchanged |
 | DAG + Async wire-up | P1 | A2–A4 | Planned |
 | Optional tools / sugar | P3 | M5/A5 | Deferred |
 

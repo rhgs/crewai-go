@@ -567,10 +567,10 @@ Não estavam numerados em §2.10/§3.11; ficam aqui para os PRs de implementaç�
 
 | Workstream | Fase | PRs | Status |
 |---|---|---|---|
-| Memory interfaces + policy + **barreira D-M7** | P2 | M1–M2 | Planejado |
+| Memory interfaces + policy + **barreira D-M7** | P2 | M1–M2 | M1 entregue 2026-08-21 (branch feat/phase1-a1-m1); M2 planejado |
 | FileStore | P2 | M3 | Planejado |
 | Embeddings hook | P2 | M4 | Planejado |
-| runTaskGroup | P1 | A1 | Planejado |
+| runTaskGroup | P1 | A1 | Entregue 2026-08-21 (branch feat/phase1-a1-m1) — testes dourados do Staged inalterados |
 | DAG + Async | P1 | A2–A4 | Planejado |
 | Tools / sugar opcional | P3 | M5/A5 | Adiado |
 

@@ -379,6 +379,11 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 // runStaged executes the crew's stages in order, running the tasks of each
 // stage concurrently. The output of each stage is available as context to the
 // tasks of the following stages (via Task.Context, resolved by contextText).
+//
+// Each stage delegates its parallel work to runTaskGroup; the stage loop only
+// owns the per-stage barrier (optional vs. fail-fast) and the ordered fold of
+// results into CrewOutput. This extraction (A1) does not change the public
+// behavior of the staged process.
 func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 	out := &CrewOutput{}
 
@@ -393,91 +398,7 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 			Event: "stage_started",
 		})
 
-		// A single derived context for the whole stage: cancelling it stops
-		// every sibling goroutine (on parent cancellation or a non-optional
-		// failure).
-		stageCtx, cancel := context.WithCancel(ctx)
-
-		results := make([]stageResult, len(stage.Tasks))
-		var wg sync.WaitGroup
-
-		// firstErr records the chronologically first failure (and its index)
-		// so a non-optional stage reports the real cause, not a sibling's
-		// context.Canceled that was triggered by the cancellation.
-		var (
-			errMu    sync.Mutex
-			firstErr error
-			firstIdx int
-		)
-		recordErr := func(ti int, err error) {
-			errMu.Lock()
-			if firstErr == nil {
-				firstErr = err
-				firstIdx = ti
-			}
-			errMu.Unlock()
-			// Interrupt siblings as soon as a non-optional task fails.
-			if !stage.Optional {
-				cancel()
-			}
-		}
-
-		for ti, task := range stage.Tasks {
-			agent := task.Agent
-			if agent == nil {
-				agent = c.agentForIndex(ti)
-			}
-			if agent == nil {
-				cancel()
-				wg.Wait()
-				return nil, fmt.Errorf("stage %q: task %d: %w", stageName, ti+1, ErrNoAgent)
-			}
-
-			wg.Add(1)
-			go func(ti int, task *Task, agent *Agent) {
-				defer wg.Done()
-				// Recover from a panic in the task goroutine so a single
-				// panicking task cannot crash the whole process.
-				defer func() {
-					if r := recover(); r != nil {
-						err := fmt.Errorf("panic: %v", r)
-						results[ti] = stageResult{err: err}
-						recordErr(ti, err)
-					}
-				}()
-
-				c.logger.InfoContext(stageCtx, "task started",
-					"stage", stageName, "task_index", ti+1, "agent", agent.Role)
-
-				emitProgress(stageCtx, Progress{
-					Stage: stageName,
-					Task:  taskLabel(task, ti),
-					Agent: agent.Role,
-					Event: "task_started",
-				})
-
-				result, facts, err := c.execute(stageCtx, agent, task)
-				results[ti] = stageResult{
-					task:  task,
-					agent: agent,
-					out:   result,
-					facts: facts,
-					err:   err,
-				}
-				emitProgress(stageCtx, Progress{
-					Stage: stageName,
-					Task:  taskLabel(task, ti),
-					Agent: agent.Role,
-					Event: "task_completed",
-					Err:   redactError(err),
-				})
-				if err != nil {
-					recordErr(ti, err)
-				}
-			}(ti, task, agent)
-		}
-		wg.Wait()
-		cancel()
+		results, firstErr, firstIdx := c.runStage(ctx, stageName, stage.Tasks, stage.Optional)
 
 		emitProgress(ctx, Progress{
 			Stage: stageName,
@@ -516,14 +437,153 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 	return out, nil
 }
 
-// stageResult is the outcome of a single task within a stage, collected by
-// index so the final output preserves declaration order.
-type stageResult struct {
+// runStage is the staged-process adapter on top of runTaskGroup: it maps
+// agent resolution to stage semantics (agentForIndex by task index) and adds
+// the "stage"/"task_index" labels used by logs and errors.
+func (c *Crew) runStage(ctx context.Context, stageName string, tasks []*Task, optional bool) ([]groupResult, error, int) {
+	agents := make([]*Agent, len(tasks))
+	for i, task := range tasks {
+		agent := task.Agent
+		if agent == nil {
+			agent = c.agentForIndex(i)
+		}
+		agents[i] = agent
+	}
+	return c.runTaskGroup(ctx, groupRun{
+		label:    stageName,
+		labelKey: "stage",
+		tasks:    tasks,
+		agents:   agents,
+		failFast: !optional,
+	})
+}
+
+// groupRun configures one call to runTaskGroup.
+type groupRun struct {
+	// label is the human-readable stage/wave name used in logs and progress.
+	label string
+	// labelKey is the slog key for label ("stage" for Staged). Async waves
+	// reuse runTaskGroup with labelKey "wave".
+	labelKey string
+	tasks    []*Task
+	// agents is parallel to tasks; entries may be nil when no agent can be
+	// resolved (surfaced as the first result error, matching Staged).
+	agents []*Agent
+	// failFast cancels siblings on the first failure (Staged non-optional).
+	failFast bool
+}
+
+// groupResult is the outcome of a single task inside a runTaskGroup barrier,
+// collected by index so the fold preserves declaration order. It is the
+// renamed former stageResult, kept identical so callers outside crew.go keep
+// compiling. Memory commit (D-M7) hooks into the same join later.
+type groupResult struct {
 	task  *Task
 	agent *Agent
 	out   string
 	facts []Fact
 	err   error
+}
+
+// stageResult is retained as an alias for groupResult for internal
+// compatibility with pre-A1 staged code/tests.
+type stageResult = groupResult
+
+// runTaskGroup runs tasks concurrently, recovers panics per task, and joins
+// with a barrier before returning. Results are always indexed by the task's
+// position in the group (declaration order), never by completion order. When
+// failFast is true the first failure cancels the sibling goroutines; the
+// returned firstErr is that first failure, not a sibling's context.Canceled
+// triggered by the cancellation.
+//
+// The barrier (join) is the only place a process may fold results or commit
+// memory: workers never observe each other's results while the group is open.
+func (c *Crew) runTaskGroup(ctx context.Context, g groupRun) ([]groupResult, error, int) {
+	results := make([]groupResult, len(g.tasks))
+
+	// A single derived context for the whole group: cancelling it stops every
+	// sibling goroutine (on parent cancellation or a fail-fast failure).
+	groupCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// firstErr records the chronologically first failure (and its index) so a
+	// fail-fast group reports the real cause, not a sibling's context.Canceled
+	// that was triggered by the cancellation.
+	var (
+		errMu    sync.Mutex
+		firstErr error
+		firstIdx int
+	)
+	recordErr := func(ti int, err error) {
+		errMu.Lock()
+		if firstErr == nil {
+			firstErr = err
+			firstIdx = ti
+		}
+		errMu.Unlock()
+		// Interrupt siblings as soon as a fail-fast task fails.
+		if g.failFast {
+			cancel()
+		}
+	}
+
+	var wg sync.WaitGroup
+	for ti, task := range g.tasks {
+		agent := g.agents[ti]
+		if agent == nil {
+			// No goroutine is started for this task; the missing agent is the
+			// first error. Matches the previous staged behavior of aborting
+			// before executing any sibling result.
+			recordErr(ti, ErrNoAgent)
+			continue
+		}
+
+		wg.Add(1)
+		go func(ti int, task *Task, agent *Agent) {
+			defer wg.Done()
+			// Recover from a panic in the task goroutine so a single
+			// panicking task cannot crash the whole process.
+			defer func() {
+				if r := recover(); r != nil {
+					err := fmt.Errorf("panic: %v", r)
+					results[ti] = groupResult{err: err}
+					recordErr(ti, err)
+				}
+			}()
+
+			c.logger.InfoContext(groupCtx, "task started",
+				g.labelKey, g.label, "task_index", ti+1, "agent", agent.Role)
+
+			emitProgress(groupCtx, Progress{
+				Stage: g.label,
+				Task:  taskLabel(task, ti),
+				Agent: agent.Role,
+				Event: "task_started",
+			})
+
+			result, facts, err := c.execute(groupCtx, agent, task)
+			results[ti] = groupResult{
+				task:  task,
+				agent: agent,
+				out:   result,
+				facts: facts,
+				err:   err,
+			}
+			emitProgress(groupCtx, Progress{
+				Stage: g.label,
+				Task:  taskLabel(task, ti),
+				Agent: agent.Role,
+				Event: "task_completed",
+				Err:   redactError(err),
+			})
+			if err != nil {
+				recordErr(ti, err)
+			}
+		}(ti, task, agent)
+	}
+	wg.Wait()
+
+	return results, firstErr, firstIdx
 }
 
 // execute runs a task, assembles the context, and persists the output/memory.

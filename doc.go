@@ -193,6 +193,24 @@
 // blocked, and domain names are resolved via DNS to prevent rebinding attacks.
 // Fail-closed: unresolvable hosts are blocked.
 //
+// # Memory
+//
+// Setting Crew.Memory = true enables short-term, in-RAM memory: later tasks
+// with no explicit Task.Context receive the accumulated outputs of earlier
+// tasks. MemorySnapshot returns that short-term *Memory.
+//
+// *Memory also implements MemoryStore, the long-term memory contract used
+// by pluggable backends. MemoryEntry adds ID/Scope/CreatedAt/Metadata/
+// Embedding on top of MemoryRecord; MemoryQuery bounds recall (Limit, MaxChars,
+// hard cap MaxMemoryQueryLimit; Content is capped at MaxMemoryEntryBytes on
+// Put). Query searches Content/Task case-insensitively and returns the latest
+// entries first when Text is empty. The Crew does not consume MemoryStore yet
+// (MemoryPolicy integration and the D-M7 commit barrier arrive with M2); the
+// interface lets applications depend on a stable backend contract today.
+//
+//	var store crewai.MemoryStore = mem // *crewai.Memory
+//	hits, _ := store.Query(ctx, crewai.MemoryQuery{Text: "revenue", Limit: 5})
+//
 // # Logging
 //
 // crewai-go uses log/slog (structured logging) from the standard library.

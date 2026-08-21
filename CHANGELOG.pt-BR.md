@@ -13,8 +13,31 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 
+- **Contrato `MemoryStore` de memória de longo prazo (M1)**: novos tipos
+  `MemoryEntry`, `MemoryStore` e `MemoryQuery` com tetos de entrada/consulta
+  (`MaxMemoryEntryBytes`, `MaxMemoryQueryLimit`, `DefaultMemoryQueryLimit`,
+  `DefaultMemoryMaxChars`). O `*Memory` embutido agora implementa
+  `MemoryStore`: `Put` mapeia para `Save` atribuindo `ID` e `CreatedAt`,
+  `Query` busca em `Content`/`Task` (sem maiúsculas; `Text` vazio devolve os
+  mais recentes primeiro, limitado por `Limit`/`MaxChars`), `Delete` é
+  idempotente e `Close` é no-op. Entradas são particionadas por
+  `MemoryScope`. O Crew **não** está ligado ao `MemoryStore` ainda (isso é
+  M2); a interface é pública agora para que aplicações dependam do contrato
+  antes dos backends FileStore/embeddings. Sem mudança de comportamento em
+  `Crew.Memory`.
+
 - **`examples/mcp`**: demo de wiring offline para MCP `FilterTools` /
   `WithDescriptionLimit` / `NewToolAdapter` (`MCP_ENDPOINT` opcional ao vivo).
+
+### Alterado
+
+- **Interno**: o runtime paralelo staged foi extraído para a primitiva
+  compartilhada `runTaskGroup` (A1), que `runStaged` agora chama por stage.
+  A barreira (join) é o único ponto onde resultados são agregados, sempre
+  indexados pela posição da tarefa (ordem de declaração), nunca por ordem de
+  conclusão. Sem mudança de comportamento público no processo staged — é a
+  base que o agendador de waves async (A2/A3) e a barreira de commit de
+  memória (M2, D-M7) vão usar.
 
 ### Documentacao
 

@@ -13,8 +13,31 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`MemoryStore` long-term memory contract (M1)**: new `MemoryEntry`,
+  `MemoryStore`, and `MemoryQuery` types plus entry/query caps
+  (`MaxMemoryEntryBytes`, `MaxMemoryQueryLimit`, `DefaultMemoryQueryLimit`,
+  `DefaultMemoryMaxChars`). The built-in `*Memory` now implements
+  `MemoryStore`: `Put` maps to `Save` with an assigned ID and `CreatedAt`,
+  `Query` searches `Content`/`Task` (case-insensitive; empty `Text` returns
+  the latest entries first, bounded by `Limit`/`MaxChars`), `Delete` is
+  idempotent, and `Close` is a no-op. Entries are partitioned by
+  `MemoryScope`. The Crew is **not** wired to `MemoryStore` yet (that is M2);
+  the interface is public now so applications can depend on the contract
+  ahead of the FileStore/embeddings backends. No `Crew.Memory` behavior
+  change.
+
 - **`examples/mcp`**: offline wiring demo for MCP `FilterTools` /
   `WithDescriptionLimit` / `NewToolAdapter` (optional live `MCP_ENDPOINT`).
+
+### Changed
+
+- **Internal**: the staged parallel runtime was extracted into a shared
+  `runTaskGroup` primitive (A1) that `runStaged` now calls per stage. The
+  barrier (join) is the only point where results are folded, and results are
+  always indexed by task position (declaration order), never completion
+  order. No public or observable behavior change in the staged process —
+  this is the foundation the async wave scheduler (A2/A3) and the
+  memory commit barrier (M2, D-M7) will build on.
 
 ### Documentation
 

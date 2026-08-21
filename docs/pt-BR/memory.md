@@ -73,3 +73,30 @@ Use contexto para dependências precisas; use memória para dar à equipe uma
 A `Memory` embutida é em RAM e segura para concorrência. Para busca semântica
 (embeddings) ou persistência, você pode envolver/ substituir essa lógica na sua
 aplicação — a estrutura de `MemoryRecord` é intencionalmente simples.
+
+## Interface de armazenamento de longo prazo (prévia v0.6)
+
+`*Memory` também implementa `crewai.MemoryStore`, o contrato de memória de
+longo prazo plugável que os backends duráveis usarão:
+
+```go
+var store crewai.MemoryStore = crew.NewMemory() // ou *Memory existente
+
+e, _ := store.Put(ctx, crewai.MemoryEntry{Agent: "Analista", Content: "faturamento cresceu 12%"})
+hits, _ := store.Query(ctx, crewai.MemoryQuery{Limit: 5})
+_ = store.Delete(ctx, "", e.ID)
+```
+
+- `Put` atribui `ID` estável e `CreatedAt`; entradas acima de
+  `MaxMemoryEntryBytes` são rejeitadas (`ErrMemoryEntryTooLarge`).
+- `Query` respeita `Limit` (padrão `DefaultMemoryQueryLimit`, teto
+  `MaxMemoryQueryLimit`) e `MaxChars` (padrão `DefaultMemoryMaxChars`,
+  negativo = sem teto), buscando em `Content`/`Task` sem diferenciar
+  maiúsculas. `Text` vazio devolve os registros mais recentes primeiro.
+- `Delete` é idempotente; `Close` é no-op para o store em memória.
+- Entradas são particionadas por `MemoryScope`; registros de `Save` vivem no
+  escopo padrão (vazio).
+
+`Crew.Memory` continua ligando apenas a memória de curto prazo em v0.5; o Crew
+ainda não chama `MemoryStore` — a integração via `MemoryPolicy` chega com M2.
+FileStore/JSONL (`filestore.go`) e ranking por embeddings vêm em M3/M4.
