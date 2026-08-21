@@ -378,3 +378,82 @@ func TestStream_CallbackPanic_KickoffContinues(t *testing.T) {
 }
 
 var _ StreamingLLM = (*streamStub)(nil)
+
+func TestDrainToSink_NilChan(t *testing.T) {
+	var got StreamChunk
+	_, err := drainToSink(context.Background(), nil, func(c StreamChunk) { got = c })
+	if !errors.Is(err, ErrStreamIncomplete) {
+		t.Fatalf("%v", err)
+	}
+	// Sink receives redacted copy (errors.Is may not hold across redactError).
+	if got.Err == nil || !strings.Contains(got.Err.Error(), "stream ended") {
+		t.Fatalf("sink %#v", got)
+	}
+}
+
+func TestDrainToSink_Incomplete(t *testing.T) {
+	ch := make(chan StreamChunk)
+	close(ch)
+	var got StreamChunk
+	_, err := drainToSink(context.Background(), ch, func(c StreamChunk) { got = c })
+	if !errors.Is(err, ErrStreamIncomplete) {
+		t.Fatalf("err=%v", err)
+	}
+	if got.Err == nil || !strings.Contains(got.Err.Error(), "stream ended") {
+		t.Fatalf("sink %#v", got)
+	}
+}
+
+func TestDrainToSink_CancelEmitsErr(t *testing.T) {
+	ch := make(chan StreamChunk)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var got StreamChunk
+	_, err := drainToSink(ctx, ch, func(c StreamChunk) { got = c })
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("%v", err)
+	}
+	if got.Err == nil || !strings.Contains(got.Err.Error(), "canceled") {
+		t.Fatalf("sink %#v", got)
+	}
+}
+
+func TestDrainToSink_ErrChunk(t *testing.T) {
+	ch := make(chan StreamChunk, 1)
+	boom := errors.New("provider boom sk-abcdefghijklmnopqrstuvwxyz012345")
+	ch <- StreamChunk{Err: boom}
+	close(ch)
+	var got StreamChunk
+	_, err := drainToSink(context.Background(), ch, func(c StreamChunk) { got = c })
+	if !errors.Is(err, boom) {
+		t.Fatalf("want original err, got %v", err)
+	}
+	// Sink sees redacted form (not the raw long token).
+	if got.Err == nil || strings.Contains(got.Err.Error(), "sk-abcdefghijklmnopqrstuvwxyz012345") {
+		t.Fatalf("expected redacted sink err, got %v", got.Err)
+	}
+}
+
+func TestEmitStream_NilSink(t *testing.T) {
+	emitStream(context.Background(), nil, StreamChunk{Delta: "x"})
+}
+
+func TestWithTaskAgent_Nil(t *testing.T) {
+	if withTaskAgent(nil, "t", "a") != nil {
+		t.Fatal("want nil")
+	}
+}
+
+func TestCallOrStream_NilLLM(t *testing.T) {
+	_, err := CallOrStream(context.Background(), nil, nil, nil)
+	if !errors.Is(err, ErrNoLLM) {
+		t.Fatalf("%v", err)
+	}
+}
+
+func TestContextWithStream_Nil(t *testing.T) {
+	ctx := context.Background()
+	if ContextWithStream(ctx, nil) != ctx {
+		t.Fatal("nil sink should be no-op")
+	}
+}

@@ -127,8 +127,10 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 
 ### Limitações conhecidas (pós v0.6.0)
 
-- **Sem streaming** — `LLM.Call` retorna a resposta completa; ainda não há
-  `CallStream` / `StreamingLLM` (roadmap §6 P1).
+- **Streaming é opt-in** — sem `WithStream` / `StreamingLLM`, `LLM.Call`
+  ainda devolve a resposta completa. Stream cobre só texto final / caminhos
+  sem tools (ver [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md)); tag
+  de release pendente.
 - **JSON Schema ainda é um subconjunto** — núcleo + `additionalProperties`,
   bounds, `pattern`, `oneOf`/`anyOf`/`allOf` (v0.5.0). Ainda sem `$ref`,
   `if`/`then`/`else`, `format`, unevaluated*, etc. (roadmap §6 P2).
@@ -317,7 +319,7 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 
 | Prioridade | Item | Notas |
 |---|---|---|
-| P1 | **Streaming** | Implemented (tag pending): [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md) — `StreamingLLM` + `WithStream`; não iniciado |
+| P1 | **Streaming** | Implementado na main (tag pendente): [`PLAN.streaming.pt-BR.md`](PLAN.streaming.pt-BR.md) — `StreamingLLM` + `WithStream` |
 
 | P2 | **Callbacks / telemetria** | Hooks de lifecycle além de `WithProgress` |
 | P2 | **JSON Schema `$ref` / `format` / …** | Fechar subconjunto → fatia 2020-12 |

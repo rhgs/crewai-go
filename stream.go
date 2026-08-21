@@ -63,12 +63,15 @@ type StreamingLLM interface {
 	// ctx.Err() or ErrStreamIncomplete). Implementers MUST:
 	//   - respect ctx cancellation promptly;
 	//   - not block forever if the caller stops receiving (prefer ctx);
-	//   - enforce MaxProviderResponseBytes on accumulated text AND on
-	//     raw HTTP body bytes read (D-S8); use ErrStreamResponseTooLarge;
+	//   - enforce MaxProviderResponseBytes on raw HTTP body bytes read
+	//     (D-S8); use ErrStreamResponseTooLarge (body cap bounds wire
+	//     JSON, which also bounds delivered text in practice);
 	//   - be safe for concurrent Call/CallStream on the same client;
 	//   - leave Task/Agent empty (executor fills them);
 	//   - never set Done and Err on the same chunk.
 	// The returned channel SHOULD use DefaultStreamChanBuffer (D-S11).
+	// Note: long streams may still hit the provider HTTP client's Timeout
+	// (e.g. 120s); raise WithHTTPClient timeout for long generations.
 	CallStream(ctx context.Context, messages []Message) <-chan StreamChunk
 }
 
@@ -176,10 +179,14 @@ func drainToSink(ctx context.Context, ch <-chan StreamChunk, sink StreamFunc) (s
 	for {
 		select {
 		case <-ctx.Done():
-			return b.String(), ctx.Err()
+			err := ctx.Err()
+			// Notify sink so UIs do not hang waiting for Done (cancel path).
+			emitStream(ctx, sink, StreamChunk{Err: err})
+			return b.String(), err
 		case chunk, ok := <-ch:
 			if !ok {
 				if err := ctx.Err(); err != nil {
+					emitStream(ctx, sink, StreamChunk{Err: err})
 					return b.String(), err
 				}
 				err := ErrStreamIncomplete
@@ -194,6 +201,9 @@ func drainToSink(ctx context.Context, ch <-chan StreamChunk, sink StreamFunc) (s
 				emitStream(ctx, sink, chunk)
 			}
 			if chunk.Err != nil {
+				// Prefer the redacted form already delivered to the sink only
+				// for display; return the original provider error to callers
+				// so errors.Is / unwrap still work.
 				return b.String(), chunk.Err
 			}
 			if chunk.Done {

@@ -319,8 +319,10 @@ crew := crewai.NewCrew(agents, tasks).WithStream(func(c crewai.StreamChunk) {
 - Chunks include **`Task` / `Agent`** labels so Async waves can be demuxed.
 - Protocol paths (ReAct+tools, structured output, native tool rounds, manager
   delegate) stay on buffered `Call` / `CallWithTools`.
-- Body and response size are capped at `MaxProviderResponseBytes` (same as
-  non-stream). See `ErrStreamResponseTooLarge`, `ErrStreamIncomplete`.
+- Body size is capped at `MaxProviderResponseBytes` (same constant as
+  non-stream `ReadAll`). See `ErrStreamResponseTooLarge`, `ErrStreamIncomplete`.
+  Long generations may hit the provider HTTP client `Timeout` (often 120s) —
+  raise it via `WithHTTPClient` when needed.
 - Example: `examples/streaming`.
 
 
