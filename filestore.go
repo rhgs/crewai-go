@@ -428,10 +428,7 @@ func (fs *FileStore) loadScope(scope MemoryScope, dir string) error {
 		// Tombstone first (small struct).
 		var tomb tombstone
 		if err := json.Unmarshal([]byte(line), &tomb); err == nil && tomb.Deleted && tomb.ID != "" {
-			if i, ok := idx.byID[tomb.ID]; ok {
-				delete(idx.byID, tomb.ID)
-				_ = i
-			}
+			delete(idx.byID, tomb.ID)
 			continue
 		}
 		var e MemoryEntry

@@ -551,25 +551,25 @@ File ownership:
 ## 7. Acceptance criteria (epic done)
 
 ### Long-term memory
-- [ ] `MemoryStore` interface + in-memory implementation; existing `Memory bool` tests pass.
-- [ ] Policy-based inject with hard caps; no unbounded dump by default when policy uses limits.
-- [ ] **D-M7:** parallel wave commits Memory in declaration order; next-wave inject cannot see in-flight sibling writes.
-- [ ] FileStore survives process restart in tests.
-- [ ] Optional embedding path tested with fake embedder (cosine rank).
-- [ ] Bilingual docs + example; Memory/WithContext invariant documented (not only in a blog reply).
+- [x] `MemoryStore` interface + in-memory implementation; existing `Memory bool` tests pass.
+- [x] Policy-based inject with hard caps; no unbounded dump by default when policy uses limits.
+- [x] **D-M7:** parallel wave commits Memory in declaration order; next-wave inject cannot see in-flight sibling writes.
+- [x] FileStore survives process restart in tests.
+- [x] Optional embedding path tested with fake embedder (cosine rank).
+- [x] Bilingual docs + example; Memory/WithContext invariant documented (not only in a blog reply).
 
 ### Async beyond staged
-- [ ] Independent `Task.Async` tasks overlap in time under Sequential.
-- [ ] `Task.Context` dependencies enforced; cycles / same-wave edges error clearly.
-- [ ] Staged golden behavior unchanged (same tests); aggregation remains declaration-order after barrier.
-- [ ] FailFast cancel + panic recovery covered.
-- [ ] `-race` clean with memory saves under async **and** semantic Memory order test green.
-- [ ] Bilingual docs + example (wave/barrier/fold contract called out).
+- [x] Independent `Task.Async` tasks overlap in time under Sequential.
+- [x] `Task.Context` dependencies enforced; cycles / same-wave edges error clearly.
+- [x] Staged golden behavior unchanged (same tests); aggregation remains declaration-order after barrier.
+- [x] FailFast cancel + panic recovery covered.
+- [x] `-race` clean with memory saves under async **and** semantic Memory order test green.
+- [x] Bilingual docs + example (wave/barrier/fold contract called out).
 
 ### Global
-- [ ] `go.mod` still free of new deps.
-- [ ] Coverage gates met.
-- [ ] CHANGELOG EN/PT under Unreleased until release tag.
+- [x] `go.mod` still free of new deps.
+- [x] Coverage gates met.
+- [x] CHANGELOG EN/PT under Unreleased until release tag.
 
 ---
 

@@ -111,6 +111,10 @@ func formatMemoryHits(hits []MemoryEntry) string {
 		e := hits[i]
 		b.WriteString("- [")
 		b.WriteString(e.Agent)
+		if e.Task != "" {
+			b.WriteString(" | task=")
+			b.WriteString(e.Task)
+		}
 		b.WriteString("] ")
 		b.WriteString(e.Content)
 		b.WriteString("\n")

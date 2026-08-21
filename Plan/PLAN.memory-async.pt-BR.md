@@ -480,25 +480,25 @@ Partição de arquivos:
 ## 7. Critérios de aceite (épico)
 
 ### Memória de longo prazo
-- [ ] Interface `MemoryStore` + in-memory; testes de `Memory bool` passam.
-- [ ] Inject com caps; sem dump ilimitado quando policy usa limites.
-- [ ] **D-M7:** wave paralela comita Memory em ordem de declaração; inject da próxima wave não vê writes in-flight de siblings.
-- [ ] FileStore sobrevive restart nos testes.
-- [ ] Path de embedding com fake embedder.
-- [ ] Docs bilíngues + example; invariante Memory/`WithContext` documentada (não só na resposta do blog).
+- [x] Interface `MemoryStore` + in-memory; testes de `Memory bool` passam.
+- [x] Inject com caps; sem dump ilimitado quando policy usa limites.
+- [x] **D-M7:** wave paralela comita Memory em ordem de declaração; inject da próxima wave não vê writes in-flight de siblings.
+- [x] FileStore sobrevive restart nos testes.
+- [x] Path de embedding com fake embedder.
+- [x] Docs bilíngues + example; invariante Memory/`WithContext` documentada (não só na resposta do blog).
 
 ### Async além do staged
-- [ ] `Task.Async` independentes com overlap temporal no Sequential.
-- [ ] `Task.Context` enforced; ciclos / arestas same-wave com erro claro.
-- [ ] Staged golden inalterado; agregação continua por declaração após barreira.
-- [ ] FailFast + panic recovery.
-- [ ] `-race` limpo com memory saves **e** teste de ordem semântica de Memory verde.
-- [ ] Docs bilíngues + example (contrato wave/barreira/fold explícito).
+- [x] `Task.Async` independentes com overlap temporal no Sequential.
+- [x] `Task.Context` enforced; ciclos / arestas same-wave com erro claro.
+- [x] Staged golden inalterado; agregação continua por declaração após barreira.
+- [x] FailFast + panic recovery.
+- [x] `-race` limpo com memory saves **e** teste de ordem semântica de Memory verde.
+- [x] Docs bilíngues + example (contrato wave/barreira/fold explícito).
 
 ### Global
-- [ ] `go.mod` sem novas deps.
-- [ ] Gates de cobertura.
-- [ ] CHANGELOG EN/PT até a tag de release.
+- [x] `go.mod` sem novas deps.
+- [x] Gates de cobertura.
+- [x] CHANGELOG EN/PT até a tag de release.
 
 ---
 

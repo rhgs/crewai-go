@@ -2,6 +2,7 @@ package crewai_test
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -232,6 +233,70 @@ func TestMemoryAutoSaveSkippedOnFailure(t *testing.T) {
 	recs := crew.MemorySnapshot().Records()
 	if len(recs) != 1 || recs[0].Content != "ok" {
 		t.Errorf("AutoSave must skip failures; records = %+v", recs)
+	}
+}
+
+func TestStagedAsyncWarnLoggedOncePerKickoff(t *testing.T) {
+	// G5: when Task.Async is set under Staged, Kickoff logs the Warn ONCE
+	// (not once per stage). Multiple Async tasks across stages → one line.
+	var warns atomic.Int32
+	llm := mock.New("a", "b", "c", "d")
+	a := crewai.NewAgent("A", "", "", llm)
+	t1 := crewai.NewTask("1", "", a).WithAsync()
+	t2 := crewai.NewTask("2", "", a).WithAsync()
+
+	handler := &countingHandler{warnCount: &warns}
+	crew := crewai.NewCrew([]*crewai.Agent{a}, nil)
+	crew.Process = crewai.Staged
+	crew.Stages = []crewai.Stage{
+		{Name: "s1", Tasks: []*crewai.Task{t1}},
+		{Name: "s2", Tasks: []*crewai.Task{t2}},
+	}
+	crew.WithLogger(slog.New(handler))
+	if _, err := crew.Kickoff(context.Background(), nil); err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if got := warns.Load(); got != 1 {
+		t.Errorf("Warn count = %d, want exactly 1 (once per Kickoff)", got)
+	}
+}
+
+// countingHandler counts Warn-level records.
+type countingHandler struct {
+	warnCount *atomic.Int32
+}
+
+func (h *countingHandler) Enabled(context.Context, slog.Level) bool { return true }
+func (h *countingHandler) Handle(_ context.Context, r slog.Record) error {
+	if r.Level == slog.LevelWarn {
+		h.warnCount.Add(1)
+	}
+	return nil
+}
+func (h *countingHandler) WithAttrs([]slog.Attr) slog.Handler { return h }
+func (h *countingHandler) WithGroup(string) slog.Handler      { return h }
+
+func TestMemorySnapshotScopedWithExternalMemory(t *testing.T) {
+	// External *Memory + Crew.Name + Memory=true: MemorySnapshot().Records()
+	// must see this Kickoff's entries even though they are scoped to
+	// Crew.Name (G3). Without a scope-tolerant Records(), the snapshot would
+	// be empty while the store holds data — a silent observability lie.
+	store := crewai.NewMemory()
+	llm := mock.New("scoped")
+	a := crewai.NewAgent("A", "", "", llm)
+	task := crewai.NewTask("t", "", a)
+	task.Name = "t"
+
+	crew := crewai.NewCrew([]*crewai.Agent{a}, []*crewai.Task{task})
+	crew.Name = "scoped-crew"
+	crew.Memory = true // AND external store
+	crew.MemoryStore = store
+
+	if _, err := crew.Kickoff(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(crew.MemorySnapshot().Records()); got != 1 {
+		t.Errorf("MemorySnapshot().Records() = %d, want 1 (scoped entries visible)", got)
 	}
 }
 

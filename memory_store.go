@@ -63,10 +63,12 @@ type MemoryQuery struct {
 	// Text filters by keyword/substring when Embedding is empty.
 	// Embedding (len>0) requests cosine similarity ranking over stored
 	// vectors (M4). Built-in stores (*Memory, FileStore) rank by cosine and
-	// ignore Text for filtering on the semantic path; when no entry has a
-	// usable embedding the result may be empty (or all-zero scores trimmed).
-	// The core never computes query embeddings — pass them pre-computed, or
-	// embed q.Text yourself via EmbeddingFunc before Query.
+	// ignore Text for filtering on the semantic path. Entries without a
+	// usable vector score 0 and are trimmed when any positive match exists;
+	// if nothing is embedded, Query falls back to latest-N of the candidate
+	// set (never a silent empty on a non-empty store). The core never
+	// computes query embeddings — pass them pre-computed, or embed q.Text
+	// yourself via EmbeddingFunc before Query.
 	Text      string
 	Embedding []float32
 	// Limit is the maximum number of hits; values outside
@@ -80,8 +82,8 @@ type MemoryQuery struct {
 // MemoryStore is implemented by built-in and application-provided long-term
 // memory stores. All methods must be safe for concurrent use.
 //
-// M1 provides only this contract plus an in-memory adapter on *Memory; the
-// Crew is not wired to MemoryStore until M2 (MemoryPolicy + the D-M7 barrier).
+// Built-in implementations: *Memory (M1) and FileStore (M3). The Crew wires
+// AutoSave/inject through MemoryPolicy (M2) with the D-M7 commit barrier.
 type MemoryStore interface {
 	Put(ctx context.Context, e MemoryEntry) (MemoryEntry, error)
 	Query(ctx context.Context, q MemoryQuery) ([]MemoryEntry, error)

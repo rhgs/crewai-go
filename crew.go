@@ -216,8 +216,7 @@ const DefaultAsyncMaxWorkers = 8
 // applies the library defaults for async scheduling (AsyncMaxWorkers =
 // DefaultAsyncMaxWorkers, AsyncFailFast = true); override them on the
 // returned Crew if needed. A composite literal Crew{} (no NewCrew) has
-// AsyncMaxWorkers = 0 = unlimited by design until Kickoff applies the
-// default for the unset path.
+// AsyncMaxWorkers = 0 = unlimited by design.
 func NewCrew(agents []*Agent, tasks []*Task) *Crew {
 	return &Crew{
 		Agents:          agents,
@@ -324,12 +323,18 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 			return nil, err
 		}
 	} else {
-		// G5: Async is ignored under Staged; surface it once when set.
+		// G5: Async is ignored under Staged; surface it ONCE per Kickoff when
+		// set anywhere (not once per stage), so the log stays quiet and clear.
+		g5warned := false
 		for _, stage := range c.Stages {
+			if g5warned {
+				break
+			}
 			for _, t := range stage.Tasks {
 				if t.Async {
 					c.logger.WarnContext(ctx, "Task.Async is ignored under the Staged process",
 						"task", taskLabel(t, 0))
+					g5warned = true
 					break
 				}
 			}
@@ -399,9 +404,10 @@ func (c *Crew) runSequential(ctx context.Context) (*CrewOutput, error) {
 
 // runSequentialWithPlan runs the sequential process. When no task is Async
 // the behavior matches the pre-async serial path. When any task is marked
-// Async the crew schedules ready Async tasks per wave (already validated at
-// Kickoff by planWaves) and only folds results into the output after each
-// wave barrier, in declaration order.
+// Async the crew schedules ready Async tasks per wave. The planner runs here
+// (idempotent; Kickoff already validated it with the same pure function per
+// G12) and only folds results into the output after each wave barrier, in
+// declaration order.
 func (c *Crew) runSequentialWithPlan(ctx context.Context, plan *asyncPlan) (*CrewOutput, error) {
 	hasAsync := false
 	for _, t := range c.Tasks {
