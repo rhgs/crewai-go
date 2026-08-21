@@ -114,11 +114,11 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 - [x] Documentation: bilingual README + guides + MCP + SECURITY + memory/async; 17 examples.
 - [x] Clean `go build`, `go vet`, and `go test ./...`.
 
-### Maturity snapshot (2026-08-21 — v0.7.0)
+### Maturity snapshot (2026-08-21 — v0.8.0)
 
 | Metric | Value |
 |---------|-------|
-| Latest release | **v0.7.0** (2026-08-21) — Streaming PRs #35/#36 |
+| Latest release | **v0.8.0** (2026-08-21) — P2 events + schema PRs #39–#42 |
 | Go LOC (approx.) | ~25k+ |
 | External dependencies | 0 (stdlib) |
 | Coverage — core (`crewai`) | ~94%+ (memory/async epic) |
@@ -127,21 +127,20 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 | Documentation | bilingual README + guides + MCP + SECURITY + memory/async |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
-### Known limitations (post v0.7.0)
+### Known limitations (post v0.8.0)
 
 - **Streaming is opt-in** — without `WithStream` / `StreamingLLM`, `LLM.Call`
   still returns the full response. Stream covers final text / no-tools paths
   only (see [`PLAN.streaming.md`](PLAN.streaming.md)); shipped in **v0.7.0**.
-- **JSON Schema is still a subset** — supports core keywords plus
-  `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf`/`allOf`
-  (v0.5.0). Still no `$ref`, `if`/`then`/`else`, `format`, unevaluated*, etc.
-  (roadmap §6 P2).
+- **JSON Schema is still a subset** — v0.8.0 adds local `$ref`, `format`
+  allowlist, `const`/`not`/`if`/`then`/`else`, property counts, `uniqueItems`.
+  Still no `unevaluated*`, remote `$ref`, `dependent*`, etc.
 - **MCP servers are trusted** — tool descriptions/results enter the model
   context; use `FilterTools`, network allowlists, and least privilege (see
   MCP threat model docs).
 - **No event-driven Flows / YAML / training** — roadmap §6 P3.
-- **No first-class callbacks/telemetry beyond `WithProgress`** — task and
-  ReAct-iteration lifecycle hooks are still open (roadmap §6 P2).
+- **Lifecycle events are metadata-only** — `WithEvents` does not carry prompt
+  bodies (by design). OpenTelemetry is not bundled in core.
 - **Tool surface beyond web search** — no built-in HTTP/files/RAG tools yet
   (roadmap §6 P3). Web search shipped in v0.3+.
 
@@ -176,7 +175,7 @@ priority (highest impact / lowest effort first):
 - [x] **Expanded JSON Schema** + `WithStrictSchema`.
 - [x] **`RedactHandler`**, OutputFile jail, Kickoff single-flight.
 - [x] **Real delegation tool** `delegate_to_coworker` + `EnableDelegationTool`.
-- [x] Tags **v0.1.0 … v0.7.0**; bilingual docs; CI + CodeQL.
+- [x] Tags **v0.1.0 … v0.8.0**; bilingual docs; CI + CodeQL.
 
 ### P0 — Publishing and fundamentals
 
@@ -295,11 +294,11 @@ and environment variable names in docs/README. The `.gitignore` protects
   emit_result.
 - [x] **Callbacks and telemetry** — `CrewEvent` + `WithEvents`; llm_call /
   react_iteration / structured_repair / loop_phase / guardrail / wave events;
-  metadata-safe; Progress dual-emit. **On main (tag pending v0.8.0).** Design:
+  metadata-safe; Progress dual-emit. **Shipped in v0.8.0** (PR #39). Design:
   [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) Part C.
 - [x] **JSON Schema remainder** — local `$ref`, format allowlist, `const`/`not`/
   `if`/`then`/`else`, property counts, `uniqueItems`; `unevaluated*` still
-  strict-fail. **On main (tag pending v0.8.0).** Design plan Part J.
+  strict-fail. **Shipped in v0.8.0** (PR #39). Design plan Part J.
 
 ### P3 — Advanced orchestration, tools, and packaging
 
@@ -329,8 +328,8 @@ unless explicitly accepted).
 |---|---|---|
 | P1 | **Streaming** | **Shipped v0.7.0** (PRs #35/#36): [`PLAN.streaming.md`](PLAN.streaming.md) — `StreamingLLM` + `WithStream` |
 
-| P2 | **Callbacks / telemetry** | **Implemented** (tag pending): [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) Part C |
-| P2 | **JSON Schema remainder** | **Implemented** (tag pending): same plan Part J |
+| P2 | **Callbacks / telemetry** | **Shipped v0.8.0** (PR #39): [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) Part C |
+| P2 | **JSON Schema remainder** | **Shipped v0.8.0** (PR #39): same plan Part J |
 | P3 | **Flows** | Event-driven state + routing |
 | P3 | **Tools: HTTP, files, RAG patterns** | SSRF/jail; RAG not a core vector DB |
 | P3 | **YAML crew definitions** | agents.yaml / tasks.yaml → Go types |

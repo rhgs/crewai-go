@@ -5,30 +5,31 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [v0.8.0] — 2026-08-21
+
 ### Added
 
 - **Lifecycle events (P2)**: `CrewEvent` + `Crew.WithEvents` / `ContextWithEvents`,
   `KickoffID`, dual-emit with Progress, `llm_call_*`, `react_iteration`,
   `structured_repair`, `loop_phase`, `guardrail_blocked`, `wave_*`. Helpers
   `ProgressAsEvents`, `EventLogger`. Example `examples/events`. Design:
-  `Plan/PLAN.p2-callbacks-schema.md` Part C (D-C1–D-C10).
+  `Plan/PLAN.p2-callbacks-schema.md` Part C (D-C1–D-C10). PR #39.
 - **JSON Schema remainder (P2)**: local `$ref` (`#/$defs`, `#/definitions`) with
   depth/expansion caps; `format` allowlist; `const`, `not`, `if`/`then`/`else`,
   `minProperties`/`maxProperties`, `uniqueItems`; boolean schemas. StrictSchema
-  still rejects `unevaluated*`. Design plan Part J (D-J1–D-J12).
+  still rejects `unevaluated*`. Design plan Part J (D-J1–D-J12). PR #39.
 
 ### Documentation
 
 - **Decision log**: living `Plan/DECISIONS.md` (+ PT) catalogs closed/open
   IDs (D1–D7, D-M/A/S/C/J, G*, P-*) with options and outcomes; update on
-  every new decision. Linked from roadmap and README docs index.
+  every new decision. Linked from roadmap and README docs index. PR #42.
 - **Concurrency guide**: new `docs/concurrency.md` (+ PT) — data races vs
   semantic races, barrier/fold, D-M7 Memory, Streaming/Events under
   parallelism. README Why + crews/memory cross-links; `emitEvent`
-  shallow-clones Attrs.
-- **P2 design plan** was linked earlier; implementation docs: crews `WithEvents`,
-  tasks schema keyword table, SECURITY events + local `$ref`, examples READMEs.
-
+  shallow-clones Attrs. PRs #40, #41.
+- **P2 docs**: crews `WithEvents`, tasks schema keyword table, SECURITY
+  events + local `$ref`, examples READMEs; README What's new → v0.8.0.
 
 ## [v0.7.0] — 2026-08-21
 
@@ -465,7 +466,8 @@ First public release: an idiomatic Go port of the CrewAI framework core.
   runtime inter-agent calls), no streaming, in-process memory only, no native
   function calling. See `Plan/PLAN.md` for the full roadmap.
 
-[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.8.0...HEAD
+[v0.8.0]: https://github.com/rhgs/crewai-go/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/rhgs/crewai-go/compare/v0.6.0...v0.7.0
 [v0.6.0]: https://github.com/rhgs/crewai-go/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/rhgs/crewai-go/compare/v0.4.0...v0.5.0

@@ -127,45 +127,45 @@ Source: [`PLAN.streaming.md`](PLAN.streaming.md) §9. PRs #35–#36.
 
 ---
 
-## 6. Lifecycle events (D-C1–D-C10) — closed 2026-08-21 · on main (tag v0.8.0 pending)
+## 6. Lifecycle events (D-C1–D-C10) — closed 2026-08-21 · v0.8.0
 
 Source: [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) §9.1. PR #39.
 
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|
-| **D-C1** | New API vs overload Progress | (A) expand Progress only (B) `CrewEvent` + `EventFunc` | **B** | closed | main | |
-| **D-C2** | Progress fate in v0.x | (A) dual-emit forever (B) soft-deprecate Progress | **A** | closed | main | |
-| **D-C3** | ReAct hook shape | (A) single `react_iteration` + llm_call pair (B) start/end only | **A** | closed | main | |
-| **D-C4** | Bodies in events | (A) never in v1 (B) tiered detail | **A** | closed | main | Metadata-only |
-| **D-C5** | OTEL in core | (A) depend on otel (B) example bridge only | **B** | closed | main | Zero new deps |
-| **D-C6** | Kickoff correlation ID | (A) none (B) auto on ctx | **B** | closed | main | `KickoffID` |
-| **D-C7** | Multiple EventFuncs | (A) single slot (B) handler slice | **A** | closed | main | Apps compose |
-| **D-C8** | wave_* events | (A) skip (B) emit | **B** | closed | main | |
-| **D-C9** | llm_call under streaming path | (A) one pair around CallOrStream (B) per delta | **A** | closed | main | |
-| **D-C10** | EventFunc panic | (A) crash (B) recover | **B** | closed | main | `emitEvent` |
+| **D-C1** | New API vs overload Progress | (A) expand Progress only (B) `CrewEvent` + `EventFunc` | **B** | closed | v0.8.0 | |
+| **D-C2** | Progress fate in v0.x | (A) dual-emit forever (B) soft-deprecate Progress | **A** | closed | v0.8.0 | |
+| **D-C3** | ReAct hook shape | (A) single `react_iteration` + llm_call pair (B) start/end only | **A** | closed | v0.8.0 | |
+| **D-C4** | Bodies in events | (A) never in v1 (B) tiered detail | **A** | closed | v0.8.0 | Metadata-only |
+| **D-C5** | OTEL in core | (A) depend on otel (B) example bridge only | **B** | closed | v0.8.0 | Zero new deps |
+| **D-C6** | Kickoff correlation ID | (A) none (B) auto on ctx | **B** | closed | v0.8.0 | `KickoffID` |
+| **D-C7** | Multiple EventFuncs | (A) single slot (B) handler slice | **A** | closed | v0.8.0 | Apps compose |
+| **D-C8** | wave_* events | (A) skip (B) emit | **B** | closed | v0.8.0 | |
+| **D-C9** | llm_call under streaming path | (A) one pair around CallOrStream (B) per delta | **A** | closed | v0.8.0 | |
+| **D-C10** | EventFunc panic | (A) crash (B) recover | **B** | closed | v0.8.0 | `emitEvent` |
 
 **Lean on spike O-C1:** include `model` via `LLM.Model()` in llm_call Attrs (metadata) — **implemented**.
 
 ---
 
-## 7. JSON Schema remainder (D-J1–D-J12) — closed 2026-08-21 · on main (tag v0.8.0 pending)
+## 7. JSON Schema remainder (D-J1–D-J12) — closed 2026-08-21 · v0.8.0
 
 Source: [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) §9.2. PR #39.
 
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|
-| **D-J1** | `$ref` scope | (A) local only (B) file (C) http | **A** | closed | main | No network fetch |
-| **D-J2** | `$ref` + sibling keywords | (A) ignore siblings (B) apply as intersection | **B** | closed | main | |
-| **D-J3** | `format` vocabulary | (A) none (B) allowlist (C) large set | **B** | closed | main | date-time, date, email, uri, uri-reference, uuid, ipv4, ipv6 |
-| **D-J4** | Unknown `format` at runtime | (A) ignore (B) always error | **A** | closed | main | |
-| **D-J5** | `const` | (A) defer (B) ship | **B** | closed | main | |
-| **D-J6** | `if`/`then`/`else` | (A) defer (B) ship basic | **B** | closed | main | |
-| **D-J7** | `not` | (A) defer (B) ship | **B** | closed | main | |
-| **D-J8** | min/maxProperties, uniqueItems | (A) defer (B) ship | **B** | closed | main | |
+| **D-J1** | `$ref` scope | (A) local only (B) file (C) http | **A** | closed | v0.8.0 | No network fetch |
+| **D-J2** | `$ref` + sibling keywords | (A) ignore siblings (B) apply as intersection | **B** | closed | v0.8.0 | |
+| **D-J3** | `format` vocabulary | (A) none (B) allowlist (C) large set | **B** | closed | v0.8.0 | date-time, date, email, uri, uri-reference, uuid, ipv4, ipv6 |
+| **D-J4** | Unknown `format` at runtime | (A) ignore (B) always error | **A** | closed | v0.8.0 | |
+| **D-J5** | `const` | (A) defer (B) ship | **B** | closed | v0.8.0 | |
+| **D-J6** | `if`/`then`/`else` | (A) defer (B) ship basic | **B** | closed | v0.8.0 | |
+| **D-J7** | `not` | (A) defer (B) ship | **B** | closed | v0.8.0 | |
+| **D-J8** | min/maxProperties, uniqueItems | (A) defer (B) ship | **B** | closed | v0.8.0 | |
 | **D-J9** | unevaluated* | (A) ship full (B) defer | **B** | closed | — | Still StrictSchema-fail |
-| **D-J10** | Boolean schemas true/false | (A) loose pass-through (B) draft-accurate | **B** | closed | main | true always ok; false fails |
-| **D-J11** | String length unit | keep bytes vs switch to runes | **bytes** (`len`) | closed | main | Aligns D7 |
-| **D-J12** | Ref depth / expansion caps | 32 / 256 | **yes** | closed | main | Anti bomb |
+| **D-J10** | Boolean schemas true/false | (A) loose pass-through (B) draft-accurate | **B** | closed | v0.8.0 | true always ok; false fails |
+| **D-J11** | String length unit | keep bytes vs switch to runes | **bytes** (`len`) | closed | v0.8.0 | Aligns D7 |
+| **D-J12** | Ref depth / expansion caps | 32 / 256 | **yes** | closed | v0.8.0 | Anti bomb |
 
 ---
 
@@ -206,6 +206,7 @@ When closing an open item: move it into the right section table, set **Status=cl
 | Date | Change |
 |------|--------|
 | 2026-08-21 | Initial living log: D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\*, P-\* |
+| 2026-08-21 | Mark D-C\* / D-J\* shipped in **v0.8.0** |
 
 ---
 

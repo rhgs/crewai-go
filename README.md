@@ -721,17 +721,19 @@ go run ./examples/xai_oauth
 | Plan / Roadmap | [EN](Plan/PLAN.md) | [PT](Plan/PLAN.pt-BR.md) |
 | Security policy | [EN](SECURITY.md) | — |
 
-### What's new in v0.7.0
+### What's new in v0.8.0
 
-All features are **backward compatible** — no breaking changes to `LLM.Call`
-or existing providers that do not implement `StreamingLLM`.
+All features are **backward compatible** — additive APIs only.
 
 | Feature | Description | Docs (EN) | Docs (PT) |
 |---------|-------------|-----------|-----------|
-| **`StreamingLLM` + `WithStream`** | Optional type-assert stream API; `Crew.WithStream` / context sink; final-text (ReAct/native no-tools) deltas; Task/Agent demux on Async waves; body-byte cap. | [docs/llms.md](docs/llms.md#streaming) · [docs/crews.md](docs/crews.md) | [docs/pt-BR/llms.md](docs/pt-BR/llms.md#streaming) · [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
-| **Provider `CallStream`** | OpenAI (SSE), Ollama (NDJSON), Anthropic (SSE), xAI (delegate), `llm/mock`. | [docs/llms.md](docs/llms.md#streaming) | [docs/pt-BR/llms.md](docs/pt-BR/llms.md#streaming) |
-| **Helpers** | Public `CollectStream` / `CallOrStream`; sentinels `ErrStreamIncomplete`, `ErrStreamResponseTooLarge`. | godoc | godoc |
-| **Example** | Offline `examples/streaming` (Async demux). | [examples/streaming](examples/streaming) | [examples/](examples/) |
+| **`WithEvents` / `CrewEvent`** | Metadata-only lifecycle telemetry: kickoff, task/wave, `llm_call_*`, `react_iteration`, `structured_repair`, `loop_phase`, `guardrail_blocked`; `KickoffID`; dual-emit with Progress. | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
+| **JSON Schema remainder** | Local `$ref`, `format` allowlist, `const`/`not`/`if`/`then`/`else`, property counts, `uniqueItems`; `unevaluated*` still Strict-fail. | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
+| **Concurrency guide** | Data races vs semantic races; barrier + declaration-order fold; Memory D-M7. | [docs/concurrency.md](docs/concurrency.md) | [docs/pt-BR/concurrency.md](docs/pt-BR/concurrency.md) |
+| **Decision log** | Living catalog of design decisions with options. | [Plan/DECISIONS.md](Plan/DECISIONS.md) | [Plan/DECISIONS.pt-BR.md](Plan/DECISIONS.pt-BR.md) |
+| **Example** | Offline `examples/events`. | [examples/events](examples/events) | [examples/](examples/) |
+
+**Also in v0.7.0**: `StreamingLLM` + `WithStream`, provider `CallStream`, `CollectStream`.
 
 **Also in v0.6.0**: `Task.Async` waves, `MemoryStore` / `MemoryPolicy` / D-M7, `FileStore`, embeddings + cosine Query.
 
@@ -741,7 +743,7 @@ or existing providers that do not implement `StreamingLLM`.
 
 **Also in v0.3.0**: native tool calling, web search, structured logging via `log/slog`, secret redaction.
 
-See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.7.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.7.0) for details.
+See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.8.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.8.0) for details.
 
 
 ## Tests

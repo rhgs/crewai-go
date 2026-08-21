@@ -5,15 +5,7 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
-### Documentation
-
-- **Registro de decisões**: `Plan/DECISIONS.md` (+ PT) vivo cataloga IDs
-  fechados/abertos (D1–D7, D-M/A/S/C/J, G*, P-*) com opções e escolhas;
-  atualizar a cada nova decisão. Link no roadmap e índice de docs do README.
-- **Guia de concorrência**: novo `docs/concurrency.md` (+ PT) — data races vs
-  semantic races, barreira/fold, Memory D-M7, Streaming/Events sob
-  paralelismo. Why do README + cross-links crews/memory; `emitEvent` clona
-  Attrs.
+## [v0.8.0] — 2026-08-21
 
 ### Adicionado
 
@@ -21,17 +13,22 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   `ContextWithEvents`, `KickoffID`, dual-emit com Progress, `llm_call_*`,
   `react_iteration`, `structured_repair`, `loop_phase`, `guardrail_blocked`,
   `wave_*`. Helpers `ProgressAsEvents`, `EventLogger`. Exemplo
-  `examples/events`. Design: `Plan/PLAN.p2-callbacks-schema.md` Parte C.
+  `examples/events`. Design: `Plan/PLAN.p2-callbacks-schema.md` Parte C
+  (D-C1–D-C10). PR #39.
 - **Remainder de JSON Schema (P2)**: `$ref` local (`#/$defs`, `#/definitions`)
   com caps; allowlist de `format`; `const`, `not`, `if`/`then`/`else`,
   `minProperties`/`maxProperties`, `uniqueItems`; schemas booleanos.
-  StrictSchema ainda rejeita `unevaluated*`. Design Parte J.
+  StrictSchema ainda rejeita `unevaluated*`. Design Parte J (D-J1–D-J12).
+  PR #39.
 
 ### Documentação
 
-- **Plano P2** já linkado; docs de implementação: crews `WithEvents`, tabela de
-  keywords em tasks, SECURITY events + `$ref` local, READMEs de examples.
-
+- **Registro de decisões**: `Plan/DECISIONS.md` (+ PT) vivo cataloga IDs
+  fechados/abertos com opções e escolhas. PR #42.
+- **Guia de concorrência**: `docs/concurrency.md` (+ PT) — data races vs
+  semantic races, barreira/fold, Memory D-M7. PRs #40, #41.
+- **Docs P2**: crews `WithEvents`, tabela de keywords em tasks, SECURITY,
+  examples; What's new do README → v0.8.0.
 
 ## [v0.7.0] — 2026-08-21
 
@@ -483,7 +480,8 @@ Primeira release pública: um port idiomático do núcleo do framework CrewAI pa
   chamadas entre agentes em tempo de execução), sem streaming, memória apenas em
   processo, sem function calling nativo. Veja `Plan/PLAN.md` para o roadmap completo.
 
-[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.8.0...HEAD
+[v0.8.0]: https://github.com/rhgs/crewai-go/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/rhgs/crewai-go/compare/v0.6.0...v0.7.0
 [v0.6.0]: https://github.com/rhgs/crewai-go/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/rhgs/crewai-go/compare/v0.4.0...v0.5.0
