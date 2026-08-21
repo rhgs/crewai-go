@@ -1,6 +1,7 @@
 # Plano — Port do CrewAI para Go (crewai-go)
 
-> **Languages:** [English](PLAN.md) · **Português** (atual)
+> **Languages:** [English](PLAN.md) · **Português** (atual)  
+> **Registro de decisões (vivo):** [`DECISIONS.pt-BR.md`](DECISIONS.pt-BR.md) ([EN](DECISIONS.md)) — todos os IDs fechados/abertos com opções; atualizar quando houver nova decisão.
 
 Documento vivo do planejamento, decisões de arquitetura, status e roadmap do
 port do [CrewAI](https://github.com/crewAIInc/crewAI) (Python) para Go.
@@ -328,6 +329,9 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 | Adiado (memory-async P3) | **A5** alias `Process=DAG` | Açúcar de naming |
 
 ## 7. Decisões em aberto
+
+Catálogo completo (fechadas e abertas, com opções): [`DECISIONS.pt-BR.md`](DECISIONS.pt-BR.md).
+
 
 Escolhas de produto/design ainda abertas para **epics futuros** (não
 memory-async):

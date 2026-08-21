@@ -7,6 +7,9 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Documentation
 
+- **Registro de decisões**: `Plan/DECISIONS.md` (+ PT) vivo cataloga IDs
+  fechados/abertos (D1–D7, D-M/A/S/C/J, G*, P-*) com opções e escolhas;
+  atualizar a cada nova decisão. Link no roadmap e índice de docs do README.
 - **Guia de concorrência**: novo `docs/concurrency.md` (+ PT) — data races vs
   semantic races, barreira/fold, Memory D-M7, Streaming/Events sob
   paralelismo. Why do README + cross-links crews/memory; `emitEvent` clona

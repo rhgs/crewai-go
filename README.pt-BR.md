@@ -691,6 +691,7 @@ go run ./examples/xai_oauth
 | LLMs | [PT](docs/pt-BR/llms.md) | [EN](docs/llms.md) |
 | Memory | [PT](docs/pt-BR/memory.md) | [EN](docs/memory.md) |
 | MCP | [PT](docs/pt-BR/mcp.md) | [EN](docs/en/mcp.md) |
+| Registro de decisões | [PT](Plan/DECISIONS.pt-BR.md) | [EN](Plan/DECISIONS.md) |
 | Plano / Roadmap | [PT](Plan/PLAN.pt-BR.md) | [EN](Plan/PLAN.md) |
 | Politica de seguranca | — | [EN](SECURITY.md) |
 

@@ -19,6 +19,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Documentation
 
+- **Decision log**: living `Plan/DECISIONS.md` (+ PT) catalogs closed/open
+  IDs (D1–D7, D-M/A/S/C/J, G*, P-*) with options and outcomes; update on
+  every new decision. Linked from roadmap and README docs index.
 - **Concurrency guide**: new `docs/concurrency.md` (+ PT) — data races vs
   semantic races, barrier/fold, D-M7 Memory, Streaming/Events under
   parallelism. README Why + crews/memory cross-links; `emitEvent`
