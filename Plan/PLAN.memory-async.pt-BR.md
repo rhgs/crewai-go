@@ -283,7 +283,7 @@ Async bool
 func (t *Task) WithAsync() *Task
 
 // Crew:
-// AsyncMaxWorkers int // 0 = ilimitado (até o nº de ready tasks)
+// AsyncMaxWorkers int // default 8; 0 = ilimitado (até o nº de ready tasks)
 // AsyncFailFast bool  // default true
 ```
 
@@ -378,7 +378,7 @@ Recomendação: **pré-resolver agents em série** (chamadas ao manager), depois
 | **D-A1** | Regra mixed Async/sync | (A) wave acima (B) serial global exceto subgrafo Async | **A** — **reforçado pelo thread DEV**: wave + barreira + agregação por índice de declaração (mesmo contrato do Staged). Explicitar nas docs públicas. |
 | **D-A2** | Resolve hierarchical | (A) pré-serial (B) lazy paralelo | **A** *(thread não muda)* |
 | **D-A3** | FailFast false | (A) skip dependentes (B) abort crew | **A** *(igual)* |
-| **D-A4** | Default MaxWorkers | (A) 0 unlimited (B) GOMAXPROCS (C) 8 | **A** + aviso de custo de fan-out LLM nas docs *(igual)* |
+| **D-A4** | Default MaxWorkers | (A) 0 unlimited (B) GOMAXPROCS (C) 8 | **C + A como escape:** default **8**; configurável no Crew; **0 = ilimitado**. Fecha P8 (fan-out LLM) sem tirar o knob ilimitado. |
 | **D-A5** | Staged × Async | (A) ignora flag (B) erro se set | **A** — **reforçado**: Staged já define paralelismo por stage; não criar segunda regra. Opcional: `slog` Warn se `Async=true` sob Staged. |
 | **D-A6** | Novo Process vs flag | (A) Sequential+Async (B) Process=Async | **A** no v1 — menos conceitos. **Reforço:** contrato real é “DAG + barreira + fold”; se “Sequential com Async” confundir, **A5** opcional (`Process=DAG`) depois sem quebrar A. |
 
@@ -517,7 +517,7 @@ Fechado num passe, no mesmo molde dos residuals D1–D7, alinhado à estratégia
 | D-A1 | **A** | 2026-08-21 | Wave: Async ready correm juntas; sync nunca compartilham wave; agregar por índice de declaração após barreira |
 | D-A2 | **A** | 2026-08-21 | Hierarchical: pré-resolve serial via manager, depois execute async |
 | D-A3 | **A** | 2026-08-21 | `FailFast=false`: skip só dos dependentes; ramos independentes seguem. `FailFast=true` (default) aborta o Kickoff |
-| D-A4 | **A** | 2026-08-21 | `AsyncMaxWorkers=0` ilimitado (limitado pelo ready set). Docs avisam fan-out de LLM ($$/429); exemplo `AsyncMaxWorkers: 4` |
+| D-A4 | **C** (default 8; **0 = ilimitado**) | 2026-08-21 | Default **8** (P8 — cap de fan-out LLM). Override programático no Crew. **0 = ilimitado** (A como escape, limitado pelo ready set). Docs: avisar que 0 desliga o teto ($$/429). |
 | D-A5 | **A** | 2026-08-21 | Staged ignora `Task.Async` (stage manda no batch). Ver G5 para Warn único |
 | D-A6 | **A** | 2026-08-21 | Sem novo `Process`. Só Sequential/Hierarchical + `Task.Async`. Alias opcional `Process=DAG` depois (A5) se o nome confundir |
 

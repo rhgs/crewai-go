@@ -339,7 +339,7 @@ Async bool
 func (t *Task) WithAsync() *Task { t.Async = true; return t }
 
 // Crew-level defaults:
-// AsyncMaxWorkers int // 0 = unlimited (bounded by number of ready tasks)
+// AsyncMaxWorkers int // default 8; 0 = unlimited (bounded by ready tasks)
 // AsyncFailFast bool  // default true — cancel siblings on first error
 ```
 
@@ -446,7 +446,7 @@ Recommendation: **serial resolve for tasks that need manager, then async execute
 | **D-A1** | Scheduling rule for mixed Async/sync | (A) wave rule above (B) global serial except pure-Async subgraph | **A** — **reinforced by DEV thread**: wave + barrier + aggregate by declaration index (same contract as Staged). Document explicitly in public docs. |
 | **D-A2** | Hierarchical agent resolution | (A) serial pre-resolve (B) parallel lazy | **A** *(unchanged by thread)* |
 | **D-A3** | FailFast false + failed upstream | (A) skip dependents only (B) abort crew | **A** *(unchanged)* |
-| **D-A4** | Default `AsyncMaxWorkers` | (A) 0 unlimited (B) `GOMAXPROCS` (C) 8 | **A** with docs warning on LLM fan-out cost *(unchanged)* |
+| **D-A4** | Default `AsyncMaxWorkers` | (A) 0 unlimited (B) `GOMAXPROCS` (C) 8 | **C + A-as-escape:** default **8**; set programmatically; **0 = unlimited**. Closes P8 (LLM fan-out) without removing the unlimited knob. |
 | **D-A5** | Staged interaction with `Task.Async` | (A) ignore flag (B) error if set | **A** — **reinforced**: Staged already owns batch parallelism; don’t create a second parallel rule inside stages. Optional one-shot `slog` Warn if `Async=true` under Staged. |
 | **D-A6** | New process constant vs Sequential flag | (A) Sequential+Task.Async only (B) `Process=Async` | **A** for v1 — fewer concepts. **Reinforced:** real contract is “DAG + barrier + fold”; if “Sequential with Async” confuses users, ship optional **A5** alias `Process=DAG` later without breaking A. |
 
@@ -593,7 +593,7 @@ Closed in one pass to match residuals D1–D7 process, v0.5.0 strategy (P1–P10
 | D-A1 | **A** | 2026-08-21 | Wave rule: ready Async run together; sync never share a wave; aggregate by declaration index after barrier |
 | D-A2 | **A** | 2026-08-21 | Hierarchical: serial manager pre-resolve, then async execute |
 | D-A3 | **A** | 2026-08-21 | `FailFast=false`: skip dependents of failed tasks only; unrelated branches continue. `FailFast=true` (default) aborts Kickoff |
-| D-A4 | **A** | 2026-08-21 | `AsyncMaxWorkers=0` unlimited (bounded by ready set). Docs must warn on LLM fan-out ($$/429); example `AsyncMaxWorkers: 4` |
+| D-A4 | **C** (default 8; **0 = unlimited**) | 2026-08-21 | Default **8** (P8 — cap LLM fan-out). Programmatic override on Crew. **0 = unlimited** (A as escape hatch, bounded by ready set). Docs: warn that 0 disables the cap ($$/429). |
 | D-A5 | **A** | 2026-08-21 | Staged ignores `Task.Async` (stages own batches). See G5 for one-shot Warn |
 | D-A6 | **A** | 2026-08-21 | No new `Process` constant. Sequential/Hierarchical + `Task.Async` only. Optional `Process=DAG` alias later (A5) if naming confuses |
 
