@@ -5,6 +5,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Documentation
+
+- **README What's new**: bumped to **v0.6.0** (EN + PT); examples list and
+  comparison table include async waves + pluggable memory; Process section
+  documents `WithAsync` waves.
+- **Docs polish**: memory guide "custom backends" no longer pretends
+  embeddings/persistence are DIY-only; tasks guide shows `WithAsync` + DAG
+  sample; getting-started links Memory; examples READMEs list
+  `async_tasks` / `memory_*` / `facts` / `guardrails` / `native_tools`.
+- **Plan / SECURITY**: architecture tree and exclusive-features table at
+  v0.6.0; supported versions include `v0.6.x`; FileStore + Kickoff
+  single-flight hardening notes.
+
 ## [v0.6.0] — 2026-08-21
 
 ### Changed
@@ -102,12 +115,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   always indexed by task position (declaration order), never completion
   order. No public or observable behavior change in the staged process —
   this is the foundation the async wave scheduler (A2/A3) and the
-  memory commit barrier (M2, D-M7) will build on.
+  memory commit barrier (M2, D-M7) build on.
 
 ### Documentation
 
-- **Plan sync**: `Plan/PLAN.md` and `PLAN.pt-BR.md` updated for v0.5.0 reality
-  (architecture includes `mcp/`, residuals marked done, limitations refreshed).
+- **User-facing docs for memory + async**: `docs/memory.md`, `docs/crews.md`,
+  `docs/tasks.md` (+ PT mirrors) cover `MemoryStore` / `MemoryPolicy` / D-M7,
+  `FileStore`, embeddings, and `Task.Async` waves. Package `doc.go` godoc
+  updated. Offline examples `async_tasks`, `memory_file`, `memory_embed`.
+- **Plan sync**: maturity snapshot and roadmap items marked shipped for
+  v0.6.0 (PR #31).
 
 ## [v0.5.0] — 2026-08-20
 

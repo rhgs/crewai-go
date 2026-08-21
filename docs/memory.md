@@ -2,9 +2,11 @@
 
 > **Languages:** **English** (current) · [Português](pt-BR/memory.md)
 
-**Memory** stores task outputs during a crew's execution, allowing later tasks
-to access what has already been produced — even without an explicit
-`WithContext`.
+**Memory** stores task outputs so later tasks can recall what has already been
+produced — even without an explicit `WithContext`. The short-term path is the
+in-process `*Memory` bag (`Crew.Memory = true`). Long-term backends plug in via
+`MemoryStore` (`FileStore`, custom), controlled by `MemoryPolicy`, with optional
+embeddings for cosine recall.
 
 ## Enabling it
 
@@ -68,11 +70,13 @@ fmt.Println(m.String())
 Use context for precise dependencies; use memory to give the team a general
 "awareness" of what has been done.
 
-## Custom implementations
+## Custom `MemoryStore` backends
 
-The built-in `Memory` is in-RAM and concurrency-safe. For semantic search
-(embeddings) or persistence, you can wrap/replace this logic in your
-application — the `MemoryRecord` structure is intentionally simple.
+The built-in `*Memory` is in-RAM and concurrency-safe, and already implements
+`MemoryStore`. For durable persistence use `OpenFileStore`; for semantic
+recall provide `Crew.Embed` + `MemoryPolicy.AutoEmbed` (see below). To plug
+your own backend (SQLite, remote KV, vector DB client…), implement
+`MemoryStore` and assign it to `Crew.MemoryStore` — the app owns `Close`.
 
 ## MemoryPolicy + commit barrier (M2)
 
@@ -170,7 +174,7 @@ See `examples/memory_file`.
 ## Long-term store interface
 
 `*Memory` also implements `crewai.MemoryStore`, the pluggable long-term
-memory contract the durable backends will use:
+memory contract used by durable backends (`FileStore`) and custom stores:
 
 ```go
 var store crewai.MemoryStore = crewai.NewMemory() // or existing *Memory

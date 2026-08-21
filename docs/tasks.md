@@ -30,7 +30,7 @@ task := crewai.NewTask(
 | `Structured`     | `*crewai.StructuredOutput` | If set, requires JSON output validated against a JSON Schema. |
 | `Guardrail`      | `crewai.Guardrail` | Optional task-level post-output validation. |
 | `Loop`           | `crewai.Loop`   | Optional per-task execution strategy (overrides `Agent.Loop`). |
-| `Async`          | `bool`          | If true, this task may run concurrently with other ready `Async` tasks under Sequential/Hierarchical (ignored under `Staged`). |
+| `Async`          | `bool`          | If true, this task may run concurrently with other ready `Async` tasks under Sequential/Hierarchical (ignored under `Staged`). Prefer `WithAsync()`. |
 
 ## Context between tasks
 
@@ -48,13 +48,25 @@ receives only accumulated memory (if `crew.Memory = true`).
 
 ### Context as DAG dependencies (async)
 
-When a task is marked `Async`, its `Context` list is used as the dependency
-graph: every dependency must finish in a strictly earlier wave before the
-task may start. A cycle, a **self**-dependency, or the same task pointer
-appearing twice in `Crew.Tasks` is rejected at Kickoff with
-`ErrTaskDependencyCycle` (G12). Tasks within the same wave are independent
-by construction — adding a Context edge to a co-ready sibling moves it to a
-later wave, never to the same wave.
+When a task is marked `Async` (via `WithAsync()` or `Async = true`), its
+`Context` list is used as the dependency graph: every dependency must finish
+in a strictly earlier wave before the task may start. A cycle, a
+**self**-dependency, or the same task pointer appearing twice in
+`Crew.Tasks` is rejected at Kickoff with `ErrTaskDependencyCycle` (G12).
+Tasks within the same wave are independent by construction — adding a
+Context edge to a co-ready sibling moves it to a later wave, never to the
+same wave.
+
+```go
+a := crewai.NewTask("research A", "notes", agent).WithAsync()
+b := crewai.NewTask("research B", "notes", agent).WithAsync()
+merge := crewai.NewTask("merge findings", "summary", agent).
+	WithContext(a, b) // later wave; receives both outputs
+```
+
+Crew-level knobs (`AsyncMaxWorkers`, `AsyncFailFast`) live on `Crew` — see
+[crews.md](crews.md#async-tasks-under-sequential--hierarchical-a3) and
+`examples/async_tasks`.
 
 ## Variable interpolation
 

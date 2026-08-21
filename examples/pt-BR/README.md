@@ -17,6 +17,9 @@ Cada subpasta é um programa executável independente.
 | `memory_embed`  | `AutoEmbed` + Query por cosseno com embedder mock (offline) | ❌ Não |
 | `agentic_loop`  | Ciclo Planejar-Executar-Avaliar-Refinar (mock LLM)| ❌ Não                  |
 | `tools`         | Agente usando ferramentas via ReAct               | ✅ OpenAI               |
+| `native_tools`  | Function calling nativo do provedor (`ToolModeNative`) | ✅ OpenAI / wiring offline |
+| `facts`         | Proveniência `Fact` via tools determinísticas      | ❌ Não                  |
+| `guardrails`    | `Guardrail` pós-saída bloqueando resultados inválidos | ❌ Não               |
 | `xai_oauth`     | Grok por chave de API ou OAuth de assinatura      | ✅ xAI                  |
 | `logging`       | `*slog.Logger` customizado com `RedactHandler`     | ❌ Não                  |
 | `delegation`    | Tool inter-agent `delegate_to_coworker` (opt-in)   | ✅ OpenAI / so wiring   |
@@ -27,6 +30,12 @@ Cada subpasta é um programa executável independente.
 ```bash
 # Sem chave de API:
 go run ./examples/custom_llm
+go run ./examples/async_tasks  # waves Task.Async; USE_OPENAI=1 para live
+go run ./examples/memory_file  # FileStore JSONL; MEMORY_DIR opcional
+go run ./examples/memory_embed # AutoEmbed + cosseno (mock)
+go run ./examples/agentic_loop # offline, mock LLM
+go run ./examples/logging      # demo offline de redacao
+go run ./examples/mcp          # wiring; live com MCP_ENDPOINT
 
 # Com OpenAI:
 export OPENAI_API_KEY=sk-...
@@ -34,11 +43,8 @@ go run ./examples/basic
 go run ./examples/sequential
 go run ./examples/hierarchical
 go run ./examples/staged
-go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
-go run ./examples/logging      # demo offline de redacao
 go run ./examples/delegation   # wiring; live com OPENAI_API_KEY
-go run ./examples/mcp          # wiring; live com MCP_ENDPOINT
 ```
 
 Para usar outro provedor (Anthropic, Ollama, Groq…), troque a linha de criação

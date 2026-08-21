@@ -48,7 +48,7 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 | `MemoryPolicy` | `*MemoryPolicy`| Política de AutoSave/inject; nil ⇒ defaults de `NewMemoryPolicy()`. |
 | `Embed`        | `EmbeddingFunc`| Embedder opcional da app; usado quando `AutoEmbed` é true (série na barreira). |
 | `Name`         | `string`       | Id opcional da crew; `MemoryPolicy.Scope` padrão quando definido. |
-| `AsyncMaxWorkers` | `int`       | Teto de Async concorrentes por wave (padrão 8 via `NewCrew`; 0 = ilimitado). |
+| `AsyncMaxWorkers` | `int`       | Teto de Async concorrentes por wave (padrão 8 via `NewCrew`; **0 = ilimitado**). Prefira `NewCrew` — um literal `Crew{}` deixa 0 (ilimitado) por design. |
 | `AsyncFailFast` | `bool`        | Cancela a wave na primeira falha (padrão true). |
 | `ManagerLLM`   | `LLM`          | LLM do gerente (processo hierárquico). |
 | `ManagerAgent` | `*Agent`       | Gerente explícito (tem prioridade sobre `ManagerLLM`). |

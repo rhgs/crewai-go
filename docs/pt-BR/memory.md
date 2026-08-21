@@ -2,9 +2,11 @@
 
 > **Languages:** [English](../memory.md) · **Português** (atual)
 
-A **memória** guarda as saídas das tarefas ao longo da execução de uma crew,
-permitindo que tarefas posteriores tenham acesso ao que já foi produzido —
-mesmo sem um `WithContext` explícito.
+A **memória** guarda saídas de tarefas para que tarefas posteriores relembrem
+o que já foi produzido — mesmo sem um `WithContext` explícito. O caminho de
+curto prazo é o bag em processo `*Memory` (`Crew.Memory = true`). Backends de
+longo prazo se pluggam via `MemoryStore` (`FileStore`, custom), controlados por
+`MemoryPolicy`, com embeddings opcionais para recall por cosseno.
 
 ## Ativando
 
@@ -68,11 +70,14 @@ fmt.Println(m.String())
 Use contexto para dependências precisas; use memória para dar à equipe uma
 "consciência" geral do que já foi feito.
 
-## Implementações customizadas
+## Backends `MemoryStore` customizados
 
-A `Memory` embutida é em RAM e segura para concorrência. Para busca semântica
-(embeddings) ou persistência, você pode envolver/ substituir essa lógica na sua
-aplicação — a estrutura de `MemoryRecord` é intencionalmente simples.
+O `*Memory` embutido é em RAM e seguro para concorrência, e já implementa
+`MemoryStore`. Para persistência durável use `OpenFileStore`; para recall
+semântico forneça `Crew.Embed` + `MemoryPolicy.AutoEmbed` (veja abaixo). Para
+plugar seu próprio backend (SQLite, KV remoto, cliente de vector DB…),
+implemente `MemoryStore` e atribua a `Crew.MemoryStore` — a app é dona do
+`Close`.
 
 ## MemoryPolicy + barreira de commit (M2)
 
@@ -171,7 +176,8 @@ Veja `examples/memory_file`.
 ## Interface de armazenamento de longo prazo
 
 `*Memory` também implementa `crewai.MemoryStore`, o contrato de memória de
-longo prazo plugável que os backends duráveis usarão:
+longo prazo plugável usado pelos backends duráveis (`FileStore`) e stores
+customizados:
 
 ```go
 var store crewai.MemoryStore = crewai.NewMemory() // ou *Memory existente

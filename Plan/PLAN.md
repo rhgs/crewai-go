@@ -43,7 +43,9 @@ Port the **core** of the CrewAI framework to Go in an **idiomatic** way, with
 | `Process.sequential`     | `crewai.Sequential`                |
 | `Process.hierarchical`   | `crewai.Hierarchical`              |
 | `BaseTool` / `@tool`     | `crewai.Tool` / `NewTool`          |
-| short-term memory        | `crewai.Memory`                    |
+| short-term memory        | `crewai.Memory` / `Crew.Memory`    |
+| long-term memory         | `MemoryStore`, `FileStore`, `MemoryPolicy`, `EmbeddingFunc` |
+
 | litellm                  | `LLM` interface + `llm/*` subpackages |
 
 ## 3.1 Features exclusive to crewai-go (not in CrewAI Python)
@@ -57,13 +59,16 @@ equivalent in the Python CrewAI framework:
 | **Post-output guardrails** | `Crew.Guardrails` and `Task.Guardrail` are code-enforced post-output validation hooks that block publication of outputs violating business invariants. Returns `ErrBlockedByGuardrail`. | The "anti-hallucination barrier as a code guarantee" layer. Decisions to block are made in Go, not via prompt. Complements structured-output schema validation (shape vs. meaning). |
 | **Facts & provenance model** | First-class `Fact` type populated ONLY by deterministic connector tools (`FactSource`), never by the LLM. Facts carry source org, source URL, collection time, and SHA-256 payload hash. `AllFactsProvenanced` helper for guardrails. | A wrong value can never be presented as a "fact the model remembered". Facts are deduplicated by payload hash and carry full provenance for auditing. |
 | **Zero external dependencies** | The entire framework uses only the Go standard library. No pip install, no version conflicts. | Easy to audit, install, and test. `go.mod` has zero require directives. |
+| **Async waves under Sequential/Hierarchical** | `Task.Async` + DAG via `Task.Context`; wave scheduler; declaration-order fold; `AsyncMaxWorkers` default 8. | First-class barrier semantics without leaving Sequential/Hierarchical or switching to Staged. |
+| **Pluggable long-term memory (stdlib)** | `MemoryStore` + JSONL `FileStore` + optional cosine embeddings; D-M7 commit barrier. | Cross-run persistence and semantic recall without Chroma/cgo or extra module deps. |
 
 ## 4. Architecture (packages)
 
 ```
-crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct/native executor,
-                       StructuredOutput, Guardrails, Facts, Progress, RedactHandler,
-                       DelegationTool
+crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/MemoryPolicy,
+                       FileStore, EmbeddingFunc, Task.Async / wave scheduler, LLM,
+                       ReAct/native executor, StructuredOutput, Guardrails, Facts,
+                       Progress, RedactHandler, DelegationTool
 ├── llm/openai         OpenAI and compatible (Groq, Azure…) + ToolCallingLLM + WebSearcher
 ├── llm/anthropic      Claude + ToolCallingLLM + WebSearcher
 ├── llm/ollama         Ollama local/cloud — native /api/chat + tools + web search
@@ -71,8 +76,9 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct/nati
 ├── llm/mock           Deterministic LLM for tests
 ├── mcp                MCP Streamable HTTP client, LoadConfig, ToolAdapter, FilterTools
 ├── tools              Calculator, time, word count, WebSearchTool + search providers
-├── examples           basic, sequential, hierarchical, staged, tools, native_tools,
-                       agentic_loop, facts, guardrails, logging, delegation, mcp, …
+├── examples           basic, sequential, hierarchical, staged, async_tasks, tools,
+                       native_tools, agentic_loop, facts, guardrails, logging,
+                       delegation, mcp, memory_file, memory_embed, …
 └── docs               getting-started, agents, tasks, crews, tools, llms, memory, en/mcp
 ```
 
@@ -82,7 +88,10 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct/nati
    optionally attaches `delegate_to_coworker` when `EnableDelegationTool`,
    interpolates `{inputs}`, and injects progress + agent role into `ctx`.
 2. Process: Sequential | Hierarchical (manager assigns agent) | Staged
-   (stages in order; tasks within a stage concurrent).
+   (stages in order; tasks within a stage concurrent). Under Sequential/
+   Hierarchical, `Task.Async` tasks schedule as DAG waves (`Task.Context`
+   edges); results fold by declaration order after each barrier. Memory
+   AutoSave buffers per wave/stage and commits at the barrier (D-M7).
 3. Per task, the executor picks: AgenticLoop (if set) → StructuredOutput
    (optional AllowTools gather → capture / emit_result) → native
    ToolCallingLLM (`ToolModeNative`) → ReAct text loop. Facts, tool traces,
@@ -101,7 +110,7 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct/nati
   repair loop, `WithToolCall` (emit_result), `WithAllowTools` (gather→capture),
   expanded keywords (v0.5.0). Sentinels `ErrInvalidOutput`,
   `ErrRepairBudgetExceeded`, `ErrToolCallStructuredUnsupported`.
-- [x] Documentation: bilingual README + guides + MCP + SECURITY; 14 examples.
+- [x] Documentation: bilingual README + guides + MCP + SECURITY + memory/async; 17 examples.
 - [x] Clean `go build`, `go vet`, and `go test ./...`.
 
 ### Maturity snapshot (2026-08-21 — v0.6.0)
@@ -117,7 +126,7 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory, LLM, ReAct/nati
 | Documentation | bilingual README + guides + MCP + SECURITY + memory/async |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
-### Known limitations (post v0.5.0; memory/async closed in PR #31)
+### Known limitations (post v0.6.0)
 
 - **No streaming** — `LLM.Call` returns the full response; there is no
   `CallStream` / `StreamingLLM` yet (roadmap §6 P1).
