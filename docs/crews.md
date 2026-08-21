@@ -11,8 +11,7 @@ Only **one** `Kickoff` may run at a time on a given `*Crew`. A concurrent call r
 
 For **semantic races** (completion order vs fold order), Memory D-M7, and
 how Staged/Async groups stay deterministic, see
-**[Concurrency model](concurrency.md)** — including the discussion from the
-[dev.to thread](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm#comments).
+**[Concurrency model](concurrency.md)**.
 
 ## Creating and running
 

@@ -4,10 +4,9 @@
 
 Esta página é o contrato da biblioteca entre **data races** e **semantic
 races** quando tarefas rodam em paralelo (stages Staged e waves
-`Task.Async` em Sequential/Hierarchical). Expande as respostas do
-[fio de concorrência no dev.to](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm#comments)
-e reflete a implementação a partir de **v0.6+** (waves async + barreira de
-memória D-M7) e **v0.7+** (demux de streaming).
+`Task.Async` em Sequential/Hierarchical). Reflete a implementação a partir
+de **v0.6+** (waves async + barreira de memória D-M7) e **v0.7+** (demux de
+streaming).
 
 ## Dois problemas diferentes
 
