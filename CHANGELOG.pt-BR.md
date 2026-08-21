@@ -5,6 +5,13 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Documentation
+
+- **Guia de concorrência**: novo `docs/concurrency.md` (+ PT) — data races vs
+  semantic races, barreira/fold, Memory D-M7, Streaming/Events sob
+  paralelismo; responde o [fio no dev.to](https://dev.to/rhgs/from-python-to-go-rewriting-a-crewai-workflow-in-pure-stdlib-47nm#comments).
+  Why do README + cross-links crews/memory; `emitEvent` clona Attrs.
+
 ### Adicionado
 
 - **Eventos de lifecycle (P2)**: `CrewEvent` + `Crew.WithEvents` /
