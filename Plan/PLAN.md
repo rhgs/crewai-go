@@ -113,11 +113,11 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 - [x] Documentation: bilingual README + guides + MCP + SECURITY + memory/async; 17 examples.
 - [x] Clean `go build`, `go vet`, and `go test ./...`.
 
-### Maturity snapshot (2026-08-21 — v0.6.0)
+### Maturity snapshot (2026-08-21 — v0.7.0)
 
 | Metric | Value |
 |---------|-------|
-| Latest release | **v0.6.0** (2026-08-21) — PR #31 |
+| Latest release | **v0.7.0** (2026-08-21) — Streaming PRs #35/#36 |
 | Go LOC (approx.) | ~25k+ |
 | External dependencies | 0 (stdlib) |
 | Coverage — core (`crewai`) | ~94%+ (memory/async epic) |
@@ -126,11 +126,11 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 | Documentation | bilingual README + guides + MCP + SECURITY + memory/async |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
-### Known limitations (post v0.6.0)
+### Known limitations (post v0.7.0)
 
 - **Streaming is opt-in** — without `WithStream` / `StreamingLLM`, `LLM.Call`
   still returns the full response. Stream covers final text / no-tools paths
-  only (see [`PLAN.streaming.md`](PLAN.streaming.md)); tag release pending.
+  only (see [`PLAN.streaming.md`](PLAN.streaming.md)); shipped in **v0.7.0**.
 - **JSON Schema is still a subset** — supports core keywords plus
   `additionalProperties`, bounds, `pattern`, `oneOf`/`anyOf`/`allOf`
   (v0.5.0). Still no `$ref`, `if`/`then`/`else`, `format`, unevaluated*, etc.
@@ -175,7 +175,7 @@ priority (highest impact / lowest effort first):
 - [x] **Expanded JSON Schema** + `WithStrictSchema`.
 - [x] **`RedactHandler`**, OutputFile jail, Kickoff single-flight.
 - [x] **Real delegation tool** `delegate_to_coworker` + `EnableDelegationTool`.
-- [x] Tags **v0.1.0 … v0.6.0**; bilingual docs; CI + CodeQL.
+- [x] Tags **v0.1.0 … v0.7.0**; bilingual docs; CI + CodeQL.
 
 ### P0 — Publishing and fundamentals
 
@@ -272,9 +272,9 @@ and environment variable names in docs/README. The `.gitignore` protects
 - [x] **Streaming** — optional `StreamingLLM` (`CallStream` → `<-chan StreamChunk`)
   via type assertion (does not break existing `LLM` implementers); `Crew.WithStream`
   / context sink; v1 streams final text / no-tools paths only with Call fallback.
-  **Design plan:** [`PLAN.streaming.md`](PLAN.streaming.md)
-  ([PT](PLAN.streaming.pt-BR.md)). Decisions D-S1–D-S14 closed in design
-  review (not coded).
+  **Shipped in v0.7.0** (PRs #35/#36). Design:
+  [`PLAN.streaming.md`](PLAN.streaming.md) ([PT](PLAN.streaming.pt-BR.md));
+  decisions D-S1–D-S14.
 
 ### P2 — Persistence and observability
 
@@ -328,7 +328,7 @@ unless explicitly accepted).
 
 | Priority | Item | Notes |
 |---|---|---|
-| P1 | **Streaming** | Implemented on main (tag pending): [`PLAN.streaming.md`](PLAN.streaming.md) — `StreamingLLM` + `WithStream` |
+| P1 | **Streaming** | **Shipped v0.7.0** (PRs #35/#36): [`PLAN.streaming.md`](PLAN.streaming.md) — `StreamingLLM` + `WithStream` |
 
 | P2 | **Callbacks / telemetry** | Lifecycle hooks beyond `WithProgress` |
 | P2 | **JSON Schema `$ref` / `format` / …** | Finish subset → practical 2020-12 slice |
@@ -343,11 +343,9 @@ unless explicitly accepted).
 
 Product/design choices still open for **future** epics (not memory-async):
 
-- **Streaming API shape** — **locked in design plan:** optional
-  `StreamingLLM` (embeds `LLM`) + `Crew.WithStream`; do **not** add
-  `CallStream` to `LLM`. Full matrix D-S1–D-S14 (Task/Agent demux, dual byte
-  cap, non-nil chan contract) in [`PLAN.streaming.md`](PLAN.streaming.md).
-  Ack before Phase 1 code.
+- **Streaming API shape** — **resolved in v0.7.0:** optional `StreamingLLM`
+  (embeds `LLM`) + `Crew.WithStream`; `CallStream` is **not** on base `LLM`.
+  Full matrix D-S1–D-S14 in [`PLAN.streaming.md`](PLAN.streaming.md).
 - **Function calling vs ReAct** — **lean keep both**: ReAct remains the
   universal tool layer; native `ToolCallingLLM` stays opt-in per provider
   (already shipped). Revisit only if ReAct maintenance cost dominates.

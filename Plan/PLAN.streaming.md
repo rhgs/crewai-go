@@ -1,6 +1,6 @@
 # Plan — Streaming LLM tokens
 
-> **Status:** **Implemented** on branch (core + providers + example; release tag pending).  
+> **Status:** **Shipped in v0.7.0** (PRs #35/#36).  
 > **Decisions:** D-S1–D-S14 closed by design review 2026-08-21 (§9).  
 > **Related:** `llm.go` (`LLM`), `toolcall.go` (`ToolCallingLLM` pattern), `executor.go` / `structured.go` / `loop.go`, providers under `llm/*`, roadmap `PLAN.md` §6 P1.  
 > **Constraints:** zero external module dependencies in the core library (`go.mod` stays stdlib-only). Quality gates from §6.1 of `PLAN.security-residuals.md` apply to every implementation PR (coverage ≥ 90% on touched packages, race-clean, docs EN+PT-BR, CHANGELOG).  
@@ -406,7 +406,7 @@ Same as security-residuals §6.1:
 - [ ] `examples/streaming` offline (include dual Async demux of Task labels)
 - [ ] docs/llms.md + pt-BR + doc.go + SECURITY note; PLAN.md checkbox
 - [ ] race-clean; coverage gates; CHANGELOG
-- [ ] Tag note: ship as **v0.7.0** (feature release) unless bundled with more P1 work
+- [x] Tag note: ship as **v0.7.0** (feature release)
 
 ---
 

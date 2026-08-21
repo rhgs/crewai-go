@@ -5,6 +5,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [v0.7.0] — 2026-08-21
+
 ### Added
 
 - **Streaming LLM tokens (P1)**: optional `StreamingLLM` (`CallStream` →
@@ -12,23 +14,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `CollectStream` / `CallOrStream`. Executor streams ReAct/native **no-tools**
   paths; Task/Agent demux on chunks (D-S13); body-byte cap via
   `MaxProviderResponseBytes`; mock + openai/ollama/anthropic/xai providers.
-  Example `examples/streaming`. Design: `Plan/PLAN.streaming.md`.
+  Example `examples/streaming`. Design: `Plan/PLAN.streaming.md`
+  (D-S1–D-S14). PRs #35, #36.
 
 ### Documentation
 
-- **README What's new**: bumped to **v0.6.0** (EN + PT); examples list and
-  comparison table include async waves + pluggable memory; Process section
-  documents `WithAsync` waves.
-- **Docs polish**: memory guide "custom backends" no longer pretends
-  embeddings/persistence are DIY-only; tasks guide shows `WithAsync` + DAG
-  sample; getting-started links Memory; examples READMEs list
-  `async_tasks` / `memory_*` / `facts` / `guardrails` / `native_tools`.
-- **Plan / SECURITY**: architecture tree and exclusive-features table at
-  v0.6.0; supported versions include `v0.6.x`; FileStore + Kickoff
-  single-flight hardening notes.
-- **Streaming**: `docs/llms.md` / crews guides + SECURITY stream-sink note;
-  design plan `Plan/PLAN.streaming.md` marked implemented (tag pending).
-- **Streaming review hygiene**: README Why/concepts/comparison + PLAN limitations; `drainToSink` emits cancel/incomplete to sink; godoc/HTTP-timeout notes; drain coverage.
+- **README What's new**: bumped to **v0.7.0** (EN + PT); Why/concepts/
+  comparison include Streaming; example `streaming` listed.
+- **Streaming guides**: `docs/llms.md` / crews (+ PT), SECURITY stream-sink
+  note, PLAN maturity at v0.7.0; post-merge review hygiene (`drainToSink`
+  cancel emit, HTTP timeout notes).
+- **Docs polish carried from post-v0.6**: memory/async surface in README,
+  getting-started Memory link, examples lists, SECURITY `v0.6.x` support
+  (superseded by v0.7.x support row where applicable).
 
 ## [v0.6.0] — 2026-08-21
 
@@ -442,7 +440,8 @@ First public release: an idiomatic Go port of the CrewAI framework core.
   runtime inter-agent calls), no streaming, in-process memory only, no native
   function calling. See `Plan/PLAN.md` for the full roadmap.
 
-[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.7.0...HEAD
+[v0.7.0]: https://github.com/rhgs/crewai-go/compare/v0.6.0...v0.7.0
 [v0.6.0]: https://github.com/rhgs/crewai-go/compare/v0.5.0...v0.6.0
 [v0.5.0]: https://github.com/rhgs/crewai-go/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/rhgs/crewai-go/compare/v0.3.0...v0.4.0

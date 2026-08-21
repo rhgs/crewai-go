@@ -1,6 +1,6 @@
 # Plano — Streaming de tokens do LLM
 
-> **Status:** **Implementado** no branch (core + providers + example; tag de release pendente).  
+> **Status:** **Entregue na v0.7.0** (PRs #35/#36).  
 > **Decisões:** D-S1–D-S14 fechadas na review de design 2026-08-21 (§9).  
 > **Relacionado:** `llm.go` (`LLM`), `toolcall.go` (padrão `ToolCallingLLM`), `executor.go` / `structured.go` / `loop.go`, providers em `llm/*`, roadmap `PLAN.pt-BR.md` §6 P1.  
 > **Restrições:** zero dependências externas de módulo no core (`go.mod` permanece só-stdlib). Gates de qualidade do §6.1 de `PLAN.security-residuals.md` valem para cada PR (cobertura ≥ 90% nos pacotes tocados, race-clean, docs EN+PT-BR, CHANGELOG).  
@@ -392,7 +392,7 @@ Iguais ao §6.1 de security-residuals: cobertura ≥ 90%, `-race`, docs EN+PT, C
 - [ ] `examples/streaming` offline (inclui demux Async dual de labels Task)
 - [ ] docs/llms.md + pt-BR + doc.go + nota SECURITY; checkbox no PLAN.md
 - [ ] race-clean; gates de cobertura; CHANGELOG
-- [ ] Nota de tag: ship como **v0.7.0** (feature release), salvo bundle com mais P1
+- [x] Nota de tag: ship como **v0.7.0** (feature release)
 
 ---
 
