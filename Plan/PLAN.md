@@ -1,6 +1,7 @@
 # Plan — CrewAI port to Go (crewai-go)
 
-> **Languages:** **English** (current) · [Português](PLAN.pt-BR.md)
+> **Languages:** **English** (current) · [Português](PLAN.pt-BR.md)  
+> **Decision log (living):** [`DECISIONS.md`](DECISIONS.md) ([PT](DECISIONS.pt-BR.md)) — all closed/open IDs with options; update when any decision is taken.
 
 A living document for the planning, architecture decisions, status, and roadmap
 of porting [CrewAI](https://github.com/crewAIInc/crewAI) (Python) to Go.
@@ -338,6 +339,8 @@ unless explicitly accepted).
 | Deferred (memory-async P3) | **A5** `Process=DAG` alias | Naming sugar only |
 
 ## 7. Open decisions
+
+Full catalog of **closed and open** decisions (with options): [`DECISIONS.md`](DECISIONS.md). Below are standing product notes only.
 
 Product/design choices still open for **future** epics (not memory-async):
 

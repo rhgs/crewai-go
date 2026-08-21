@@ -717,6 +717,7 @@ go run ./examples/xai_oauth
 | LLMs | [EN](docs/llms.md) | [PT](docs/pt-BR/llms.md) |
 | Memory | [EN](docs/memory.md) | [PT](docs/pt-BR/memory.md) |
 | MCP | [EN](docs/en/mcp.md) | [PT](docs/pt-BR/mcp.md) |
+| Decision log | [EN](Plan/DECISIONS.md) | [PT](Plan/DECISIONS.pt-BR.md) |
 | Plan / Roadmap | [EN](Plan/PLAN.md) | [PT](Plan/PLAN.pt-BR.md) |
 | Security policy | [EN](SECURITY.md) | — |
 
