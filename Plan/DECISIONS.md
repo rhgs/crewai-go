@@ -187,6 +187,8 @@ Roadmap-level choices not owned by a single epic table. Update when product dire
 
 ## 9. Open decisions
 
+Deferred / open items with unblock conditions and pre-allocated IDs: [`PLAN.deferred-backlog.md`](PLAN.deferred-backlog.md) ([PT](PLAN.deferred-backlog.pt-BR.md)).
+
 Nothing in D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\* is open for re-litigation without a new ID.
 
 | ID | Topic | Status | Next step |
