@@ -295,19 +295,18 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 ### P3 — Orquestração avançada, tools e packaging
 
 - [ ] **Flows** — orquestração event-driven com estado explícito e roteamento
-  (estilo CrewAI Flows), sem substituir Sequential/Hierarchical/Staged/waves
-  Async. **Plano separado quando agendado.**
+  (CrewAI-style Flows), sem substituir Sequential/Hierarchical/Staged/
+  waves Async. **Plano de design:** [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md)
+  Trem F (D-F1–D-F12); ainda sem código.
 - [ ] **Mais tools embutidas** — cliente HTTP (SSRF-safe, allowlists),
-  leitura/escrita de arquivos com jail (como `OutputDir`), helpers leves de
-  RAG **como padrões de app ou exemplos opcionais** (vector DBs ficam fora do
-  core; embeddings já encaixam via `EmbeddingFunc`). Web search já existe
-  (v0.3+).
-- [ ] **YAML declarativo** — `agents.yaml` / `tasks.yaml` (e composição
-  opcional de crew) compilados nos tipos Go existentes; erros de validação no
-  load. Sem eval de YAML não confiável sem jail.
-- [ ] **Training** — fine-tune / few-shot a partir de execuções bem-sucedidas
-  (exportar traces → exemplos curados). Fora treino de modelo no core; só
-  capture + export na lib, salvo módulo opcional futuro.
+  leitura/escrita de arquivo com jail, padrões RAG (vector DB fora do core).
+  **Mesmo plano**, Trem T (D-T1–D-T10).
+- [ ] **YAML declarativo** — `agents.yaml` / `tasks.yaml` compilados para
+  tipos Go existentes; validação no load. v1 = **subconjunto JSON do YAML**
+  (sem novas deps). **Mesmo plano**, Trem Y (D-Y1–D-Y10).
+- [ ] **Training** — few-shot / export de traces a partir de runs
+  bem-sucedidas (JSONL). Sem treino de modelo no core. **Mesmo plano**,
+  Trem X (D-X1–D-X8).
 
 ### Backlog fora do epic (visão única)
 
@@ -324,10 +323,10 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 
 | P2 | **Callbacks / telemetria** | **Entregue na v0.8.0** (PR #39): [`PLAN.p2-callbacks-schema.pt-BR.md`](PLAN.p2-callbacks-schema.pt-BR.md) Parte C |
 | P2 | **Remainder de JSON Schema** | **Entregue na v0.8.0** (PR #39): mesmo plano Parte J |
-| P3 | **Flows** | Estado event-driven + roteamento |
-| P3 | **Tools: HTTP, arquivos, padrões RAG** | SSRF/jail; RAG ≠ vector DB no core |
-| P3 | **Definições YAML de crew** | agents.yaml / tasks.yaml → tipos Go |
-| P3 | **Training / export de traces** | Few-shot a partir de runs |
+| P3 | **Flows** | Design: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) Trem F — não iniciado |
+| P3 | **Tools: HTTP, arquivos, padrões RAG** | Mesmo plano Trem T (SSRF/jail) — não iniciado |
+| P3 | **Definições YAML de crew** | Mesmo plano Trem Y (subconjunto JSON) — não iniciado |
+| P3 | **Training / export de traces** | Mesmo plano Trem X (recorder JSONL) — não iniciado |
 | Adiado (memory-async P3) | **M5** `recall_memory` / `remember` | Tools de memória do agente |
 | Adiado (memory-async P3) | **A5** alias `Process=DAG` | Açúcar de naming |
 

@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Documentation
 
+- **P3 design plan**: `Plan/PLAN.p3-flows-tools-yaml-training.md` (+ PT) —
+  Flows (D-F1–D-F12), built-in tools (D-T1–D-T10), declarative YAML
+  JSON-subset (D-Y1–D-Y10), training/trace export (D-X1–D-X8); per-train
+  code/security review, ≥90%% coverage and docs-review gates; linked from
+  roadmap P3 (not implemented yet).
 - **Deferred backlog plan**: `Plan/PLAN.deferred-backlog.md` (+ PT) — six
   open/deferred items (xAI OAuth, M5, A5, D-S10, D-J9, O-J2) with unblock
   conditions, design space, and pre-allocated decision IDs.
