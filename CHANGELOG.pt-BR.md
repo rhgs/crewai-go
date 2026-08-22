@@ -5,6 +5,12 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Documentation
+
+- **Plano de backlog adiado**: `Plan/PLAN.deferred-backlog.md` (+ PT) —
+  seis itens abertos/adiados (xAI OAuth, M5, A5, D-S10, D-J9, O-J2) com
+  condições de desbloqueio, espaço de design e IDs pré-alocados.
+
 ## [v0.8.0] — 2026-08-21
 
 ### Adicionado

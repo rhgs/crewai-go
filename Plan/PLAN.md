@@ -319,7 +319,7 @@ and environment variable names in docs/README. The `.gitignore` protects
 
 ### Out-of-epic backlog (single view)
 
-Items **not** part of `PLAN.memory-async` and **not** shipped as of v0.6.0.
+Items **not** part of `PLAN.memory-async` and **not** shipped as of v0.6.0. Deferred/open items: [`PLAN.deferred-backlog.md`](PLAN.deferred-backlog.md)
 Schedule each with its own design note before coding (same gates as residuals:
 decisions first, ≥90% coverage, race-clean, EN+PT docs, no new core deps
 unless explicitly accepted).

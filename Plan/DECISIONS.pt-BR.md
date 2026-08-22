@@ -164,6 +164,8 @@ Fonte: [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md). PR #39.
 
 ## 9. Decisões abertas
 
+Itens adiados/abertos com condições de desbloqueio e IDs pré-alocados: [`PLAN.deferred-backlog.pt-BR.md`](PLAN.deferred-backlog.pt-BR.md) ([EN](PLAN.deferred-backlog.md)).
+
 Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* está aberto para relitigar sem **novo ID**.
 
 | ID | Tópico | Status |

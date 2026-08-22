@@ -311,6 +311,8 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 
 ### Backlog fora do epic (visão única)
 
+Adiados/abertos: [`PLAN.deferred-backlog.pt-BR.md`](PLAN.deferred-backlog.pt-BR.md).
+
 Itens **que não** fazem parte de `PLAN.memory-async` e **não** foram
 entregues até a v0.6.0. Agendar cada um com nota de design própria antes de
 codar (mesmos gates dos residuals: decisões primeiro, cobertura ≥90%,
@@ -330,6 +332,8 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 | Adiado (memory-async P3) | **A5** alias `Process=DAG` | Açúcar de naming |
 
 ## 7. Decisões em aberto
+
+Catálogo: [`DECISIONS.pt-BR.md`](DECISIONS.pt-BR.md). Plano de adiados: [`PLAN.deferred-backlog.pt-BR.md`](PLAN.deferred-backlog.pt-BR.md).
 
 Catálogo completo (fechadas e abertas, com opções): [`DECISIONS.pt-BR.md`](DECISIONS.pt-BR.md).
 

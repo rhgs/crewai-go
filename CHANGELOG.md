@@ -5,6 +5,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Documentation
+
+- **Deferred backlog plan**: `Plan/PLAN.deferred-backlog.md` (+ PT) — six
+  open/deferred items (xAI OAuth, M5, A5, D-S10, D-J9, O-J2) with unblock
+  conditions, design space, and pre-allocated decision IDs.
+
 ## [v0.8.0] — 2026-08-21
 
 ### Added
