@@ -1,7 +1,7 @@
 # Plano — Backlog adiado: itens abertos/spike (P-XAI-OAUTH, M5, A5, D-S10, D-J9, O-J2)
 
-> **Status:** **Design** — nenhum destes itens está agendado para código. Este plano define as **condições de desbloqueio**, a **superfície de design** quando iniciarem, e os **IDs de decisão** que serão cunhados.  
-> **Decisões:** Novos IDs serão **D-D1–D-Dxx** quando cada item sair de `deferred/open` para `closed`. Este documento não fecha nenhum deles.  
+> **Status:** **Design fechado** — ack de produto 2026-08-21 (A1–A5). O-J2 fechado → **D-JT1** (ship em schema). M5/D-S10/D-J9 design fechado mas **não agendado** (só sob pedido do produto). P-XAI-OAUTH segue bloqueado externamente; A5 permanece adiado. Este plano define as **condições de desbloqueio**, a **superfície de design** quando iniciarem, e os **IDs de decisão** que serão cunhados.  
+> **Decisões:** IDs pré-alocados em [`DECISIONS.pt-BR.md`](DECISIONS.pt-BR.md) §7A. O-J2 fechado como **D-JT1**. M5/D-S10/D-J9 design fechado (D-MT\*/D-ST\*/D-JE\*) mas sem agenda.  
 > **Relacionado:** [`DECISIONS.md`](DECISIONS.md) §9 (tabela aberta), `PLAN.streaming.md` (D-S10), `PLAN.p2-callbacks-schema.md` (D-J9, O-J2), `PLAN.memory-async.md` (M5, A5), `llm/xai/oauth.go`, `schema.go`.  
 > **Restrições:** Mesmos gates — zero deps novas no core, ≥ 90% cobertura, race-clean, docs EN+PT, CHANGELOG.
 
@@ -31,7 +31,7 @@ Não é um plano de implementação. Código só começa quando a condição de 
 | **A5** | Alias `Process=DAG` | Adiado — sugar de naming | Usuários confundem "Sequential+Async" | Trivial |
 | **D-S10** | Stream parcial de JSON de tool-call | Adiado — complexidade técnica | Demanda + spike de provider | Alta |
 | **D-J9** | `unevaluatedProperties` / `unevaluatedItems` | Adiado — custo de correção | Schemas reais precisam; spike de modelo de anotação | Alta |
-| **O-J2** | `format: time` | Spike aberto — ambiguidade semântica | Decidir incluir/adir pela análise de ambiguidade | Trivial |
+| ~~**O-J2**~~ → **D-JT1** | `format: time` | **Fechado — ship** | entregue (próximo patch) | Trivial |
 
 ---
 
@@ -73,9 +73,10 @@ Não é um plano de implementação. Código só começa quando a condição de 
 
 ### 3.6 O-J2 — `format: time`
 
-**Spike:** RFC 3339 full-time: `HH:MM:SS` + fração + offset opcional. Ambiguidade entre "time" (hora do dia) e "date-time" (com data).
-
-**Resultado do spike:** incluir ou adiar explicitamente. Mint **D-JT1**.
+**Fechado 2026-08-21 (D-JT1 = Ship):** valida RFC 3339 full-time via
+`time.Parse("15:04:05.999999999Z07:00")` e fallback sem offset —
+`HH:MM:SS[.fff]` com `Z`/offset opcional;
+strings com data são rejeitadas. Implementado em `schema.go`.
 
 ---
 
@@ -88,7 +89,7 @@ Não é um plano de implementação. Código só começa quando a condição de 
 | A5 | **D-A7** | Sinal de confusão |
 | D-S10 | **D-ST1–D-ST4** | Spike + demanda |
 | D-J9 | **D-JE1–D-JE3** | Spike de anotação |
-| O-J2 | **D-JT1** | Conclusão do spike |
+| ~~O-J2~~ | **D-JT1** | **Fechado 2026-08-21 (ship)** |
 
 Todos os IDs entram na família certa em [`DECISIONS.md`](DECISIONS.md) quando fechados.
 
@@ -102,7 +103,7 @@ M5 ──► espera produto pedir ──► D-MT* fecha → implementa
 A5 ──► espera sinal de confusão ──► D-A7 → alias só
 D-S10 ──► espera produto + spike provider ──► D-ST* → novo path stream
 D-J9 ──► espera demanda de schema ──► D-JE* → modelo de anotação
-O-J2 ──► conclusão do spike ──► D-JT1 → um case em checkFormat
+~~O-J2~~ ──► **feito** ──► D-JT1 em checkFormat (este patch)
 ```
 
 Nenhum bloqueia outro nem bloqueia P3.
@@ -113,7 +114,7 @@ Nenhum bloqueia outro nem bloqueia P3.
 
 | # | Item | Por quê |
 |---|------|---------|
-| 1 | **O-J2** | Spike trivial; um case ou deferral |
+| 1 | ~~**O-J2**~~ | **Feito** neste patch (D-JT1) |
 | 2 | **P-XAI-OAUTH** | Só constantes, sem risco de interface |
 | 3 | **A5** | Naming sugar, ~10 linhas, aditivo |
 | 4 | **M5** | Média complexidade; duas tools pequenas |
@@ -124,7 +125,7 @@ Nenhum bloqueia outro nem bloqueia P3.
 
 ## 7. Resumo
 
-Seis itens: um bloqueado (xAI), cinco adiados. Todos com espaço de design claro e IDs pré-alocados em [`DECISIONS.md`](DECISIONS.md) §9. Quando a condição de desbloqueio for atendida, o sub-plano sai aqui ou em `PLAN.<item>.md`, e código só depois das decisões fecharem.
+Seis itens: um bloqueado externamente (xAI), O-J2 **fechado e entregue** (D-JT1), três adiados com design **fechado** (M5, D-S10, D-J9 — DECISIONS §7A), um adiado sem fechar (A5). Todos com espaço de design claro e IDs pré-alocados em [`DECISIONS.md`](DECISIONS.md) §9. Quando a condição de desbloqueio for atendida, o sub-plano sai aqui ou em `PLAN.<item>.md`, e código só depois das decisões fecharem.
 
 ---
 

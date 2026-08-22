@@ -527,11 +527,14 @@ fails with `crewai.ErrRepairBudgetExceeded`. The executor never returns
 invalid JSON or invents data.
 
 The built-in validator is a stdlib-only JSON Schema subset: `type`,
-`properties`, `required`, `enum`, `items`, `additionalProperties`,
-`minLength`/`maxLength` (**bytes**), numeric/array bounds, `pattern`,
-and `oneOf`/`anyOf`/`allOf`. Use `WithStrictSchema()` to reject
-unsupported keywords at construction. Optional `WithAllowTools()` runs a
-tool gather phase before JSON capture. Details in
+`properties`, `required`, `enum`, `const`, `items`,
+`additionalProperties`, `minLength`/`maxLength` (**bytes**),
+numeric/array bounds, `pattern`, `format` (date-time, date, time, email,
+uri, uri-reference, uuid, ipv4, ipv6), `oneOf`/`anyOf`/`allOf`, `not`,
+`if`/`then`/`else`, property counts, `uniqueItems`, and local `$ref`.
+Use `WithStrictSchema()` to reject unsupported keywords at construction
+(`unevaluated*` still fails). Optional `WithAllowTools()` runs a tool
+gather phase before JSON capture. Details in
 [`docs/tasks.md`](docs/tasks.md).
 
 ## Guardrails

@@ -101,7 +101,8 @@ var unsupportedStrictKeywords = map[string]struct{}{
 //	minimum, maximum, exclusiveMinimum, exclusiveMaximum (numbers as float64),
 //	minItems, maxItems, uniqueItems, minProperties, maxProperties,
 //	pattern (Go regexp; pattern length capped at MaxSchemaPatternLen),
-//	format (allowlist: date-time, date, email, uri, uri-reference, uuid, ipv4, ipv6),
+//	format (allowlist: date-time, date, time (RFC 3339 full-time), email,
+//	uri, uri-reference, uuid, ipv4, ipv6),
 //	oneOf, anyOf, allOf, not, if/then/else,
 //	$ref (local JSON Pointer fragments only; see MaxSchemaRefDepth).
 //
@@ -778,6 +779,14 @@ func checkFormat(name, s string) string {
 	case "date":
 		if _, err := time.Parse("2006-01-02", s); err != nil {
 			return "value is not a valid date (YYYY-MM-DD)"
+		}
+	case "time":
+		// RFC 3339 full-time: "HH:MM:SS[.fff][Z|±hh:mm]" — offset optional.
+		// ".999999999" makes the fraction optional in the layout.
+		_, err1 := time.Parse("15:04:05.999999999Z07:00", s)
+		_, err2 := time.Parse("15:04:05.999999999", s)
+		if err1 != nil && err2 != nil {
+			return "value is not a valid time (RFC 3339 full-time)"
 		}
 	case "email":
 		if len(s) > 254 {

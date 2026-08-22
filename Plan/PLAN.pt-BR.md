@@ -134,8 +134,8 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
   entregue na **v0.7.0**.
 - **JSON Schema ainda é um subconjunto** — a v0.8.0 adiciona `$ref` local,
   allowlist de `format`, `const`/`not`/`if`/`then`/`else`, contagens de
-  properties, `uniqueItems`. Ainda sem `unevaluated*`, `$ref` remoto,
-  `dependent*`, etc.
+  properties, `uniqueItems`. `format: time` entregue como D-JT1. Ainda sem
+  `unevaluated*`, `$ref` remoto, `dependent*`, etc.
 - **Servidores MCP são confiáveis** — descriptions/resultados entram no
   contexto do modelo; use `FilterTools`, allowlists de rede e least privilege
   (ver threat model MCP).
@@ -352,6 +352,7 @@ memory-async):
   quando a xAI publicar documentação oficial.
 - **Module path** — publicado como `github.com/rhgs/crewai-go` (resolvido).
 
-Adiados do memory-async (só se o produto pedir): **M5** tools de memória,
-**A5** alias `Process=DAG` — ver
+Adiados do memory-async: **M5** tools de memória (design fechado — D-MT1–D-MT5,
+sem agenda), **A5** alias `Process=DAG` (permanece adiado; revisitar só com
+sinal de confusão — 2026-08-21; não fechar ainda) — ver
 [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md) §10.

@@ -134,7 +134,8 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
   only (see [`PLAN.streaming.md`](PLAN.streaming.md)); shipped in **v0.7.0**.
 - **JSON Schema is still a subset** — v0.8.0 adds local `$ref`, `format`
   allowlist, `const`/`not`/`if`/`then`/`else`, property counts, `uniqueItems`.
-  Still no `unevaluated*`, remote `$ref`, `dependent*`, etc.
+  `format: time` shipped as D-JT1. Still no `unevaluated*`, remote `$ref`,
+  `dependent*`, etc.
 - **MCP servers are trusted** — tool descriptions/results enter the model
   context; use `FilterTools`, network allowlists, and least privilege (see
   MCP threat model docs).
@@ -356,5 +357,6 @@ Product/design choices still open for **future** epics (not memory-async):
   publishes official documentation.
 - **Module path** — published as `github.com/rhgs/crewai-go` (resolved).
 
-Deferred from memory-async (only if product asks): **M5** memory tools,
-**A5** `Process=DAG` alias — see [`PLAN.memory-async.md`](PLAN.memory-async.md) §10.
+Deferred from memory-async: **M5** memory tools (design settled — D-MT1–D-MT5,
+unscheduled), **A5** `Process=DAG` alias (stays deferred; revisit only on
+user confusion — 2026-08-21; do not close yet) — see [`PLAN.memory-async.md`](PLAN.memory-async.md) §10.

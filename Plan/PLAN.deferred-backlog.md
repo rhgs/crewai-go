@@ -1,7 +1,7 @@
 # Plan — Deferred backlog: open/spike items (P-XAI-OAUTH, M5, A5, D-S10, D-J9, O-J2)
 
-> **Status:** **Design** — none of these items are scheduled for code. This plan defines the **conditions to unblock** each, the **design surface** when they start, and the **decision IDs** they will mint.  
-> **Decisions:** New IDs will be **D-D1–D-Dxx** when each item moves from `deferred/open` to `closed`. This document does not close any of them.  
+> **Status:** **Design settled** — product ack 2026-08-21 (A1–A5). O-J2 closed → **D-JT1** shipped in schema. M5/D-S10/D-J9 design settled but still **unscheduled** (implement only on product request). P-XAI-OAUTH still blocked externally; A5 remains deferred. This plan defines the **conditions to unblock** each, the **design surface** when they start, and the **decision IDs** they will mint.  
+> **Decisions:** Pre-allocated IDs live in [`DECISIONS.md`](DECISIONS.md) §7A. O-J2 closed as **D-JT1**. M5/D-S10/D-J9 design settled (D-MT\*/D-ST\*/D-JE\*) but still unscheduled.  
 > **Related:** [`DECISIONS.md`](DECISIONS.md) §9 (open table), `PLAN.streaming.md` (D-S10), `PLAN.p2-callbacks-schema.md` (D-J9, O-J2), `PLAN.memory-async.md` (M5, A5), `llm/xai/oauth.go` (P-XAI-OAUTH), `schema.go` (D-J9, O-J2).  
 > **Constraints:** Same gates as all epic plans — zero new core deps, ≥ 90% coverage on touched packages, race-clean, EN+PT docs, CHANGELOG.
 
@@ -29,7 +29,7 @@ This is not an implementation plan. Code only starts when the unblock condition 
 | **A5** | `Process=DAG` alias | Deferred — naming sugar | Users confused by "Sequential+Async" naming | Trivial |
 | **D-S10** | Stream native tool-call partial JSON | Deferred — technical complexity | Product demand + provider spike | High |
 | **D-J9** | `unevaluatedProperties` / `unevaluatedItems` | Deferred — correctness cost | Real schemas need it; annotation model spike | High |
-| **O-J2** | `format: time` | Open spike — semantic ambiguity | Decide include/defer based on ambiguity analysis | Trivial |
+| ~~**O-J2**~~ → **D-JT1** | `format: time` | **Closed — ship** | shipped (next patch) | Trivial |
 
 ---
 
@@ -154,19 +154,12 @@ OR
 
 ### 3.6 O-J2 — `format: time`
 
-**Open spike:** JSON Schema `format: time` per RFC 3339 section 5.6 ("HH:MM:SS" with optional fraction and offset). The ambiguity:
-
-- ISO 8601 allows `14:30:00Z`, `14:30:00+02:00`, `14:30:00.123Z` — but also `14:30:00` (local time, no offset) which Go's `time.Parse` with layout `15:04:05Z07:00` handles.
-- The difference between "time" (time-of-day, no date) and "date-time" is whether a date is present. `time` as a format in JSON Schema refers to **full time** (with offset), not partial.
-
-**Spike output:** Decide whether `format: time` is:
-
-| Option | What it means | If chosen |
-|--------|---------------|-----------|
-| **Ship** | `HH:MM:SS` + optional fraction + optional offset | Add case to `checkFormat` |
-| **Defer** | Ambiguity is too high for a validator to be useful | Document as "not supported", no code |
-
-**Will mint:** **D-JT1** — include or explicitly defer.
+**Closed 2026-08-21 (D-JT1 = Ship).** JSON Schema `format: time` per RFC 3339
+section 5.6. Accepts `HH:MM:SS[.fff]` with optional `Z`/offset
+(`14:30:00`, `14:30:00Z`, `14:30:00.5+02:00`); date-time strings are
+rejected. Implementation tries `time.Parse("15:04:05.999999999Z07:00")`
+then fallback without offset so a bare `14:30:00` is valid. Implemented
+in `schema.go`.
 
 ---
 
@@ -179,7 +172,7 @@ OR
 | A5 | **D-A7** | On demand signal |
 | D-S10 | **D-ST1–D-ST4** | On provider spike + product demand |
 | D-J9 | **D-JE1–D-JE3** | On annotation model spike |
-| O-J2 | **D-JT1** | On spike conclusion |
+| ~~O-J2~~ | **D-JT1** | **Closed 2026-08-21 (ship)** |
 
 All new IDs go into the right family table in [`DECISIONS.md`](DECISIONS.md) when closed.
 
@@ -193,7 +186,7 @@ M5 ──► waits on product request ──► D-MT* close → implement
 A5 ──► waits on user confusion signal ──► D-A7 → alias only
 D-S10 ──► waits on product + provider spike ──► D-ST* → new stream path
 D-J9 ──► waits on schema demand ──► D-JE* → annotation model
-O-J2 ──► spike conclusion ──► D-JT1 → one-liner in checkFormat
+~~O-J2~~ ──► **done** ──► D-JT1 in checkFormat (this patch)
 ```
 
 None of them block each other or any P3 item.
@@ -206,14 +199,14 @@ Recommended order (smallest first):
 
 | # | Item | Why first |
 |---|------|-----------|
-| 1 | **O-J2** — `format: time` | Trivial spike; one new case or documented deferral |
+| 1 | ~~**O-J2**~~ — `format: time` | **Done** this patch (D-JT1) |
 | 2 | **P-XAI-OAUTH** | Constant-level change, no interface risk |
 | 3 | **A5** — `Process=DAG` | Naming sugar, ~10 lines, additive |
 | 4 | **M5** — memory tools | Medium complexity; two small tools + policy decision |
 | 5 | **D-S10** — tool-call partial stream | High complexity; touches provider wire protocols |
 | 6 | **D-J9** — unevaluated* | Highest complexity; needs annotation model |
 
-Item 1 is a candidate for the next **v0.8.1 patch** if the spike lands quickly and the change is trivial. Items 2–3 are candidates for a minor. Items 4–6 need their own epic-level design before code.
+Item 1 shipped in this patch. Items 2–3 are candidates for a minor when unblocked. Items 4–6 need their own epic-level design before code.
 
 ---
 

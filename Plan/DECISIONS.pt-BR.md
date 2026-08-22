@@ -19,7 +19,7 @@ O inglês [`DECISIONS.md`](DECISIONS.md) é a fonte autoritativa se houver diver
 | **Opções** | Alternativas consideradas. |
 | **Entregue** | Release/PR que implementou (se houver). |
 
-**Famílias de ID:** D1–D7 (security v0.5), D-M\* (memory), D-A\* (async), G\* (gaps memory-async), D-S\* (streaming), D-C\* (events), D-J\* (JSON Schema), P-\* (produto/roadmap).
+**Famílias de ID:** D1–D7 (security v0.5), D-M\* (memory), D-A\* (async), G\* (gaps memory-async), D-S\* (streaming), D-C\* (events), D-J\* (JSON Schema), D-JT\* (spikes de format), D-MT\* (tools de memória / M5), D-ST\* (stream parcial de tool-call), D-JE\* (unevaluated\*), D-XA\* (OAuth xAI), D-F/T/Y/X\* (trens P3), P-\* (produto/roadmap).
 
 ---
 
@@ -148,6 +148,41 @@ Fonte: [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md). PR #39.
 
 ---
 
+## 7A. Follow-ups abertos/fechados 2026-08-21 (ack de produto)
+
+| ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
+|----|----------|--------|---------|--------|----------|-------|
+| **D-JT1** | `format: time` (spike O-J2) | (A) ship RFC 3339 full-time (B) documentar adiamento | **A** — `HH:MM:SS[.fff][Z\|±offset]` via `time.Parse("15:04:05.999999999Z07:00")` e fallback sem offset | closed | próximo patch ≥ v0.8.x | Offset opcional; componentes de data rejeitados |
+
+### 7A.1 M5 tools de memória — design fechado (aguardando demanda)
+
+Fechado pelo ack de produto (A3) — código só quando pedido:
+
+| ID | Pergunta | Opções | Escolha | Status |
+|----|----------|--------|---------|--------|
+| **D-MT1** | Uma tool vs duas | (A) duas: recall_memory + remember (B) uma tool com action | **A** | closed (unscheduled) |
+| **D-MT2** | Anexação | (A) flag explícita opt-in (B) auto quando Memory=true | **A** | closed (unscheduled) |
+| **D-MT3** | Query de recall | (A) só texto (B) só embedding (C) texto + embedding | **C** | closed (unscheduled) |
+| **D-MT4** | visibilidade de remember vs D-M7 | (A) Put imediato, fora do buffer da wave (B) bufferizado como AutoSave | **A** | closed (unscheduled) |
+| **D-MT5** | Budget de recall | (A) limites de MemoryPolicy (B) arg da tool (C) herda `MaxToolOutputBytes` | **C** | closed (unscheduled) |
+
+### 7A.2 Follow-up D-S10 — design fechado (aguardando demanda, ack A4)
+
+| ID | Pergunta | Opções | Escolha | Status |
+|----|----------|--------|---------|--------|
+| **D-ST1** | Shape do chunk parcial de tool-call | (A) estender StreamChunk (B) tipo `ToolCallDelta` separado | **B** | closed (unscheduled) |
+| **D-ST2** | JSON parcial | (A) provider monta, emite ao completar (B) passa parciais | **A** | closed (unscheduled) |
+| **D-ST3** | Turno final de texto com tools faz stream | (A) sim (B) bufferizado | **A** | closed (unscheduled) |
+| **D-ST4** | Escopo de provider | (A) todos de uma vez (B) OpenAI primeiro | **B** | closed (unscheduled) |
+
+### 7A.3 Follow-up D-J9 `unevaluated*` — design fechado (aguardando demanda, ack A5)
+
+| ID | Pergunta | Opções | Escolha | Status |
+|----|----------|--------|---------|--------|
+| **D-JE1** | Escopo do modelo de anotação | (A) vocabulário 2020-12 completo (B) "evaluated set" mínimo por objeto/array | **B** | closed (unscheduled) |
+| **D-JE2** | Interação com $ref/allOf | (A) só por nó (B) eval-set faz merge entre aplicadores resolvidos | **B** | closed (unscheduled) |
+| **D-JE3** | Booleanos como unevaluated* | (A) permitir bool só em properties (B) só maps de schema no v1 | **B** | closed (unscheduled) |
+
 ## 8. Escolhas de produto permanentes (P-*)
 
 | ID | Pergunta | Opções | Escolha | Status |
@@ -168,13 +203,14 @@ Itens adiados/abertos com condições de desbloqueio e IDs pré-alocados: [`PLAN
 
 Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* está aberto para relitigar sem **novo ID**.
 
-| ID | Tópico | Status |
-|----|--------|--------|
-| **P-XAI-OAUTH** | client_id/endpoints oficiais xAI | open |
-| **P-M5** / **P-A5** | memory tools / Process=DAG | deferred |
-| **D-S10** follow-up | stream parcial de tool-call | deferred |
-| **D-J9** follow-up | unevaluated* | deferred |
-| **O-J2** | format: time | open spike |
+| ID | Tópico | Status | Próximo passo |
+|----|--------|--------|---------------|
+| **P-XAI-OAUTH** | client_id/endpoints oficiais xAI | open | Atualizar defaults quando a xAI documentar (D-XA*) |
+| **P-M5** | Tools de memória | deferred — design fechado (D-MT1–D-MT5) | Implementar só sob pedido do produto |
+| **P-A5** | Alias `Process=DAG` | deferred | Não fechar; revisitar só com sinal de confusão (A2) |
+| **D-S10** follow-up | Stream parcial de tool-call nativo | deferred — design fechado (D-ST1–D-ST4) | Implementar só sob demanda |
+| **D-J9** follow-up | unevaluatedProperties/Items | deferred — design fechado (D-JE1–D-JE3) | Implementar só sob demanda |
+| ~~**O-J2**~~ | `format: time` | **fechado → D-JT1 (ship)** | Implementado em `schema.go` |
 
 ---
 
@@ -183,6 +219,8 @@ Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* está aberto para 
 | Data | Mudança |
 |------|---------|
 | 2026-08-21 | Log vivo inicial (espelho de DECISIONS.md) |
+| 2026-08-21 | Marcar D-C\* / D-J\* entregues na **v0.8.0** |
+| 2026-08-21 | Ack de produto (A1–A5): O-J2 → **D-JT1** (ship time); M5 → D-MT1–D-MT5 fechados sem agenda; D-S10 → D-ST1–D-ST4; D-J9 → D-JE1–D-JE3; A5 permanece adiado |
 
 ## 11. Relacionados
 
