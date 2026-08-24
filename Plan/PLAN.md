@@ -134,7 +134,8 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
   only (see [`PLAN.streaming.md`](PLAN.streaming.md)); shipped in **v0.7.0**.
 - **JSON Schema is still a subset** — v0.8.0 adds local `$ref`, `format`
   allowlist, `const`/`not`/`if`/`then`/`else`, property counts, `uniqueItems`.
-  Still no `unevaluated*`, remote `$ref`, `dependent*`, etc.
+  `format: time` shipped as D-JT1. Still no `unevaluated*`, remote `$ref`,
+  `dependent*`, etc.
 - **MCP servers are trusted** — tool descriptions/results enter the model
   context; use `FilterTools`, network allowlists, and least privilege (see
   MCP threat model docs).
@@ -304,18 +305,20 @@ and environment variable names in docs/README. The `.gitignore` protects
 
 - [ ] **Flows** — event-driven orchestration with explicit state and routing
   (CrewAI-style Flows), without replacing Sequential/Hierarchical/Staged/
-  Async waves. **Separate plan when scheduled.**
+  Async waves. **Design plan:** [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md)
+  Train F (D-F1–D-F12); not coded.
 - [ ] **More built-in tools** — HTTP client (SSRF-safe, allowlists), sandboxed
   file read/write (jail like `OutputDir`), lightweight RAG helpers **as app
   patterns or optional examples** (vector DBs stay out of core; embeddings
   already hook via `EmbeddingFunc`). Web search already shipped (v0.3+).
+  **Same design plan**, Train T (D-T1–D-T10).
 - [ ] **Declarative YAML** — `agents.yaml` / `tasks.yaml` (and optional crew
   composition) compiled into the existing Go types; validation errors at load
-  time. No runtime YAML eval of untrusted paths without a jail.
+  time. v1 = **JSON-subset YAML** (no new deps). **Same plan**, Train Y
+  (D-Y1–D-Y10).
 - [ ] **Training** — prompt fine-tuning / few-shot distillation from successful
   executions (export traces → curated examples). Out of core model training;
-  library-side capture + export only unless a future optional module says
-  otherwise.
+  library-side capture + export only. **Same plan**, Train X (D-X1–D-X8).
 
 ### Out-of-epic backlog (single view)
 
@@ -330,10 +333,10 @@ unless explicitly accepted).
 
 | P2 | **Callbacks / telemetry** | **Shipped v0.8.0** (PR #39): [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) Part C |
 | P2 | **JSON Schema remainder** | **Shipped v0.8.0** (PR #39): same plan Part J |
-| P3 | **Flows** | Event-driven state + routing |
-| P3 | **Tools: HTTP, files, RAG patterns** | SSRF/jail; RAG not a core vector DB |
-| P3 | **YAML crew definitions** | agents.yaml / tasks.yaml → Go types |
-| P3 | **Training / trace export** | Few-shot distillation from runs |
+| P3 | **Flows** | Design: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) Train F — not started |
+| P3 | **Tools: HTTP, files, RAG patterns** | Same plan Train T (SSRF/jail) — not started |
+| P3 | **YAML crew definitions** | Same plan Train Y (JSON-subset v1) — not started |
+| P3 | **Training / trace export** | Same plan Train X (JSONL recorder) — not started |
 | Deferred (memory-async P3) | **M5** `recall_memory` / `remember` | Agent-driven memory tools |
 | Deferred (memory-async P3) | **A5** `Process=DAG` alias | Naming sugar only |
 
@@ -354,5 +357,6 @@ Product/design choices still open for **future** epics (not memory-async):
   publishes official documentation.
 - **Module path** — published as `github.com/rhgs/crewai-go` (resolved).
 
-Deferred from memory-async (only if product asks): **M5** memory tools,
-**A5** `Process=DAG` alias — see [`PLAN.memory-async.md`](PLAN.memory-async.md) §10.
+Deferred from memory-async: **M5** memory tools (design settled — D-MT1–D-MT5,
+unscheduled), **A5** `Process=DAG` alias (stays deferred; revisit only on
+user confusion — 2026-08-21; do not close yet) — see [`PLAN.memory-async.md`](PLAN.memory-async.md) §10.

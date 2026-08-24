@@ -5,8 +5,21 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
-### Documentation
+### Adicionado
 
+- **`format: time` (O-J2 → D-JT1)**: formato `time` do JSON Schema validado
+  como full-time RFC 3339 (`HH:MM:SS[.fff][Z|±hh:mm]`); docs da allowlist
+  atualizados.
+
+### Documentação
+
+- **Backlog adiado** — ack de produto 2026-08-21 (A1–A5): M5 → D-MT1–D-MT5,
+  D-S10 → D-ST1–D-ST4, D-J9 → D-JE1–D-JE3 fechados (sem agenda); A5 permanece
+  adiado; P-XAI-OAUTH segue externo. Ver `Plan/DECISIONS.pt-BR.md` §7A.
+- **Plano de design P3**: `Plan/PLAN.p3-flows-tools-yaml-training.md` (+
+  PT) — Flows, tools embutidas, YAML subconjunto JSON, training/export de
+  traces; gates de code/security review, cobertura ≥90% e revisão de docs
+  por trem; linkado no P3 do roadmap (ainda não implementado).
 - **Plano de backlog adiado**: `Plan/PLAN.deferred-backlog.md` (+ PT) —
   seis itens abertos/adiados (xAI OAuth, M5, A5, D-S10, D-J9, O-J2) com
   condições de desbloqueio, espaço de design e IDs pré-alocados.

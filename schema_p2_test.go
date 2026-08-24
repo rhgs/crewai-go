@@ -195,6 +195,21 @@ func TestSchema_FormatAllowlist(t *testing.T) {
 			t.Fatalf("%s bad should fail", tc.format)
 		}
 	}
+	// time format (D-JT1 — ship RFC 3339 full-time)
+	for _, tc := range [][2]string{
+		{`"14:30:00Z"`, ""}, {`"14:30:00"`, ""}, {`"14:30:00.5+02:00"`, ""},
+	} {
+		schema := mustSchema(t, map[string]any{"type": "string", "format": "time"})
+		if err := validateSchema([]byte(tc[0]), schema); err != nil {
+			t.Fatalf("time %s should pass: %v", tc[0], err)
+		}
+	}
+	for _, bad := range []string{`"25:00:00"`, `"noon"`, `"2020-01-01T00:00:00Z"`} {
+		schema := mustSchema(t, map[string]any{"type": "string", "format": "time"})
+		if err := validateSchema([]byte(bad), schema); err == nil {
+			t.Fatalf("time %s should fail", bad)
+		}
+	}
 	// unknown format ignored
 	schema := mustSchema(t, map[string]any{"type": "string", "format": "custom-x"})
 	if err := validateSchema([]byte(`"anything"`), schema); err != nil {

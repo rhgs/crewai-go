@@ -498,11 +498,14 @@ budget de reparo, a tarefa falha com `crewai.ErrRepairBudgetExceeded`. O
 executor nunca retorna JSON invalido ou inventa dados.
 
 O validador embutido e um subconjunto stdlib do JSON Schema: `type`,
-`properties`, `required`, `enum`, `items`, `additionalProperties`,
-`minLength`/`maxLength` (**bytes**), bounds numericos/de array, `pattern`
-e `oneOf`/`anyOf`/`allOf`. Use `WithStrictSchema()` para rejeitar keywords
-nao suportadas na construcao. `WithAllowTools()` opcional roda uma fase
-gather de tools antes do capture JSON. Detalhes em
+`properties`, `required`, `enum`, `const`, `items`,
+`additionalProperties`, `minLength`/`maxLength` (**bytes**), bounds
+numericos/de array, `pattern`, `format` (date-time, date, time, email,
+uri, uri-reference, uuid, ipv4, ipv6), `oneOf`/`anyOf`/`allOf`, `not`,
+`if`/`then`/`else`, contagens de properties, `uniqueItems` e `$ref`
+local. Use `WithStrictSchema()` para rejeitar keywords nao suportadas
+na construcao (`unevaluated*` ainda falha). `WithAllowTools()` opcional
+roda uma fase gather de tools antes do capture JSON. Detalhes em
 [`docs/pt-BR/tasks.md`](docs/pt-BR/tasks.md).
 
 ## Guardrails

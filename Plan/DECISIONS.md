@@ -28,6 +28,12 @@
 | **D-S\*** | Streaming | `PLAN.streaming.md` |
 | **D-C\*** | Lifecycle events / telemetry | `PLAN.p2-callbacks-schema.md` |
 | **D-J\*** | JSON Schema remainder | `PLAN.p2-callbacks-schema.md` |
+| **D-JT\*** | Schema format spikes (time, …) | `PLAN.deferred-backlog.md` |
+| **D-MT\*** | Agent memory tools (M5) | `PLAN.deferred-backlog.md` |
+| **D-ST\*** | Tool-call partial streaming (D-S10 follow-up) | `PLAN.deferred-backlog.md` |
+| **D-JE\*** | unevaluated* annotation model (D-J9 follow-up) | `PLAN.deferred-backlog.md` |
+| **D-XA\*** | xAI OAuth defaults | `PLAN.deferred-backlog.md` |
+| **D-F/T/Y/X\*** | P3 trains | `PLAN.p3-flows-tools-yaml-training.md` |
 | **P-\*** | Standing product choices (roadmap §7) | `PLAN.md` |
 
 Open implementation spikes use **O-\*** in epic plans; promote to a **D-\*** when closed.
@@ -156,7 +162,7 @@ Source: [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) §9.2. PR #
 |----|----------|---------|--------|--------|---------|-------|
 | **D-J1** | `$ref` scope | (A) local only (B) file (C) http | **A** | closed | v0.8.0 | No network fetch |
 | **D-J2** | `$ref` + sibling keywords | (A) ignore siblings (B) apply as intersection | **B** | closed | v0.8.0 | |
-| **D-J3** | `format` vocabulary | (A) none (B) allowlist (C) large set | **B** | closed | v0.8.0 | date-time, date, email, uri, uri-reference, uuid, ipv4, ipv6 |
+| **D-J3** | `format` vocabulary | (A) none (B) allowlist (C) large set | **B** | closed | v0.8.0 | date-time, date, email, uri, uri-reference, uuid, ipv4, ipv6; **time** added later as D-JT1 |
 | **D-J4** | Unknown `format` at runtime | (A) ignore (B) always error | **A** | closed | v0.8.0 | |
 | **D-J5** | `const` | (A) defer (B) ship | **B** | closed | v0.8.0 | |
 | **D-J6** | `if`/`then`/`else` | (A) defer (B) ship basic | **B** | closed | v0.8.0 | |
@@ -168,6 +174,41 @@ Source: [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) §9.2. PR #
 | **D-J12** | Ref depth / expansion caps | 32 / 256 | **yes** | closed | v0.8.0 | Anti bomb |
 
 ---
+
+## 7A. Follow-ups opened/closed 2026-08-21 (product ack)
+
+| ID | Question | Options | Choice | Status | Shipped | Notes |
+|----|----------|---------|--------|--------|---------|-------|
+| **D-JT1** | `format: time` (spike O-J2) | (A) ship RFC 3339 full-time (B) document deferral | **A** — `HH:MM:SS[.fff][Z\|±offset]` via `time.Parse("15:04:05.999999999Z07:00")` then fallback without offset | closed | next patch ≥ v0.8.x | Offset optional; date components rejected |
+
+### 7A.1 M5 memory tools — settled design (awaiting implementation demand)
+
+Settled by product ack (A3) — code only when requested:
+
+| ID | Question | Options | Choice | Status |
+|----|----------|---------|--------|--------|
+| **D-MT1** | One tool vs two | (A) two: recall_memory + remember (B) one memory tool with action | **A** | closed (unscheduled) |
+| **D-MT2** | Attachment | (A) explicit opt-in flag (B) auto when Memory=true | **A** | closed (unscheduled) |
+| **D-MT3** | Recall query | (A) text only (B) embedding only (C) text + embedding | **C** | closed (unscheduled) |
+| **D-MT4** | remember visibility vs D-M7 | (A) immediate Put, outside wave buffer (B) buffered like AutoSave | **A** | closed (unscheduled) |
+| **D-MT5** | Recall budget | (A) MemoryPolicy limits (B) tool arg (C) inherit `MaxToolOutputBytes` | **C** | closed (unscheduled) |
+
+### 7A.2 D-S10 follow-up — settled design (awaiting demand, product ack A4)
+
+| ID | Question | Options | Choice | Status |
+|----|----------|---------|--------|--------|
+| **D-ST1** | Partial tool-call chunk shape | (A) extend StreamChunk (B) separate `ToolCallDelta`/type | **B** | closed (unscheduled) |
+| **D-ST2** | Partial JSON handling | (A) provider assembles, emit on complete (B) pass partials through | **A** | closed (unscheduled) |
+| **D-ST3** | Tool-final text turn streams | (A) yes (B) buffered | **A** | closed (unscheduled) |
+| **D-ST4** | Provider scope | (A) all at once (B) OpenAI first | **B** | closed (unscheduled) |
+
+### 7A.3 D-J9 follow-up `unevaluated*` — settled design (awaiting demand, product ack A5)
+
+| ID | Question | Options | Choice | Status |
+|----|----------|---------|--------|--------|
+| **D-JE1** | Annotation model scope | (A) full 2020-12 annotation vocab (B) minimal "evaluated set" per object/array | **B** | closed (unscheduled) |
+| **D-JE2** | Interaction with $ref/allOf | (A) per-node only (B) eval-set merges across resolved applicators | **B** | closed (unscheduled) |
+| **D-JE3** | Boolean values as unevaluated* | (A) allow bool form for properties only (B) schema maps only in v1 | **B** | closed (unscheduled) |
 
 ## 8. Standing product choices (P-*)
 
@@ -193,11 +234,12 @@ Nothing in D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\* is open for re-litiga
 
 | ID | Topic | Status | Next step |
 |----|-------|--------|-----------|
-| **P-XAI-OAUTH** | Official xAI OAuth client_id / endpoints | open | Update defaults when xAI documents them |
-| **P-M5** / **P-A5** | Memory tools / Process=DAG | deferred | Product request + design note |
-| **D-S10** follow-up | Native tool-call partial streaming | deferred | New D-S\* when designed |
-| **D-J9** follow-up | unevaluatedProperties/Items | deferred | J-extra plan if needed |
-| **O-J2** | `format: time` | open spike | Add format or document deferral |
+| **P-XAI-OAUTH** | Official xAI OAuth client_id / endpoints | open | Update defaults when xAI documents them (D-XA*) |
+| **P-M5** | Memory tools | deferred — design settled (D-MT1–D-MT5) | Implement only on product request |
+| **P-A5** | `Process=DAG` alias | deferred | Do not close; revisit only on user confusion signal (A2) |
+| **D-S10** follow-up | Native tool-call partial streaming | deferred — design settled (D-ST1–D-ST4) | Implement only on demand |
+| **D-J9** follow-up | unevaluatedProperties/Items | deferred — design settled (D-JE1–D-JE3) | Implement only on demand |
+| ~~**O-J2**~~ | `format: time` | **closed → D-JT1 (ship)** | Implemented in `schema.go` |
 
 When closing an open item: move it into the right section table, set **Status=closed**, fill **Choice** and **Shipped**, and leave a one-line note here.
 
@@ -209,6 +251,7 @@ When closing an open item: move it into the right section table, set **Status=cl
 |------|--------|
 | 2026-08-21 | Initial living log: D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\*, P-\* |
 | 2026-08-21 | Mark D-C\* / D-J\* shipped in **v0.8.0** |
+| 2026-08-21 | Product ack (A1–A5): O-J2 → **D-JT1** (ship time); M5 → D-MT1–D-MT5 settled-unscheduled; D-S10 → D-ST1–D-ST4; D-J9 → D-JE1–D-JE3; A5 stays deferred |
 
 ---
 

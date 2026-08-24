@@ -174,7 +174,7 @@ O validador embutido e um **subconjunto stdlib** do JSON Schema:
 | `pattern` | `regexp` do Go; tamanho do pattern limitado a `MaxSchemaPatternLen` (512) |
 | `oneOf`, `anyOf`, `allOf` | Composicao |
 
-**Nao suportado:** `$ref`, `if`/`then`/`else`, `format`, `unevaluated*`, e a maioria das keywords draft 2020-12. Use `WithStrictSchema()` / `StrictSchema` em `NewStructuredOutput` para falhar cedo se o schema do autor tiver keywords nao suportadas.
+**Nao suportado na tabela acima (lista pré-v0.8):** ver a subseção **Keywords de JSON Schema** abaixo para a allowlist atual. Ainda rejeitados com `WithStrictSchema`: `unevaluated*`, `$ref` remoto, `dependent*` e a maioria das keywords restantes do draft 2020-12.
 
 ### Erros
 
@@ -243,7 +243,7 @@ Default continua `AllowTools == false` (backward compatible).
 ### Keywords de JSON Schema (validador stdlib)
 
 Suportados (v0.8+): `type`, `properties`, `required`, `enum`, `const`, `items`,
-`additionalProperties`, bounds, `pattern`, `format` (date-time, date, email,
+`additionalProperties`, bounds, `pattern`, `format` (date-time, date, time, email,
 uri, uri-reference, uuid, ipv4, ipv6), `oneOf`/`anyOf`/`allOf`, `not`,
 `if`/`then`/`else`, `minProperties`/`maxProperties`, `uniqueItems`, `$ref`
 local (`#/$defs/...`, `#/definitions/...` — sem rede).
