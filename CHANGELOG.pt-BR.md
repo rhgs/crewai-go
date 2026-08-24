@@ -13,6 +13,9 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Documentação
 
+- **P3 Fase 0 (parcial)** — D-F1–D-F10 fechadas 2026-08-24
+  (B/B/B/C/B/A/A/B/B/A). D-F11/D-F12 e D-T\*/D-Y\*/D-X\* seguem abertas.
+  Ver `Plan/DECISIONS.pt-BR.md` §7B.
 - **Backlog adiado** — ack de produto 2026-08-21 (A1–A5): M5 → D-MT1–D-MT5,
   D-S10 → D-ST1–D-ST4, D-J9 → D-JE1–D-JE3 fechados (sem agenda); A5 permanece
   adiado; P-XAI-OAUTH segue externo. Ver `Plan/DECISIONS.pt-BR.md` §7A.

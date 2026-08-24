@@ -297,7 +297,7 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 - [ ] **Flows** — orquestração event-driven com estado explícito e roteamento
   (CrewAI-style Flows), sem substituir Sequential/Hierarchical/Staged/
   waves Async. **Plano de design:** [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md)
-  Trem F (D-F1–D-F12); ainda sem código.
+  Trem F (D-F1–D-F10 fechadas 2026-08-24; D-F11/D-F12 ainda abertas); ainda sem código.
 - [ ] **Mais tools embutidas** — cliente HTTP (SSRF-safe, allowlists),
   leitura/escrita de arquivo com jail, padrões RAG (vector DB fora do core).
   **Mesmo plano**, Trem T (D-T1–D-T10).
@@ -323,7 +323,7 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 
 | P2 | **Callbacks / telemetria** | **Entregue na v0.8.0** (PR #39): [`PLAN.p2-callbacks-schema.pt-BR.md`](PLAN.p2-callbacks-schema.pt-BR.md) Parte C |
 | P2 | **Remainder de JSON Schema** | **Entregue na v0.8.0** (PR #39): mesmo plano Parte J |
-| P3 | **Flows** | Design: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) Trem F — não iniciado |
+| P3 | **Flows** | Design: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) Trem F — D-F1–D-F10 fechadas; não iniciado |
 | P3 | **Tools: HTTP, arquivos, padrões RAG** | Mesmo plano Trem T (SSRF/jail) — não iniciado |
 | P3 | **Definições YAML de crew** | Mesmo plano Trem Y (subconjunto JSON) — não iniciado |
 | P3 | **Training / export de traces** | Mesmo plano Trem X (recorder JSONL) — não iniciado |

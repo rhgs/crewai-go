@@ -306,7 +306,7 @@ and environment variable names in docs/README. The `.gitignore` protects
 - [ ] **Flows** — event-driven orchestration with explicit state and routing
   (CrewAI-style Flows), without replacing Sequential/Hierarchical/Staged/
   Async waves. **Design plan:** [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md)
-  Train F (D-F1–D-F12); not coded.
+  Train F (D-F1–D-F10 closed 2026-08-24; D-F11/D-F12 still open); not coded.
 - [ ] **More built-in tools** — HTTP client (SSRF-safe, allowlists), sandboxed
   file read/write (jail like `OutputDir`), lightweight RAG helpers **as app
   patterns or optional examples** (vector DBs stay out of core; embeddings
@@ -333,7 +333,7 @@ unless explicitly accepted).
 
 | P2 | **Callbacks / telemetry** | **Shipped v0.8.0** (PR #39): [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) Part C |
 | P2 | **JSON Schema remainder** | **Shipped v0.8.0** (PR #39): same plan Part J |
-| P3 | **Flows** | Design: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) Train F — not started |
+| P3 | **Flows** | Design: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) Train F — D-F1–D-F10 closed; not started |
 | P3 | **Tools: HTTP, files, RAG patterns** | Same plan Train T (SSRF/jail) — not started |
 | P3 | **YAML crew definitions** | Same plan Train Y (JSON-subset v1) — not started |
 | P3 | **Training / trace export** | Same plan Train X (JSONL recorder) — not started |

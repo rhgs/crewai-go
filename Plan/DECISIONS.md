@@ -210,6 +210,25 @@ Settled by product ack (A3) — code only when requested:
 | **D-JE2** | Interaction with $ref/allOf | (A) per-node only (B) eval-set merges across resolved applicators | **B** | closed (unscheduled) |
 | **D-JE3** | Boolean values as unevaluated* | (A) allow bool form for properties only (B) schema maps only in v1 | **B** | closed (unscheduled) |
 
+## 7B. P3 Flows Phase 0 (product ack 2026-08-24)
+
+Source: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) §9. Closed D-F1–D-F10 only; **D-F11 / D-F12 and all D-T\*/D-Y\*/D-X\* stay open**. Code still not started.
+
+| ID | Question | Options | Choice | Status | Shipped | Notes |
+|----|----------|---------|--------|--------|---------|-------|
+| **D-F1** | Runner style | (A) new `Process` value (B) separate `Flow[S]` type | **B** | closed | — | Same value-pattern as `AgenticLoop`; `Process.valid()` unchanged (aligns D-A6 / P-A5) |
+| **D-F2** | Step registration | (A) struct tags/reflection (B) func builder `Listen(name, fn, deps...)` | **B** | closed | — | Explicit, typed, testable; no reflection |
+| **D-F3** | Generic state | (A) `any`/map bag (B) `Flow[S any]` | **B** | closed | — | go1.24 generics; typed state, not a Context bag |
+| **D-F4** | Starts | (A) implicit zero-dep (B) explicit `Start` only (C) both | **C** | closed | — | Zero-dep steps are starts; `Start` is optional marker; `Start` **with** deps is an error |
+| **D-F5** | State locking | (A) library locks per step (B) user-owned sync | **B** | closed | — | Documented ownership; library does not lock `S` (same contract as StreamFunc/EventFunc) |
+| **D-F6** | Router result | (A) exact registered names (B) prefix match | **A** | closed | — | Unknown name → `ErrFlowUnknownStep` |
+| **D-F7** | Events | (A) new types `flow_step_*` (B) reuse `Phase` | **A** | closed | — | Typed constants; metadata-only (D-C4) |
+| **D-F8** | ContinueOnError storage | (A) mutate user state (B) `FlowResult.Errors` | **B** | closed | — | Do not pollute `S` |
+| **D-F9** | Concurrent `Run` on same flow | (A) allow (B) single-flight | **B** | closed | — | `ErrFlowRunning` (same as `ErrCrewRunning`) |
+| **D-F10** | Join semantics (multi-dep) | (A) all deps (B) any dep | **A** | closed | — | “Any” is what Router is for |
+
+Still open in this family: **D-F11** (cancel / fail-fast default), **D-F12** (parallel trace fold order).
+
 ## 8. Standing product choices (P-*)
 
 Roadmap-level choices not owned by a single epic table. Update when product direction changes.
@@ -230,7 +249,7 @@ Roadmap-level choices not owned by a single epic table. Update when product dire
 
 Deferred / open items with unblock conditions and pre-allocated IDs: [`PLAN.deferred-backlog.md`](PLAN.deferred-backlog.md) ([PT](PLAN.deferred-backlog.pt-BR.md)).
 
-Nothing in D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\* is open for re-litigation without a new ID.
+Nothing in D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\*, **D-F1–D-F10** is open for re-litigation without a new ID.
 
 | ID | Topic | Status | Next step |
 |----|-------|--------|-----------|
@@ -239,6 +258,11 @@ Nothing in D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\* is open for re-litiga
 | **P-A5** | `Process=DAG` alias | deferred | Do not close; revisit only on user confusion signal (A2) |
 | **D-S10** follow-up | Native tool-call partial streaming | deferred — design settled (D-ST1–D-ST4) | Implement only on demand |
 | **D-J9** follow-up | unevaluatedProperties/Items | deferred — design settled (D-JE1–D-JE3) | Implement only on demand |
+| **D-F11** | Flow cancel / fail-fast default | open (P3 Phase 0) | Product ack; rec: ctx aborts next barrier, fail-fast default true |
+| **D-F12** | Parallel Flow step trace order | open (P3 Phase 0) | Product ack; rec: fold by registration order |
+| **D-T1–D-T10** | P3 HTTP/files/RAG tools | open (P3 Phase 0) | Product ack of §9 recs |
+| **D-Y1–D-Y10** | P3 JSON-subset YAML | open (P3 Phase 0) | Product ack of §9 recs |
+| **D-X1–D-X8** | P3 TraceRecorder | open (P3 Phase 0) | Product ack of §9 recs |
 | ~~**O-J2**~~ | `format: time` | **closed → D-JT1 (ship)** | Implemented in `schema.go` |
 
 When closing an open item: move it into the right section table, set **Status=closed**, fill **Choice** and **Shipped**, and leave a one-line note here.
@@ -252,6 +276,7 @@ When closing an open item: move it into the right section table, set **Status=cl
 | 2026-08-21 | Initial living log: D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\*, P-\* |
 | 2026-08-21 | Mark D-C\* / D-J\* shipped in **v0.8.0** |
 | 2026-08-21 | Product ack (A1–A5): O-J2 → **D-JT1** (ship time); M5 → D-MT1–D-MT5 settled-unscheduled; D-S10 → D-ST1–D-ST4; D-J9 → D-JE1–D-JE3; A5 stays deferred |
+| 2026-08-24 | P3 Phase 0 partial: **D-F1–D-F10** closed (B/B/B/C/B/A/A/B/B/A). D-F11/D-F12 and D-T\*/D-Y\*/D-X\* still open. |
 
 ---
 

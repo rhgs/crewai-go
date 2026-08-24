@@ -1,7 +1,7 @@
 # Plan — P3: Flows, built-in tools, declarative YAML, training/trace export
 
 > **Status:** **Design** (not started). Last major roadmap tier after v0.8.0.  
-> **Decisions:** D-F1–D-F12 (Flows), D-T1–D-T10 (tools), D-Y1–D-Y10 (YAML), D-X1–D-X8 (training/export) proposed in §9; close before any Phase 1 code.  
+> **Decisions:** **D-F1–D-F10 closed** 2026-08-24 (see `DECISIONS.md` §7B). D-F11/D-F12 and D-T\*/D-Y\*/D-X\* still proposed in §9; close before any Phase 1 code.  
 > **Related:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go` (`Kickoff`, `emitEvent`), `tool.go`/`toolcall.go`, `tools/websearch.go` (SSRf helpers), `task.go` (OutputDir jail), `memory_embed.go` (`EmbeddingFunc`), `schema.go` (validator), `loop.go` (AgenticLoop), `examples/` (22 offline demos).  
 > **Constraints:** zero external module deps in core (`go.mod` stdlib-only); stdlib has **no YAML parser**; gates: ≥90% coverage on touched packages (per-package and aggregate), race-clean, gofmt+vet clean, EN+PT docs, CHANGELOG, SECURITY when applicable.  
 > **Non-goals of this epic:** deferred backlog items (xAI OAuth, M5, A5, D-S10, D-J9, O-J2 — see `PLAN.deferred-backlog.md`); breaking changes to `Process`, `Tool`, `Progress`, `StreamFunc`, `EventFunc`; vector DB in core.
@@ -290,20 +290,22 @@ Recommended packaging: **one minor per train if cadence matters** (T→v0.9.0, F
 
 ### Flows (D-F*)
 
-| ID | Question | Options | Recommendation |
-|---|---|---|---|
-| **D-F1** | Runner style | (A) new `Process` value (B) separate `Flow[S]` type | **B** — value pattern like AgenticLoop; no process-table churn |
-| **D-F2** | Step registration | (A) struct tags/reflection (B) func builder `Listen(name, fn, deps...)` | **B** — explicit, typed, testable |
-| **D-F3** | Generic state | `Flow[S any]` generics | **yes go1.24 generics** |
-| **D-F4** | Starts | (A) implicit zero-dep steps (B) explicit `Start` | **A+B**: zero-dep steps are starts; `Start` optional marker for docs — decide in review |
-| **D-F5** | State locking | (A) library locks per step (B) user-owned sync | **B** — documented ownership (matches Go norms) |
-| **D-F6** | Router result | (A) exact names (B) prefix match | **A** — unknown name errors |
-| **D-F7** | Events | (A) new types `flow_step_*` (B) reuse Phase | **A** — typed constants set |
-| **D-F8** | ContinueOnError storage | (A) state (B) FlowResult.Errors | **B** |
-| **D-F9** | Concurrent Run on same flow | (A) allow (B) single-flight | **B** — `ErrFlowRunning` |
-| **D-F10** | Join semantics multi-dep | (A) all deps (B) any dep | **A** v1; router covers choice |
-| **D-F11** | Cancellation | ctx aborts next barrier; fail-fast default true | standard |
-| **D-F12** | Determinism of parallel step trace order | completion vs fold by registration order | **fold by registration order** (same doctrine) |
+Product ack 2026-08-24 closed **D-F1–D-F10**. D-F11 and D-F12 remain open.
+
+| ID | Question | Options | Choice | Status |
+|---|---|---|---|---|
+| **D-F1** | Runner style | (A) new `Process` value (B) separate `Flow[S]` type | **B** — value pattern like AgenticLoop; no process-table churn | **closed** |
+| **D-F2** | Step registration | (A) struct tags/reflection (B) func builder `Listen(name, fn, deps...)` | **B** — explicit, typed, testable | **closed** |
+| **D-F3** | Generic state | (A) `any`/map (B) `Flow[S any]` | **B** — go1.24 generics | **closed** |
+| **D-F4** | Starts | (A) implicit zero-dep (B) explicit `Start` only (C) both | **C** — zero-dep steps are starts; `Start` optional marker; `Start` with deps is an error | **closed** |
+| **D-F5** | State locking | (A) library locks per step (B) user-owned sync | **B** — documented ownership (matches Go norms) | **closed** |
+| **D-F6** | Router result | (A) exact names (B) prefix match | **A** — unknown name errors | **closed** |
+| **D-F7** | Events | (A) new types `flow_step_*` (B) reuse Phase | **A** — typed constants set | **closed** |
+| **D-F8** | ContinueOnError storage | (A) state (B) FlowResult.Errors | **B** | **closed** |
+| **D-F9** | Concurrent Run on same flow | (A) allow (B) single-flight | **B** — `ErrFlowRunning` | **closed** |
+| **D-F10** | Join semantics multi-dep | (A) all deps (B) any dep | **A** v1; router covers choice | **closed** |
+| **D-F11** | Cancellation | ctx aborts next barrier; fail-fast default true | rec: standard | **open** |
+| **D-F12** | Determinism of parallel step trace order | completion vs fold by registration order | rec: **fold by registration order** (same doctrine) | **open** |
 
 ### Tools (D-T*)
 
