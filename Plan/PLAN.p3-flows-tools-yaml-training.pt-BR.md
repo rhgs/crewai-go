@@ -1,7 +1,7 @@
 # Plano — P3: Flows, tools embutidas, YAML declarativo, training/export de traces
 
 > **Status:** **Design** (não iniciado). Último tier do roadmap após v0.8.0.  
-> **Decisões:** D-F1–D-F12 (Flows), D-T1–D-T10 (tools), D-Y1–D-Y10 (YAML), D-X1–D-X8 (training) propostas no §9; fechar antes de qualquer código.  
+> **Decisões:** **D-F1–D-F10 fechadas** 2026-08-24 (ver `DECISIONS.pt-BR.md` §7B). D-F11/D-F12 e D-T\*/D-Y\*/D-X\* ainda propostas no §9; fechar antes de qualquer código.  
 > **Relacionado:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go`, `tool.go`, `tools/websearch.go` (guards SSRF), `task.go` (jail OutputDir), `memory_embed.go`, `schema.go`, `loop.go`.  
 > **Restrições:** zero deps externas no core (stdlib não tem parser YAML); gates: ≥90% cobertura por pacote tocado **e** agregado, race-clean, gofmt+vet, docs EN+PT, CHANGELOG, SECURITY quando aplicável.  
 > **Não-objetivos:** backlog adiado (xAI OAuth, M5, A5, D-S10, D-J9, O-J2 — ver `PLAN.deferred-backlog.pt-BR.md`); breaking changes; vector DB no core.
@@ -232,20 +232,22 @@ Empacotamento: um minor por trem (T→v0.9.0, F→v0.10.0, …) **ou** bundle v0
 
 ### Flows (D-F*)
 
-| ID | Pergunta | Opções | Recomendação |
-|---|---|---|---|
-| **D-F1** | Estilo do runner | (A) novo Process (B) tipo `Flow[S]` separado | **B** |
-| **D-F2** | Registro de steps | (A) tags/reflection (B) builder `Listen/Router` | **B** |
-| **D-F3** | Estado genérico | generics `Flow[S any]` | **sim** |
-| **D-F4** | Starts | (A) zero-dep implícito (B) `Start` explícito | **A** (+doc) |
-| **D-F5** | Lock de estado | (A) lib bloqueia (B) sync do usuário | **B** |
-| **D-F6** | Resultado de router | nomes exatos | **sim** |
-| **D-F7** | Eventos | tipos `flow_step_*` novos | **sim** |
-| **D-F8** | ContinueOnError | erros em `FlowResult.Errors` | **sim** |
-| **D-F9** | Runs concorrentes | single-flight | **sim** |
-| **D-F10** | Join multi-dep | (A) todos (B) qualquer | **A** |
-| **D-F11** | Cancelamento | ctx + fail-fast default | padrão |
-| **D-F12** | Ordem de trace paralela | fold por ordem de registro | **sim** |
+Ack de produto 2026-08-24 fechou **D-F1–D-F10**. D-F11 e D-F12 seguem abertas.
+
+| ID | Pergunta | Opções | Escolha | Status |
+|---|---|---|---|---|
+| **D-F1** | Estilo do runner | (A) novo Process (B) tipo `Flow[S]` separado | **B** | **fechada** |
+| **D-F2** | Registro de steps | (A) tags/reflection (B) builder `Listen/Router` | **B** | **fechada** |
+| **D-F3** | Estado genérico | (A) `any`/map (B) `Flow[S any]` | **B** | **fechada** |
+| **D-F4** | Starts | (A) zero-dep implícito (B) só `Start` (C) ambos | **C** — zero-dep é start; `Start` é marcador; `Start` com deps é erro | **fechada** |
+| **D-F5** | Lock de estado | (A) lib bloqueia (B) sync do usuário | **B** | **fechada** |
+| **D-F6** | Resultado de router | (A) nomes exatos (B) prefixo | **A** | **fechada** |
+| **D-F7** | Eventos | (A) tipos `flow_step_*` (B) reusar Phase | **A** | **fechada** |
+| **D-F8** | ContinueOnError | (A) estado (B) `FlowResult.Errors` | **B** | **fechada** |
+| **D-F9** | Runs concorrentes | (A) permitir (B) single-flight | **B** | **fechada** |
+| **D-F10** | Join multi-dep | (A) todos (B) qualquer | **A** | **fechada** |
+| **D-F11** | Cancelamento | ctx + fail-fast default | rec: padrão | **aberta** |
+| **D-F12** | Ordem de trace paralela | completion vs fold por registro | rec: **fold por ordem de registro** | **aberta** |
 
 ### Tools (D-T*)
 

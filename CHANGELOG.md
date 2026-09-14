@@ -12,6 +12,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Documentation
 
+- **P3 Phase 0 (partial)** — D-F1–D-F10 closed 2026-08-24
+  (B/B/B/C/B/A/A/B/B/A). D-F11/D-F12 and D-T\*/D-Y\*/D-X\* still open.
+  See `Plan/DECISIONS.md` §7B.
 - **Deferred backlog** — product ack 2026-08-21 (A1–A5): M5 → D-MT1–D-MT5,
   D-S10 → D-ST1–D-ST4, D-J9 → D-JE1–D-JE3 settled (unscheduled); A5 stays
   deferred; P-XAI-OAUTH still external. See `Plan/DECISIONS.md` §7A.
