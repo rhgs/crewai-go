@@ -226,16 +226,16 @@ Fechados nesta rodada (P3 Fase 0 restante, 2026-09-16):
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
 |----|----------|--------|---------|--------|----------|-------|
-| **D-Y1** | Parser | (A) JSON-subset no core (B) dep yaml (C) submodule | **A**, C deferido | closed | — | Preserva `P-DEPS` |
-| **D-Y2** | Entry API | `LoadCrew(io.Reader)` / `LoadCrewFile` | **ambos** | closed | — | |
-| **D-Y3** | Build wiring | reference maps | **sim** | closed | — | Fail closed em ref desconhecida |
-| **D-Y4** | Validação | JSON Schema via validator P2 | **sim** | closed | — | Reusa `schema.go` |
-| **D-Y5** | Refs desconhecidas | fail closed no Build | **sim** | closed | — | |
-| **D-Y6** | Context refs | name-first, index fallback | **name-first** | closed | — | |
-| **D-Y7** | Paridade de campos | full vs subset | **subset + tabela** | closed | — | |
-| **D-Y8** | Interpolação | nenhuma em v1 | **nenhuma** | closed | — | Env vai via Go |
-| **D-Y9** | Cap de tamanho | 1 MiB | **sim** | closed | — | |
-| **D-Y10** | Formato de erro | `ValidationError` pointer paths | **reuso** | closed | — | |
+| **D-Y1** | Parser | (A) JSON-subset no core (B) dep yaml (C) submodule | **A**, C deferido | closed | load.go | Preserva `P-DEPS` |
+| **D-Y2** | Entry API | `LoadCrew(io.Reader)` / `LoadCrewFile` | **ambos** | closed | load.go | |
+| **D-Y3** | Build wiring | reference maps | **sim** | closed | load.go | Fail closed em ref desconhecida |
+| **D-Y4** | Validação | JSON Schema via validator P2 | **sim** | closed | load_schema.go | Reusa `schema.go` |
+| **D-Y5** | Refs desconhecidas | fail closed no Build | **sim** | closed | load.go | |
+| **D-Y6** | Context refs | name-first, index fallback | **name-first** | closed | load.go | |
+| **D-Y7** | Paridade de campos | full vs subset | **subset + tabela** | closed | docs/declarative.md | |
+| **D-Y8** | Interpolação | nenhuma em v1 | **nenhuma** | closed | load.go | Env vai via Go |
+| **D-Y9** | Cap de tamanho | 1 MiB | **sim** | closed | load.go | |
+| **D-Y10** | Formato de erro | `ValidationError` pointer paths | **reuso** | closed | load.go | |
 
 ### Training/export (D-X1–D-X8) — fechadas 2026-09-16
 
@@ -297,6 +297,7 @@ Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F12**
 | 2026-09-16 | P3 Fase 0 completa: **D-F11/D-F12** + **D-T1–T10** + **D-Y1–Y10** + **D-X1–X8** fechadas (30 IDs). Sem código ainda — trens da Fase 1 seguem não iniciados. |
 | 2026-09-16 | P3 Trem T entregue: HTTPFetch + FileRead/FileWrite + extração urlguard/pathjail; D-T1–T10 **Entregue** preenchido. |
 | 2026-09-16 | P3 Trem F entregue: `Flow[S]` + Start/Listen/Router; D-F1–D-F12 **Entregue** preenchido. |
+| 2026-09-16 | P3 Trem Y entregue: LoadCrew/LoadCrewFile + Build maps; D-Y1–D-Y10 **Entregue** preenchido. |
 
 ## 11. Relacionados
 

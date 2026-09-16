@@ -249,6 +249,15 @@
 //	    Listen("work", stepWork, "boot")
 //	res, err := f.Run(ctx, MyState{})
 //
+// # Declarative crews
+//
+// LoadCrew / LoadCrewFile parse a JSON-subset document (no YAML parser;
+// stdlib encoding/json). Build wires llm/tools/guardrail by name from
+// caller maps (unknown refs fail closed). See docs/declarative.md.
+//
+//	cfg, err := crewai.LoadCrewFile("crew.json")
+//	crew, err := cfg.Build(crewai.WithLLMMap(map[string]crewai.LLM{"echo": llm}))
+//
 // # Memory
 //
 // Setting Crew.Memory = true ensures an InMemory MemoryStore for the Kickoff

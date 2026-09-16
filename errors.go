@@ -96,4 +96,11 @@ var (
 	ErrSchemaRefNotFound = errors.New("crewai: JSON Schema $ref target not found")
 	// ErrSchemaRefDepth is returned when $ref resolution exceeds MaxSchemaRefDepth.
 	ErrSchemaRefDepth = errors.New("crewai: JSON Schema $ref depth exceeded")
+
+	// ErrCrewConfigTooLarge is returned when a declarative crew file exceeds
+	// MaxCrewConfigBytes (D-Y9).
+	ErrCrewConfigTooLarge = errors.New("crewai: crew config exceeds size limit")
+	// ErrUnknownRef is returned when Build cannot resolve an llm, tool,
+	// guardrail, or agent reference (D-Y5).
+	ErrUnknownRef = errors.New("crewai: unknown config reference")
 )

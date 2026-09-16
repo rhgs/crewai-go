@@ -312,7 +312,7 @@ and environment variable names in docs/README. The `.gitignore` protects
   patterns or optional examples** (vector DBs stay out of core; embeddings
   already hook via `EmbeddingFunc`). Web search already shipped (v0.3+).
   **Same design plan**, Train T (D-T1–D-T10) **shipped**.
-- [ ] **Declarative YAML** — `agents.yaml` / `tasks.yaml` (and optional crew
+- [x] **Declarative YAML** — `agents.yaml` / `tasks.yaml` (and optional crew
   composition) compiled into the existing Go types; validation errors at load
   time. v1 = **JSON-subset YAML** (no new deps). **Same plan**, Train Y
   (D-Y1–D-Y10).
@@ -335,7 +335,7 @@ unless explicitly accepted).
 | P2 | **JSON Schema remainder** | **Shipped v0.8.0** (PR #39): same plan Part J |
 | P3 | **Flows** | Design: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) Train F — D-F1–D-F12 **shipped** |
 | P3 | **Tools: HTTP, files, RAG patterns** | Same plan Train T (SSRF/jail) — **shipped** |
-| P3 | **YAML crew definitions** | Same plan Train Y (JSON-subset v1) — not started |
+| P3 | **YAML crew definitions** | Same plan Train Y (JSON-subset v1) — **shipped** |
 | P3 | **Training / trace export** | Same plan Train X (JSONL recorder) — not started |
 | Deferred (memory-async P3) | **M5** `recall_memory` / `remember` | Agent-driven memory tools |
 | Deferred (memory-async P3) | **A5** `Process=DAG` alias | Naming sugar only |

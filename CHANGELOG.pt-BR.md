@@ -18,6 +18,11 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   rejeita NUL). Helpers: `tools/urlguard.go`, `internal/pathjail`. RAG
   permanece padrão de docs/exemplo (`docs/rag.md`, `examples/rag_file`).
   Exemplos: `tools_http`, `tools_files`, `rag_file`.
+- **P3 Trem Y — JSON-subset declarativo (D-Y1–D-Y10)**: `LoadCrew` /
+  `LoadCrewFile` + `CrewConfig.Build` com maps de llm/tool/guardrail.
+  Sem parser YAML (JSON da stdlib); cap 1 MiB; fail closed em ref
+  desconhecida; Context name-first. Exemplo: `examples/declarative`.
+  Guia: `docs/declarative.md`.
 - **`format: time` (O-J2 → D-JT1)**: formato `time` do JSON Schema validado
   como full-time RFC 3339 (`HH:MM:SS[.fff][Z|±hh:mm]`); docs da allowlist
   atualizados.
@@ -26,8 +31,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 - **P3 Fase 0 (completa)** — D-F1–D-F10 fechadas 2026-08-24
   (B/B/B/C/B/A/A/B/B/A); D-F11/D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8
-  fechadas 2026-09-16 (30 IDs no total). Trens T e F em código entregues
-  (este unreleased); trens Y/X podem aterrissar à parte. Ver
+  fechadas 2026-09-16 (30 IDs no total). Trens T, F e Y em código
+  entregues (este unreleased); trem X pode aterrissar à parte. Ver
   `Plan/DECISIONS.pt-BR.md` §7B.
 - **Backlog adiado** — ack de produto 2026-08-21 (A1–A5): M5 → D-MT1–D-MT5,
   D-S10 → D-ST1–D-ST4, D-J9 → D-JE1–D-JE3 fechados (sem agenda); A5 permanece
@@ -35,8 +40,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 - **Plano de design P3**: `Plan/PLAN.p3-flows-tools-yaml-training.md` (+
   PT) — Flows, tools embutidas, YAML subconjunto JSON, training/export de
   traces; gates de code/security review, cobertura ≥90% e revisão de docs
-  por trem; linkado no P3 do roadmap. Trem F entregue (este unreleased);
-  T/Y/X podem aterrissar à parte.
+  por trem; linkado no P3 do roadmap. Trens T, F e Y entregues (este
+  unreleased); X pode aterrissar à parte.
 - **Plano de backlog adiado**: `Plan/PLAN.deferred-backlog.md` (+ PT) —
   seis itens abertos/adiados (xAI OAuth, M5, A5, D-S10, D-J9, O-J2) com
   condições de desbloqueio, espaço de design e IDs pré-alocados.
