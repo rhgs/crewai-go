@@ -189,23 +189,23 @@ Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-t
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
 |----|----------|--------|---------|--------|----------|-------|
-| **D-F1** | Estilo do runner | (A) novo `Process` (B) tipo `Flow[S]` separado | **B** | closed | — | Mesmo padrão de `AgenticLoop`; `Process.valid()` intacto (alinha D-A6 / P-A5) |
-| **D-F2** | Registro de step | (A) tags/reflection (B) builder `Listen(name, fn, deps...)` | **B** | closed | — | Explícito, tipado, testável; sem reflection |
-| **D-F3** | Estado genérico | (A) `any`/map (B) `Flow[S any]` | **B** | closed | — | Generics go1.24; estado tipado, não um bag de Context |
-| **D-F4** | Starts | (A) zero-dep implícito (B) só `Start` explícito (C) ambos | **C** | closed | — | Zero-dep é start; `Start` é marcador opcional; `Start` **com** deps é erro |
-| **D-F5** | Lock do estado | (A) lib trava por step (B) sync do usuário | **B** | closed | — | Ownership documentada; a lib não trava `S` (mesmo contrato de StreamFunc/EventFunc) |
-| **D-F6** | Resultado do router | (A) nomes exatos registrados (B) prefixo | **A** | closed | — | Nome desconhecido → `ErrFlowUnknownStep` |
-| **D-F7** | Events | (A) tipos novos `flow_step_*` (B) reusar `Phase` | **A** | closed | — | Constantes tipadas; só metadados (D-C4) |
-| **D-F8** | Onde guardar continue-on-error | (A) mutar estado do usuário (B) `FlowResult.Errors` | **B** | closed | — | Não poluir `S` |
-| **D-F9** | `Run` concorrente no mesmo flow | (A) permitir (B) single-flight | **B** | closed | — | `ErrFlowRunning` (igual `ErrCrewRunning`) |
-| **D-F10** | Join multi-dep | (A) todos os deps (B) qualquer dep | **A** | closed | — | “Qualquer” é papel do Router |
+| **D-F1** | Estilo do runner | (A) novo `Process` (B) tipo `Flow[S]` separado | **B** | closed | flow.go | Mesmo padrão de `AgenticLoop`; `Process.valid()` intacto (alinha D-A6 / P-A5) |
+| **D-F2** | Registro de step | (A) tags/reflection (B) builder `Listen(name, fn, deps...)` | **B** | closed | flow.go | Explícito, tipado, testável; sem reflection |
+| **D-F3** | Estado genérico | (A) `any`/map (B) `Flow[S any]` | **B** | closed | flow.go | Generics go1.24; estado tipado, não um bag de Context |
+| **D-F4** | Starts | (A) zero-dep implícito (B) só `Start` explícito (C) ambos | **C** | closed | flow.go | Zero-dep é start; `Start` é marcador opcional; `Start` **com** deps é erro |
+| **D-F5** | Lock do estado | (A) lib trava por step (B) sync do usuário | **B** | closed | flow.go | Ownership documentada; a lib não trava `S` (mesmo contrato de StreamFunc/EventFunc) |
+| **D-F6** | Resultado do router | (A) nomes exatos registrados (B) prefixo | **A** | closed | flow.go | Nome desconhecido → `ErrFlowUnknownStep` |
+| **D-F7** | Events | (A) tipos novos `flow_step_*` (B) reusar `Phase` | **A** | closed | event.go | Constantes tipadas; só metadados (D-C4) |
+| **D-F8** | Onde guardar continue-on-error | (A) mutar estado do usuário (B) `FlowResult.Errors` | **B** | closed | flow.go | Não poluir `S` |
+| **D-F9** | `Run` concorrente no mesmo flow | (A) permitir (B) single-flight | **B** | closed | flow.go | `ErrFlowRunning` (igual `ErrCrewRunning`) |
+| **D-F10** | Join multi-dep | (A) todos os deps (B) qualquer dep | **A** | closed | flow.go | “Qualquer” é papel do Router |
 
 Fechados nesta rodada (P3 Fase 0 restante, 2026-09-16):
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
 |----|----------|--------|---------|--------|----------|-------|
-| **D-F11** | Cancelamento | (A) hard cancel mid-step (B) ctx aborta na próxima barreira + fail-fast default true | **B** | closed | — | Simétrico com barreira D-M7 |
-| **D-F12** | Ordem do trace paralelo | (A) por conclusão (B) fold por ordem de registro | **B** | closed | — | Mesma doutrina de D-M7/G1/G6/D-X8 |
+| **D-F11** | Cancelamento | (A) hard cancel mid-step (B) ctx aborta na próxima barreira + fail-fast default true | **B** | closed | flow.go | Simétrico com barreira D-M7 |
+| **D-F12** | Ordem do trace paralelo | (A) por conclusão (B) fold por ordem de registro | **B** | closed | flow.go | Mesma doutrina de D-M7/G1/G6/D-X8 |
 
 ### Tools (D-T1–D-T10) — fechadas 2026-09-16
 
@@ -295,6 +295,7 @@ Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F12**
 | 2026-08-21 | Ack de produto (A1–A5): O-J2 → **D-JT1** (ship time); M5 → D-MT1–D-MT5 fechados sem agenda; D-S10 → D-ST1–D-ST4; D-J9 → D-JE1–D-JE3; A5 permanece adiado |
 | 2026-08-24 | P3 Fase 0 parcial: **D-F1–D-F10** fechadas (B/B/B/C/B/A/A/B/B/A). D-F11/D-F12 e D-T\*/D-Y\*/D-X\* seguem abertas. |
 | 2026-09-16 | P3 Fase 0 completa: **D-F11/D-F12** + **D-T1–T10** + **D-Y1–Y10** + **D-X1–X8** fechadas (30 IDs). Sem código ainda — trens da Fase 1 seguem não iniciados. |
+| 2026-09-16 | P3 Trem F entregue: `Flow[S]` + Start/Listen/Router; D-F1–D-F12 **Entregue** preenchido. |
 
 ## 11. Relacionados
 

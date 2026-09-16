@@ -216,23 +216,23 @@ Source: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-traini
 
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|
-| **D-F1** | Runner style | (A) new `Process` value (B) separate `Flow[S]` type | **B** | closed | — | Same value-pattern as `AgenticLoop`; `Process.valid()` unchanged (aligns D-A6 / P-A5) |
-| **D-F2** | Step registration | (A) struct tags/reflection (B) func builder `Listen(name, fn, deps...)` | **B** | closed | — | Explicit, typed, testable; no reflection |
-| **D-F3** | Generic state | (A) `any`/map bag (B) `Flow[S any]` | **B** | closed | — | go1.24 generics; typed state, not a Context bag |
-| **D-F4** | Starts | (A) implicit zero-dep (B) explicit `Start` only (C) both | **C** | closed | — | Zero-dep steps are starts; `Start` is optional marker; `Start` **with** deps is an error |
-| **D-F5** | State locking | (A) library locks per step (B) user-owned sync | **B** | closed | — | Documented ownership; library does not lock `S` (same contract as StreamFunc/EventFunc) |
-| **D-F6** | Router result | (A) exact registered names (B) prefix match | **A** | closed | — | Unknown name → `ErrFlowUnknownStep` |
-| **D-F7** | Events | (A) new types `flow_step_*` (B) reuse `Phase` | **A** | closed | — | Typed constants; metadata-only (D-C4) |
-| **D-F8** | ContinueOnError storage | (A) mutate user state (B) `FlowResult.Errors` | **B** | closed | — | Do not pollute `S` |
-| **D-F9** | Concurrent `Run` on same flow | (A) allow (B) single-flight | **B** | closed | — | `ErrFlowRunning` (same as `ErrCrewRunning`) |
-| **D-F10** | Join semantics (multi-dep) | (A) all deps (B) any dep | **A** | closed | — | “Any” is what Router is for |
+| **D-F1** | Runner style | (A) new `Process` value (B) separate `Flow[S]` type | **B** | closed | flow.go | Same value-pattern as `AgenticLoop`; `Process.valid()` unchanged (aligns D-A6 / P-A5) |
+| **D-F2** | Step registration | (A) struct tags/reflection (B) func builder `Listen(name, fn, deps...)` | **B** | closed | flow.go | Explicit, typed, testable; no reflection |
+| **D-F3** | Generic state | (A) `any`/map bag (B) `Flow[S any]` | **B** | closed | flow.go | go1.24 generics; typed state, not a Context bag |
+| **D-F4** | Starts | (A) implicit zero-dep (B) explicit `Start` only (C) both | **C** | closed | flow.go | Zero-dep steps are starts; `Start` is optional marker; `Start` **with** deps is an error |
+| **D-F5** | State locking | (A) library locks per step (B) user-owned sync | **B** | closed | flow.go | Documented ownership; library does not lock `S` (same contract as StreamFunc/EventFunc) |
+| **D-F6** | Router result | (A) exact registered names (B) prefix match | **A** | closed | flow.go | Unknown name → `ErrFlowUnknownStep` |
+| **D-F7** | Events | (A) new types `flow_step_*` (B) reuse `Phase` | **A** | closed | event.go | Typed constants; metadata-only (D-C4) |
+| **D-F8** | ContinueOnError storage | (A) mutate user state (B) `FlowResult.Errors` | **B** | closed | flow.go | Do not pollute `S` |
+| **D-F9** | Concurrent `Run` on same flow | (A) allow (B) single-flight | **B** | closed | flow.go | `ErrFlowRunning` (same as `ErrCrewRunning`) |
+| **D-F10** | Join semantics (multi-dep) | (A) all deps (B) any dep | **A** | closed | flow.go | “Any” is what Router is for |
 
 Closed in this pass (P3 Phase 0 remainder, 2026-09-16):
 
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|
-| **D-F11** | Cancellation | (A) hard cancel mid-step (B) ctx aborts next barrier + fail-fast default true | **B** — ctx aborts at next barrier; fail-fast default true | closed | — | Symmetric with D-M7 barrier; single-flight already in D-F9 |
-| **D-F12** | Parallel step trace order | (A) completion order (B) fold by registration order | **B** — fold by registration order | closed | — | Same doctrine as D-M7/G1/G6/D-X8 |
+| **D-F11** | Cancellation | (A) hard cancel mid-step (B) ctx aborts next barrier + fail-fast default true | **B** — ctx aborts at next barrier; fail-fast default true | closed | flow.go | Symmetric with D-M7 barrier; single-flight already in D-F9 |
+| **D-F12** | Parallel step trace order | (A) completion order (B) fold by registration order | **B** — fold by registration order | closed | flow.go | Same doctrine as D-M7/G1/G6/D-X8 |
 
 ### Tools (D-T1–D-T10) — closed 2026-09-16
 
@@ -326,6 +326,7 @@ When closing an open item: move it into the right section table, set **Status=cl
 | 2026-08-21 | Product ack (A1–A5): O-J2 → **D-JT1** (ship time); M5 → D-MT1–D-MT5 settled-unscheduled; D-S10 → D-ST1–D-ST4; D-J9 → D-JE1–D-JE3; A5 stays deferred |
 | 2026-08-24 | P3 Phase 0 partial: **D-F1–D-F10** closed (B/B/B/C/B/A/A/B/B/A). D-F11/D-F12 and D-T\*/D-Y\*/D-X\* still open. |
 | 2026-09-16 | P3 Phase 0 complete: **D-F11/D-F12** + **D-T1–T10** + **D-Y1–Y10** + **D-X1–X8** closed (30 IDs). No code change yet — Phase 1 trains still unstarted. |
+| 2026-09-16 | P3 Train F shipped: `Flow[S]` + Start/Listen/Router; D-F1–D-F12 **Shipped** filled. |
 
 ---
 

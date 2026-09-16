@@ -19,6 +19,7 @@ Each subfolder is a standalone executable program.
 | `memory_embed`  | `AutoEmbed` + cosine Query with mock embedder (offline) | ❌ No |
 | `agentic_loop`  | Plan-Execute-Evaluate-Refine cycle (mock LLM)      | ❌ No                   |
 | `tools`         | An agent using tools via ReAct                     | ✅ OpenAI               |
+| `flows_research`| `Flow[S]` Start/Listen/Router (offline)            | ❌ No                   |
 | `native_tools`  | Provider-native function calling (`ToolModeNative`) | ✅ OpenAI / offline wiring |
 | `facts`         | `Fact` provenance from deterministic tools         | ❌ No                   |
 | `guardrails`    | Post-output `Guardrail` blocking invalid results   | ❌ No                   |
@@ -46,6 +47,7 @@ go run ./examples/memory_file  # FileStore JSONL; MEMORY_DIR optional
 go run ./examples/memory_embed # AutoEmbed + cosine (mock)
 go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
+go run ./examples/flows_research  # Flow[S] offline demo
 go run ./examples/logging      # offline redaction demo
 go run ./examples/delegation   # wiring; live with OPENAI_API_KEY
 go run ./examples/mcp          # wiring; live with MCP_ENDPOINT

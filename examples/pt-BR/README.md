@@ -19,6 +19,7 @@ Cada subpasta é um programa executável independente.
 | `memory_embed`  | `AutoEmbed` + Query por cosseno com embedder mock (offline) | ❌ Não |
 | `agentic_loop`  | Ciclo Planejar-Executar-Avaliar-Refinar (mock LLM)| ❌ Não                  |
 | `tools`         | Agente usando ferramentas via ReAct               | ✅ OpenAI               |
+| `flows_research`| `Flow[S]` Start/Listen/Router (offline)            | ❌ Não                  |
 | `native_tools`  | Function calling nativo do provedor (`ToolModeNative`) | ✅ OpenAI / wiring offline |
 | `facts`         | Proveniência `Fact` via tools determinísticas      | ❌ Não                  |
 | `guardrails`    | `Guardrail` pós-saída bloqueando resultados inválidos | ❌ Não               |
@@ -48,6 +49,7 @@ go run ./examples/sequential
 go run ./examples/hierarchical
 go run ./examples/staged
 go run ./examples/tools
+go run ./examples/flows_research  # demo Flow[S] offline
 go run ./examples/delegation   # wiring; live com OPENAI_API_KEY
 ```
 

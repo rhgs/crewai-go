@@ -717,6 +717,7 @@ go run ./examples/xai_oauth
 | Tasks | [EN](docs/tasks.md) | [PT](docs/pt-BR/tasks.md) |
 | Crews | [EN](docs/crews.md) | [PT](docs/pt-BR/crews.md) |
 | Tools | [EN](docs/tools.md) | [PT](docs/pt-BR/tools.md) |
+| Flows | [EN](docs/flows.md) | [PT](docs/pt-BR/flows.md) |
 | LLMs | [EN](docs/llms.md) | [PT](docs/pt-BR/llms.md) |
 | Memory | [EN](docs/memory.md) | [PT](docs/pt-BR/memory.md) |
 | MCP | [EN](docs/en/mcp.md) | [PT](docs/pt-BR/mcp.md) |

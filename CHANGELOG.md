@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **P3 Train F — Flows (D-F1–D-F12)**: `Flow[S]` + `Start`/`Listen`/`Router`.
+  Single-flight `ErrFlowRunning`; fail-fast default (ctx checked at next
+  barrier); continue-on-error records `FlowResult.Errors`; parallel traces
+  fold by registration order; events `flow_started` / `flow_step_*` /
+  `flow_completed`. Example: `examples/flows_research`. Guide: `docs/flows.md`.
 - **`format: time` (O-J2 → D-JT1)**: JSON Schema `time` format validated as
   RFC 3339 full-time (`HH:MM:SS[.fff][Z|±hh:mm]`); allowlist docs updated.
 
@@ -14,8 +19,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **P3 Phase 0 (complete)** — D-F1–D-F10 closed 2026-08-24
   (B/B/B/C/B/A/A/B/B/A); D-F11/D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8
-  closed 2026-09-16 (30 IDs total). Phase 1 trains (T/F/Y/X code) still
-  unstarted. See `Plan/DECISIONS.md` §7B.
+  closed 2026-09-16 (30 IDs total). Train F code shipped (this unreleased);
+  trains T/Y/X may land separately. See `Plan/DECISIONS.md` §7B.
 - **Deferred backlog** — product ack 2026-08-21 (A1–A5): M5 → D-MT1–D-MT5,
   D-S10 → D-ST1–D-ST4, D-J9 → D-JE1–D-JE3 settled (unscheduled); A5 stays
   deferred; P-XAI-OAUTH still external. See `Plan/DECISIONS.md` §7A.
