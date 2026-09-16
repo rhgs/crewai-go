@@ -88,6 +88,7 @@ go run github.com/rhgs/crewai-go/examples/custom_llm
 - [Crews](crews.md) — processos sequencial, hierárquico, staged e agendamento async; callbacks de progresso.
 - [Flows](flows.md) — runner event-driven tipado `Flow[S]` (`Start` / `Listen` / `Router`).
 - [Memory](memory.md) — bag de curto prazo, `MemoryStore`, FileStore, embeddings.
-- [Tools](tools.md) — dar "mãos" aos seus agentes (incluindo web search).
+- [Tools](tools.md) — dar "mãos" aos seus agentes (calculator, HTTP fetch, files com jail, web search).
+- [Crews declarativos](declarative.md) — subconjunto JSON `LoadCrew` / `Build`.
 - [LLMs](llms.md) — provedores, native tool calling e logging.
 - [MCP](mcp.md) — conectar servidores externos do Model Context Protocol.
