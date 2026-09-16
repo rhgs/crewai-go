@@ -90,5 +90,6 @@ go run github.com/rhgs/crewai-go/examples/custom_llm
 - [Memory](memory.md) — bag de curto prazo, `MemoryStore`, FileStore, embeddings.
 - [Tools](tools.md) — dar "mãos" aos seus agentes (calculator, HTTP fetch, files com jail, web search).
 - [Crews declarativos](declarative.md) — subconjunto JSON `LoadCrew` / `Build`.
+- [Training / traces](training.md) — export JSONL com `TraceRecorder`.
 - [LLMs](llms.md) — provedores, native tool calling e logging.
 - [MCP](mcp.md) — conectar servidores externos do Model Context Protocol.

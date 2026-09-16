@@ -185,7 +185,7 @@ Fechado pelo ack de produto (A3) — código só quando pedido:
 
 ## 7B. P3 Fase 0 (ack de produto 2026-08-24 + restante 2026-09-16)
 
-Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) §9. **Todas as IDs da Fase 0 fechadas** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Trens T, F e Y entregues; trem X (TraceRecorder) ainda não iniciado.
+Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) §9. **Todas as IDs da Fase 0 fechadas** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Trens T, F, Y e X entregues.
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
 |----|----------|--------|---------|--------|----------|-------|
@@ -241,14 +241,14 @@ Fechados nesta rodada (P3 Fase 0 restante, 2026-09-16):
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
 |----|----------|--------|---------|--------|----------|-------|
-| **D-X1** | Anexação | `Crew.Tracer` / `WithTracer` | **field + option** | closed | — | |
-| **D-X2** | Emissão | post-execute (pre-guardrail? filtro?) | **post-execute, pre-guardrail + filtro** | closed | — | |
-| **D-X3** | Formato | JSONL | **sim** | closed | — | |
-| **D-X4** | Bodies | metadata-only default; `WithTraceBodies(true)` opt-in | **opt-in** | closed | — | Alinha D-C4 |
-| **D-X5** | Save path | caller-trusted + jail | **caller-trusted + 0600** | closed | — | |
-| **D-X6** | Filtro | `WithTraceFilter` | **sim** | closed | — | |
-| **D-X7** | Concorrência | mutex | **mutex** | closed | — | |
-| **D-X8** | Wave async | fold order vs conclusão | **fold order + KickoffID + wave** | closed | — | |
+| **D-X1** | Anexação | `Crew.Tracer` / `WithTracer` | **field + option** | closed | trace.go | |
+| **D-X2** | Emissão | post-execute (pre-guardrail? filtro?) | **post-execute, pre-guardrail + filtro** | closed | crew.go | |
+| **D-X3** | Formato | JSONL | **sim** | closed | trace.go | |
+| **D-X4** | Bodies | metadata-only default; `WithTraceBodies(true)` opt-in | **opt-in** | closed | trace.go | Alinha D-C4 |
+| **D-X5** | Save path | caller-trusted + jail | **caller-trusted + 0600** | closed | trace.go | |
+| **D-X6** | Filtro | `WithTraceFilter` | **sim** | closed | trace.go | |
+| **D-X7** | Concorrência | mutex | **mutex** | closed | trace.go | |
+| **D-X8** | Wave async | fold order vs conclusão | **fold order + KickoffID + wave** | closed | crew.go | |
 
 ## 8. Escolhas de produto permanentes (P-*)
 
@@ -298,6 +298,7 @@ Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F12**
 | 2026-09-16 | P3 Trem T entregue: HTTPFetch + FileRead/FileWrite + extração urlguard/pathjail; D-T1–T10 **Entregue** preenchido. |
 | 2026-09-16 | P3 Trem F entregue: `Flow[S]` + Start/Listen/Router; D-F1–D-F12 **Entregue** preenchido. |
 | 2026-09-16 | P3 Trem Y entregue: LoadCrew/LoadCrewFile + Build maps; D-Y1–D-Y10 **Entregue** preenchido. |
+| 2026-09-16 | P3 Trem X entregue: TraceRecorder JSONL; D-X1–D-X8 **Entregue** preenchido. |
 
 ## 11. Relacionados
 

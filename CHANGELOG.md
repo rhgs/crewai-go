@@ -18,6 +18,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   opt-in, NUL reject). Shared helpers: `tools/urlguard.go`,
   `internal/pathjail`. RAG stays a docs/example pattern (`docs/rag.md`,
   `examples/rag_file`). Examples: `tools_http`, `tools_files`, `rag_file`.
+- **P3 Train X — TraceRecorder (D-X1–D-X8)**: JSONL capture on Kickoff.
+  Metadata-only default; `WithTraceBodies(true)` opt-in (redacted);
+  `WithTraceFilter`; fold-order publish + KickoffID/wave; `Save` mode 0600.
+  Example: `examples/trace_export`. Guide: `docs/training.md`.
 - **P3 Train Y — declarative JSON-subset (D-Y1–D-Y10)**: `LoadCrew` /
   `LoadCrewFile` + `CrewConfig.Build` with LLM/tool/guardrail reference maps.
   No YAML parser (stdlib JSON); 1 MiB cap; fail closed on unknown refs;
@@ -30,8 +34,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **P3 Phase 0 (complete)** — D-F1–D-F10 closed 2026-08-24
   (B/B/B/C/B/A/A/B/B/A); D-F11/D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8
-  closed 2026-09-16 (30 IDs total). Trains T, F, and Y shipped (this
-  unreleased); train X may land separately. See `Plan/DECISIONS.md` §7B.
+  closed 2026-09-16 (30 IDs total). Trains T, F, Y, and X shipped (this
+  unreleased). See `Plan/DECISIONS.md` §7B.
 - **Deferred backlog** — product ack 2026-08-21 (A1–A5): M5 → D-MT1–D-MT5,
   D-S10 → D-ST1–D-ST4, D-J9 → D-JE1–D-JE3 settled (unscheduled); A5 stays
   deferred; P-XAI-OAUTH still external. See `Plan/DECISIONS.md` §7A.
@@ -39,8 +43,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Flows (D-F1–D-F12), built-in tools (D-T1–D-T10), declarative YAML
   JSON-subset (D-Y1–D-Y10), training/trace export (D-X1–D-X8); per-train
   code/security review, ≥90% coverage and docs-review gates; linked from
-  roadmap P3. Trains T, F, and Y shipped (this unreleased); X may land
-  separately.
+  roadmap P3. Trains T, F, Y, and X shipped (this unreleased).
 - **Deferred backlog plan**: `Plan/PLAN.deferred-backlog.md` (+ PT) — six
   open/deferred items (xAI OAuth, M5, A5, D-S10, D-J9, O-J2) with unblock
   conditions, design space, and pre-allocated decision IDs.

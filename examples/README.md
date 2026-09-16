@@ -24,6 +24,7 @@ Each subfolder is a standalone executable program.
 | `rag_file`      | RAG pattern: FileStore + embedder as a Tool (offline) | ❌ No                |
 | `flows_research`| `Flow[S]` Start/Listen/Router (offline)            | ❌ No                   |
 | `declarative`   | `LoadCrewFile` JSON-subset + Build (offline)       | ❌ No                   |
+| `trace_export`  | `TraceRecorder` JSONL metadata-only (offline)      | ❌ No                   |
 | `native_tools`  | Provider-native function calling (`ToolModeNative`) | ✅ OpenAI / offline wiring |
 | `facts`         | `Fact` provenance from deterministic tools         | ❌ No                   |
 | `guardrails`    | Post-output `Guardrail` blocking invalid results   | ❌ No                   |
@@ -39,6 +40,7 @@ Each subfolder is a standalone executable program.
 go run ./examples/custom_llm
 go run ./examples/flows_research  # Flow[S] offline demo
 go run ./examples/declarative  # LoadCrewFile JSON-subset (offline)
+go run ./examples/trace_export  # TraceRecorder JSONL (offline)
 
 # With OpenAI:
 export OPENAI_API_KEY=sk-...

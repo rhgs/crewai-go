@@ -304,7 +304,7 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
 - [x] **YAML declarativo** — `agents.yaml` / `tasks.yaml` compilados para
   tipos Go existentes; validação no load. v1 = **subconjunto JSON do YAML**
   (sem novas deps). **Mesmo plano**, Trem Y (D-Y1–D-Y10).
-- [ ] **Training** — few-shot / export de traces a partir de runs
+- [x] **Training** — few-shot / export de traces a partir de runs
   bem-sucedidas (JSONL). Sem treino de modelo no core. **Mesmo plano**,
   Trem X (D-X1–D-X8).
 
@@ -326,7 +326,7 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 | P3 | **Flows** | Design: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) Trem F — D-F1–D-F12 **entregue** |
 | P3 | **Tools: HTTP, arquivos, padrões RAG** | Mesmo plano Trem T (SSRF/jail) — **entregue** |
 | P3 | **Definições YAML de crew** | Mesmo plano Trem Y (subconjunto JSON) — **entregue** |
-| P3 | **Training / export de traces** | Mesmo plano Trem X (recorder JSONL) — não iniciado |
+| P3 | **Training / export de traces** | Mesmo plano Trem X (recorder JSONL) — **entregue** |
 | Adiado (memory-async P3) | **M5** `recall_memory` / `remember` | Tools de memória do agente |
 | Adiado (memory-async P3) | **A5** alias `Process=DAG` | Açúcar de naming |
 
