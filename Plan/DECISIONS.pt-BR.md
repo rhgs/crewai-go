@@ -185,7 +185,7 @@ Fechado pelo ack de produto (A3) — código só quando pedido:
 
 ## 7B. P3 Fase 0 (ack de produto 2026-08-24 + restante 2026-09-16)
 
-Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) §9. **Todas as IDs da Fase 0 fechadas** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Sem código ainda.
+Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) §9. **Todas as IDs da Fase 0 fechadas** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Trem F entregue (`flow.go`); trens T/Y/X podem aterrissar à parte.
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
 |----|----------|--------|---------|--------|----------|-------|

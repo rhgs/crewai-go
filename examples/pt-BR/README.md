@@ -33,6 +33,7 @@ Cada subpasta é um programa executável independente.
 ```bash
 # Sem chave de API:
 go run ./examples/custom_llm
+go run ./examples/flows_research  # demo Flow[S] offline
 go run ./examples/events      # WithEvents JSONL (offline)
 go run ./examples/streaming  # demux de stream mock offline
 go run ./examples/async_tasks  # waves Task.Async; USE_OPENAI=1 para live
@@ -49,7 +50,6 @@ go run ./examples/sequential
 go run ./examples/hierarchical
 go run ./examples/staged
 go run ./examples/tools
-go run ./examples/flows_research  # demo Flow[S] offline
 go run ./examples/delegation   # wiring; live com OPENAI_API_KEY
 ```
 

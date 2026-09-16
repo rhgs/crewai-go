@@ -44,4 +44,8 @@ Assinatura de router: `func(ctx context.Context, state *S) ([]string, error)`.
 | Ciclos | Detectados antes de qualquer step (`ErrFlowCycle`). |
 | Eventos | `flow_started`, `flow_step_started`, `flow_step_completed`, `flow_completed` — só metadados (D-F7 / D-C4). |
 
+`FlowResult.Steps` é o trace do fold da barreira (ordem de registro,
+incluindo branches skipped do router). `FlowResult.Errors` só preenche com
+`WithFlowContinueOnError`.
+
 Demo offline: `examples/flows_research`.

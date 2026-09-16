@@ -212,7 +212,7 @@ Settled by product ack (A3) — code only when requested:
 
 ## 7B. P3 Phase 0 (product ack 2026-08-24 + remainder 2026-09-16)
 
-Source: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) §9. **All Phase-0 IDs closed** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Code still not started.
+Source: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) §9. **All Phase-0 IDs closed** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Train F shipped (`flow.go`); trains T/Y/X may land separately.
 
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|

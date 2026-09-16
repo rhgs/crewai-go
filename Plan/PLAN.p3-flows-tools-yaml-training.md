@@ -2,7 +2,7 @@
 
 > **Status:** **Train F shipped**. Phase 0 decisions **all closed** 2026-09-16. Trains T/Y/X may land separately.  
 > **Decisions:** **Phase 0 complete** — see `DECISIONS.md` §7B for canonical status; this file keeps the rationale + recs.  
-> **Related:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go` (`Kickoff`, `emitEvent`), `tool.go`/`toolcall.go`, `tools/websearch.go` (SSRf helpers), `task.go` (OutputDir jail), `memory_embed.go` (`EmbeddingFunc`), `schema.go` (validator), `loop.go` (AgenticLoop), `examples/` (22 offline demos).  
+> **Related:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go` (`Kickoff`, `emitEvent`), `tool.go`/`toolcall.go`, `tools/websearch.go` (SSRF helpers), `task.go` (OutputDir jail), `memory_embed.go` (`EmbeddingFunc`), `schema.go` (validator), `loop.go` (AgenticLoop), `examples/` (offline demos).  
 > **Constraints:** zero external module deps in core (`go.mod` stdlib-only); stdlib has **no YAML parser**; gates: ≥90% coverage on touched packages (per-package and aggregate), race-clean, gofmt+vet clean, EN+PT docs, CHANGELOG, SECURITY when applicable.  
 > **Non-goals of this epic:** deferred backlog items (xAI OAuth, M5, A5, D-S10, D-J9, O-J2 — see `PLAN.deferred-backlog.md`); breaking changes to `Process`, `Tool`, `Progress`, `StreamFunc`, `EventFunc`; vector DB in core.
 

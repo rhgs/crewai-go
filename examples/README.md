@@ -33,6 +33,7 @@ Each subfolder is a standalone executable program.
 ```bash
 # Without an API key:
 go run ./examples/custom_llm
+go run ./examples/flows_research  # Flow[S] offline demo
 
 # With OpenAI:
 export OPENAI_API_KEY=sk-...
@@ -47,7 +48,6 @@ go run ./examples/memory_file  # FileStore JSONL; MEMORY_DIR optional
 go run ./examples/memory_embed # AutoEmbed + cosine (mock)
 go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
-go run ./examples/flows_research  # Flow[S] offline demo
 go run ./examples/logging      # offline redaction demo
 go run ./examples/delegation   # wiring; live with OPENAI_API_KEY
 go run ./examples/mcp          # wiring; live with MCP_ENDPOINT
