@@ -1,7 +1,7 @@
 # Plan — P3: Flows, built-in tools, declarative YAML, training/trace export
 
-> **Status:** **Design** (not started). Last major roadmap tier after v0.8.0.  
-> **Decisions:** **D-F1–D-F10 closed** 2026-08-24 (see `DECISIONS.md` §7B). D-F11/D-F12 and D-T\*/D-Y\*/D-X\* still proposed in §9; close before any Phase 1 code.  
+> **Status:** **Design** (not started). Phase 0 decisions **all closed** 2026-09-16 (D-F1–F12 + D-T1–T10 + D-Y1–Y10 + D-X1–X8). Phase 1 trains (T/F/Y/X code) still unstarted.  
+> **Decisions:** **Phase 0 complete** — see `DECISIONS.md` §7B for canonical status; this file keeps the rationale + recs.  
 > **Related:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go` (`Kickoff`, `emitEvent`), `tool.go`/`toolcall.go`, `tools/websearch.go` (SSRf helpers), `task.go` (OutputDir jail), `memory_embed.go` (`EmbeddingFunc`), `schema.go` (validator), `loop.go` (AgenticLoop), `examples/` (22 offline demos).  
 > **Constraints:** zero external module deps in core (`go.mod` stdlib-only); stdlib has **no YAML parser**; gates: ≥90% coverage on touched packages (per-package and aggregate), race-clean, gofmt+vet clean, EN+PT docs, CHANGELOG, SECURITY when applicable.  
 > **Non-goals of this epic:** deferred backlog items (xAI OAuth, M5, A5, D-S10, D-J9, O-J2 — see `PLAN.deferred-backlog.md`); breaking changes to `Process`, `Tool`, `Progress`, `StreamFunc`, `EventFunc`; vector DB in core.
@@ -288,9 +288,13 @@ Recommended packaging: **one minor per train if cadence matters** (T→v0.9.0, F
 
 ## 9. Decisions to close (Phase 0)
 
+> **Status:** all Phase-0 decisions are now **closed** in [`DECISIONS.md`](DECISIONS.md) §7B.
+> This section retains only the **options + rec** rationale per ID; the canonical
+> closed status lives in the decision log.
+
 ### Flows (D-F*)
 
-Product ack 2026-08-24 closed **D-F1–D-F10**. D-F11 and D-F12 remain open.
+Closed in DECISIONS.md §7B/§9: D-F1–D-F12 (12 IDs). Phase-0 remainder (D-F11/D-F12) closed 2026-09-16.
 
 | ID | Question | Options | Choice | Status |
 |---|---|---|---|---|
@@ -304,10 +308,12 @@ Product ack 2026-08-24 closed **D-F1–D-F10**. D-F11 and D-F12 remain open.
 | **D-F8** | ContinueOnError storage | (A) state (B) FlowResult.Errors | **B** | **closed** |
 | **D-F9** | Concurrent Run on same flow | (A) allow (B) single-flight | **B** — `ErrFlowRunning` | **closed** |
 | **D-F10** | Join semantics multi-dep | (A) all deps (B) any dep | **A** v1; router covers choice | **closed** |
-| **D-F11** | Cancellation | ctx aborts next barrier; fail-fast default true | rec: standard | **open** |
-| **D-F12** | Determinism of parallel step trace order | completion vs fold by registration order | rec: **fold by registration order** (same doctrine) | **open** |
+| **D-F11** | Cancellation | ctx aborts next barrier; fail-fast default true | rec: standard | **closed** (2026-09-16, DECISIONS.md §7B) |
+| **D-F12** | Determinism of parallel step trace order | completion vs fold by registration order | rec: **fold by registration order** (same doctrine) | **closed** (2026-09-16, DECISIONS.md §7B) |
 
 ### Tools (D-T*)
+
+> All closed 2026-09-16 — see DECISIONS.md §7B-tools for canonical status.
 
 | ID | Question | Options | Decision |
 |---|---|---|---|
@@ -324,6 +330,8 @@ Product ack 2026-08-24 closed **D-F1–D-F10**. D-F11 and D-F12 remain open.
 
 ### YAML (D-Y*)
 
+> All closed 2026-09-16 — see DECISIONS.md §7B-yaml for canonical status.
+
 | ID | Question | Options | Decision |
 |---|---|---|---|
 | **D-Y1** | Parser | (A) JSON-subset in core (B) yaml dep (C) submodule | **A**, C deferred |
@@ -338,6 +346,8 @@ Product ack 2026-08-24 closed **D-F1–D-F10**. D-F11 and D-F12 remain open.
 | **D-Y10** | Error format | `ValidationError` pointer paths | **reuse** |
 
 ### Training/export (D-X*)
+
+> All closed 2026-09-16 — see DECISIONS.md §7B-train for canonical status.
 
 | ID | Question | Options | Decision |
 |---|---|---|---|
@@ -383,4 +393,4 @@ Product ack 2026-08-24 closed **D-F1–D-F10**. D-F11 and D-F12 remain open.
 
 ## 12. Summary
 
-Four independent P3 trains with a shared doctrine: additive APIs, stdlib-only, deterministic concurrency, metadata-safe telemetry, deny-by-default tools. Phase 0 is decisions; then F/T/Y/X trains land in the §8 order with per-PR code review, security review, coverage and docs gates already enumerated (§6).
+Four independent P3 trains with a shared doctrine: additive APIs, stdlib-only, deterministic concurrency, metadata-safe telemetry, deny-by-default tools. **Phase 0 (decisions) is complete** (2026-09-16). The F/T/Y/X trains land in the §8 order with per-PR code review, security review, coverage and docs gates already enumerated (§6).

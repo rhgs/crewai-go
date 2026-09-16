@@ -227,7 +227,55 @@ Source: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-traini
 | **D-F9** | Concurrent `Run` on same flow | (A) allow (B) single-flight | **B** | closed | — | `ErrFlowRunning` (same as `ErrCrewRunning`) |
 | **D-F10** | Join semantics (multi-dep) | (A) all deps (B) any dep | **A** | closed | — | “Any” is what Router is for |
 
-Still open in this family: **D-F11** (cancel / fail-fast default), **D-F12** (parallel trace fold order).
+Closed in this pass (P3 Phase 0 remainder, 2026-09-16):
+
+| ID | Question | Options | Choice | Status | Shipped | Notes |
+|----|----------|---------|--------|--------|---------|-------|
+| **D-F11** | Cancellation | (A) hard cancel mid-step (B) ctx aborts next barrier + fail-fast default true | **B** — ctx aborts at next barrier; fail-fast default true | closed | — | Symmetric with D-M7 barrier; single-flight already in D-F9 |
+| **D-F12** | Parallel step trace order | (A) completion order (B) fold by registration order | **B** — fold by registration order | closed | — | Same doctrine as D-M7/G1/G6/D-X8 |
+
+### Tools (D-T1–D-T10) — closed 2026-09-16
+
+| ID | Question | Options | Choice | Status | Shipped | Notes |
+|----|----------|---------|--------|--------|---------|-------|
+| **D-T1** | HTTP tool in `tools` pkg | yes | **yes** | closed | — | `tools.HTTPFetch` |
+| **D-T2** | Allowlist default | (A) deny-by-default (B) public-net allow | **A** | closed | — | Empty allowlist rejects all |
+| **D-T3** | Jail helper sharing | extract shared internal helper | **yes** | closed | — | Extract `tools/urlguard.go` from websearch.go |
+| **D-T4** | Redirect policy | max 3, re-validate each hop | **yes** | closed | — | Reuse SSRF checks per hop |
+| **D-T5** | File write | off by default, explicit `AllowWrite` | **yes** | closed | — | `tools.FileWrite` opt-in |
+| **D-T6** | Byte caps | reuse `MaxToolOutputBytes`; separate input cap | **single cap reuse** v1 | closed | — | Parity with current tools |
+| **D-T7** | Binary content | reject by default (NUL/check), opt `AllowBinary` | **reject default** | closed | — | NUL byte check on read |
+| **D-T8** | HTTP methods default | GET only | **yes** | closed | — | Caller can extend via option |
+| **D-T9** | RAG helper | (A) none, docs pattern (B) `tools.MemoryQueryTool` | **A** v1 | closed | — | Example carries the pattern; no vector DB in core |
+| **D-T10** | Tool naming | `tools.HTTPFetch`, `tools.FileRead`, `tools.FileWrite` | **as written** | closed | — | |
+
+### YAML (D-Y1–D-Y10) — closed 2026-09-16
+
+| ID | Question | Options | Choice | Status | Shipped | Notes |
+|----|----------|---------|--------|--------|---------|-------|
+| **D-Y1** | Parser | (A) JSON-subset in core (B) yaml dep (C) submodule | **A**, C deferred | closed | — | Preserves `P-DEPS` (stdlib only); full YAML stays in optional submodule |
+| **D-Y2** | API entry | `LoadCrew(io.Reader)` / `LoadCrewFile` | **both** | closed | — | |
+| **D-Y3** | Build wiring | reference maps for llm/tools/guardrails | **yes** | closed | — | No code from file; fail closed on unknown refs |
+| **D-Y4** | Validation | internal JSON Schema via P2 validator | **yes** | closed | — | Reuses `schema.go` + pointer paths |
+| **D-Y5** | Unknown refs | fail closed at Build | **yes** | closed | — | |
+| **D-Y6** | Context refs | name-first, index fallback | **name-first** | closed | — | Same DAG check as runtime |
+| **D-Y7** | Field parity with Go structs | full vs subset | **subset + docs table** | closed | — | Stable surface; documented |
+| **D-Y8** | Interpolation | none in v1 (no env expansion) | **none** | closed | — | Wires env in Go |
+| **D-Y9** | Size cap | 1 MiB reader cap | **yes** | closed | — | Anti-bomb |
+| **D-Y10** | Error format | `ValidationError` pointer paths | **reuse** | closed | — | |
+
+### Training/export (D-X1–D-X8) — closed 2026-09-16
+
+| ID | Question | Options | Choice | Status | Shipped | Notes |
+|----|----------|---------|--------|--------|---------|-------|
+| **D-X1** | Recorder attachment | `Crew.Tracer` field / `WithTracer` | **field + option** | closed | — | Idiomatic options pattern |
+| **D-X2** | Record emission point | post-execute (post-guardrail? filter?) | **post-execute, pre-guardrail + filter** | closed | — | Filter decides publication |
+| **D-X3** | Format | JSONL | **yes** | closed | — | Append-friendly |
+| **D-X4** | Bodies | metadata-only default; `WithTraceBodies(true)` opt-in | **opt-in** | closed | — | Aligns D-C4; redaction stays on |
+| **D-X5** | Save path safety | caller-trusted path or jail option | **caller-trusted + 0600** | closed | — | |
+| **D-X6** | Filter hook | `WithTraceFilter(func(TaskTraceRecord) bool)` | **yes** | closed | — | |
+| **D-X7** | Concurrency | recorder serializes records under mutex | **mutex** | closed | — | Fold order preserved |
+| **D-X8** | Async wave records | fold order vs completion | **fold order + KickoffID + wave label** | closed | — | Deterministic with D-M7 |
 
 ## 8. Standing product choices (P-*)
 
@@ -258,11 +306,11 @@ Nothing in D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\*, **D-F1–D-F10** is 
 | **P-A5** | `Process=DAG` alias | deferred | Do not close; revisit only on user confusion signal (A2) |
 | **D-S10** follow-up | Native tool-call partial streaming | deferred — design settled (D-ST1–D-ST4) | Implement only on demand |
 | **D-J9** follow-up | unevaluatedProperties/Items | deferred — design settled (D-JE1–D-JE3) | Implement only on demand |
-| **D-F11** | Flow cancel / fail-fast default | open (P3 Phase 0) | Product ack; rec: ctx aborts next barrier, fail-fast default true |
-| **D-F12** | Parallel Flow step trace order | open (P3 Phase 0) | Product ack; rec: fold by registration order |
-| **D-T1–D-T10** | P3 HTTP/files/RAG tools | open (P3 Phase 0) | Product ack of §9 recs |
-| **D-Y1–D-Y10** | P3 JSON-subset YAML | open (P3 Phase 0) | Product ack of §9 recs |
-| **D-X1–D-X8** | P3 TraceRecorder | open (P3 Phase 0) | Product ack of §9 recs |
+| ~~**D-F11**~~ | Flow cancel / fail-fast default | **closed 2026-09-16** | ctx aborts next barrier + fail-fast default true |
+| ~~**D-F12**~~ | Parallel Flow step trace order | **closed 2026-09-16** | Fold by registration order |
+| ~~**D-T1–D-T10**~~ | P3 HTTP/files/RAG tools | **closed 2026-09-16** | See §7B-tools |
+| ~~**D-Y1–D-Y10**~~ | P3 JSON-subset YAML | **closed 2026-09-16** | See §7B-yaml |
+| ~~**D-X1–D-X8**~~ | P3 TraceRecorder | **closed 2026-09-16** | See §7B-train |
 | ~~**O-J2**~~ | `format: time` | **closed → D-JT1 (ship)** | Implemented in `schema.go` |
 
 When closing an open item: move it into the right section table, set **Status=closed**, fill **Choice** and **Shipped**, and leave a one-line note here.
@@ -277,6 +325,7 @@ When closing an open item: move it into the right section table, set **Status=cl
 | 2026-08-21 | Mark D-C\* / D-J\* shipped in **v0.8.0** |
 | 2026-08-21 | Product ack (A1–A5): O-J2 → **D-JT1** (ship time); M5 → D-MT1–D-MT5 settled-unscheduled; D-S10 → D-ST1–D-ST4; D-J9 → D-JE1–D-JE3; A5 stays deferred |
 | 2026-08-24 | P3 Phase 0 partial: **D-F1–D-F10** closed (B/B/B/C/B/A/A/B/B/A). D-F11/D-F12 and D-T\*/D-Y\*/D-X\* still open. |
+| 2026-09-16 | P3 Phase 0 complete: **D-F11/D-F12** + **D-T1–T10** + **D-Y1–Y10** + **D-X1–X8** closed (30 IDs). No code change yet — Phase 1 trains still unstarted. |
 
 ---
 
