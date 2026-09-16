@@ -110,7 +110,16 @@ determinístico.
 ## Kickoff single-flight
 
 Só **um** `Kickoff` por vez em um `*Crew`. Chamadas concorrentes retornam
-`ErrCrewRunning`. Crews em paralelo ⇒ valores `Crew` separados.
+`ErrCrewRunning`. Crews em paralelo ⇒ valores `Crew` separados. A mesma
+regra vale para `Flow.Run` (`ErrFlowRunning`).
+
+## Flows
+
+`Flow[S]` usa a mesma barreira + fold por ordem de registro das waves do
+Crew (D-F12). Steps prontos em paralelo compartilham `*S` — a lib **não**
+trava o estado do usuário (D-F5); coloque mutex nos campos que steps
+concorrentes escrevem. Cancelamento é checado na **próxima barreira**
+(D-F11), não no meio do step. Ver [Flows](flows.md).
 
 ## Receitas práticas
 
@@ -134,6 +143,7 @@ crew.Stages = []Stage{
 ## Relacionado
 
 - [Crews](crews.md) — waves Async, Staged, single-flight  
+- [Flows](flows.md) — `Flow[S]` barreira + fold por ordem de registro  
 - [Memory](memory.md) — barreira D-M7, Context vs Memory  
 - [Tasks](tasks.md) — `WithContext`, `WithAsync`  
 - Arquivos de design: `Plan/PLAN.memory-async.md`, `Plan/PLAN.streaming.md`

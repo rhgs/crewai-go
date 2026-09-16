@@ -259,6 +259,8 @@ callback em paralelo — DEVE ser concurrency-safe. Chunks carregam `Task` e
 Registre um `EventFunc` com `WithEvents` para registros de lifecycle só com
 metadados (`CrewEvent`): kickoff, task/stage/wave, `llm_call_*`,
 `react_iteration`, `structured_repair`, `loop_phase`, `guardrail_blocked`.
+Runs de Flow emitem `flow_started` / `flow_step_*` / `flow_completed` via
+`Flow.WithEvents` (mesmo tipo `CrewEvent`, só metadados).
 
 ```go
 crew.WithEvents(func(ev crewai.CrewEvent) {

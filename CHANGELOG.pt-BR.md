@@ -7,6 +7,11 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 
+- **P3 Trem F — Flows (D-F1–D-F12)**: `Flow[S]` + `Start`/`Listen`/`Router`.
+  Single-flight `ErrFlowRunning`; fail-fast default (ctx na próxima barreira);
+  continue-on-error grava `FlowResult.Errors`; traces paralelos por ordem de
+  registro; eventos `flow_started` / `flow_step_*` / `flow_completed`.
+  Exemplo: `examples/flows_research`. Guia: `docs/flows.md`.
 - **P3 Trem T — tools embutidas (D-T1–D-T10)**: `tools.HTTPFetch` (GET
   SSRF-safe, allowlist deny-by-default, máx. 3 redirects revalidados),
   `tools.FileRead` / `tools.FileWrite` (jail symlink-aware, write opt-in,
@@ -21,8 +26,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 - **P3 Fase 0 (completa)** — D-F1–D-F10 fechadas 2026-08-24
   (B/B/B/C/B/A/A/B/B/A); D-F11/D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8
-  fechadas 2026-09-16 (30 IDs no total). Trem T em código entregue (este
-  unreleased); trens F/Y/X seguem não iniciados. Ver
+  fechadas 2026-09-16 (30 IDs no total). Trens T e F em código entregues
+  (este unreleased); trens Y/X podem aterrissar à parte. Ver
   `Plan/DECISIONS.pt-BR.md` §7B.
 - **Backlog adiado** — ack de produto 2026-08-21 (A1–A5): M5 → D-MT1–D-MT5,
   D-S10 → D-ST1–D-ST4, D-J9 → D-JE1–D-JE3 fechados (sem agenda); A5 permanece
@@ -30,7 +35,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 - **Plano de design P3**: `Plan/PLAN.p3-flows-tools-yaml-training.md` (+
   PT) — Flows, tools embutidas, YAML subconjunto JSON, training/export de
   traces; gates de code/security review, cobertura ≥90% e revisão de docs
-  por trem; linkado no P3 do roadmap (ainda não implementado).
+  por trem; linkado no P3 do roadmap. Trem F entregue (este unreleased);
+  T/Y/X podem aterrissar à parte.
 - **Plano de backlog adiado**: `Plan/PLAN.deferred-backlog.md` (+ PT) —
   seis itens abertos/adiados (xAI OAuth, M5, A5, D-S10, D-J9, O-J2) com
   condições de desbloqueio, espaço de design e IDs pré-alocados.

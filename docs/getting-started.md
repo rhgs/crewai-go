@@ -86,6 +86,7 @@ go run github.com/rhgs/crewai-go/examples/custom_llm
 - [Agents](agents.md) — configure roles, goals, tools, and the agentic loop.
 - [Tasks](tasks.md) — chain tasks with context, `Async` waves, structured output, and warnings.
 - [Crews](crews.md) — sequential, hierarchical, staged, and async-wave scheduling; progress callbacks.
+- [Flows](flows.md) — typed `Flow[S]` event-driven runner (`Start` / `Listen` / `Router`).
 - [Memory](memory.md) — short-term bag, `MemoryStore`, FileStore, embeddings.
 - [Tools](tools.md) — give "hands" to your agents (including web search).
 - [LLMs](llms.md) — providers, native tool calling, and logging.

@@ -116,7 +116,15 @@ LLM I/O itself is deterministic.
 
 Only **one** `Kickoff` may run at a time on a given `*Crew`. Concurrent calls
 return `ErrCrewRunning` (fail fast, no queue). Parallel crews ⇒ separate
-`Crew` values.
+`Crew` values. The same rule applies to `Flow.Run` (`ErrFlowRunning`).
+
+## Flows
+
+`Flow[S]` uses the same barrier + registration-order fold as Crew waves
+(D-F12). Parallel ready steps share `*S` — the library does **not** lock
+user state (D-F5); put a mutex on fields that concurrent steps write.
+Cancellation is checked at the **next barrier** (D-F11), not mid-step.
+See [Flows](flows.md).
 
 ## Practical recipes
 
@@ -140,6 +148,7 @@ crew.Stages = []Stage{
 ## Related
 
 - [Crews](crews.md) — Async waves, Staged, Kickoff single-flight  
+- [Flows](flows.md) — `Flow[S]` barrier + registration-order fold  
 - [Memory](memory.md) — D-M7 commit barrier, Context vs Memory  
 - [Tasks](tasks.md) — `WithContext`, `WithAsync`  
 - Design archives: `Plan/PLAN.memory-async.md`, `Plan/PLAN.streaming.md`

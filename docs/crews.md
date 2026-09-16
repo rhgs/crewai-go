@@ -259,6 +259,8 @@ Panics are recovered. See [llms.md](llms.md#streaming).
 Register an `EventFunc` with `WithEvents` for exportable metadata-only
 lifecycle records (`CrewEvent`): kickoff, task/stage/wave, `llm_call_*`,
 `react_iteration`, `structured_repair`, `loop_phase`, `guardrail_blocked`.
+Flow runs emit `flow_started` / `flow_step_*` / `flow_completed` via
+`Flow.WithEvents` (same `CrewEvent` type, metadata-only).
 
 ```go
 crew.WithEvents(func(ev crewai.CrewEvent) {

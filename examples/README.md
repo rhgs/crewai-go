@@ -22,6 +22,7 @@ Each subfolder is a standalone executable program.
 | `tools_http`    | `HTTPFetch` allowlist + SSRF deny (httptest, offline) | ❌ No                |
 | `tools_files`   | `FileRead`/`FileWrite` directory jail (offline)    | ❌ No                   |
 | `rag_file`      | RAG pattern: FileStore + embedder as a Tool (offline) | ❌ No                |
+| `flows_research`| `Flow[S]` Start/Listen/Router (offline)            | ❌ No                   |
 | `native_tools`  | Provider-native function calling (`ToolModeNative`) | ✅ OpenAI / offline wiring |
 | `facts`         | `Fact` provenance from deterministic tools         | ❌ No                   |
 | `guardrails`    | Post-output `Guardrail` blocking invalid results   | ❌ No                   |
@@ -35,6 +36,7 @@ Each subfolder is a standalone executable program.
 ```bash
 # Without an API key:
 go run ./examples/custom_llm
+go run ./examples/flows_research  # Flow[S] offline demo
 
 # With OpenAI:
 export OPENAI_API_KEY=sk-...

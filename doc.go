@@ -237,6 +237,18 @@
 //	ht := tools.NewHTTPFetch(tools.WithHTTPAllowlist("api.example.com"))
 //	fr := tools.NewFileRead("/var/data")
 //
+// # Flows
+//
+// Flow[S] is an event-driven runner over typed state (D-F1). Register steps
+// with Start / Listen / Router (no reflection). Parallel ready steps share
+// *S (caller owns sync). Traces fold by registration order. Concurrent Run
+// returns ErrFlowRunning. See docs/flows.md.
+//
+//	f := crewai.NewFlow[MyState]().
+//	    Start("boot", stepBoot).
+//	    Listen("work", stepWork, "boot")
+//	res, err := f.Run(ctx, MyState{})
+//
 // # Memory
 //
 // Setting Crew.Memory = true ensures an InMemory MemoryStore for the Kickoff

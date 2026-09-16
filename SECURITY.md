@@ -47,5 +47,6 @@ Issues related to third-party LLM APIs (OpenAI, Anthropic, xAI, Ollama) or third
 - **Lifecycle events.** `Crew.WithEvents` / `CrewEvent` are **metadata-only** by default (no prompt bodies, tool args, or stream text). Error strings are redacted. Same concurrency rules as Progress.
 - **JSON Schema `$ref`.** Only local fragment refs (`#/...`) are resolved — never HTTP/file fetches (SSRF).
 - **Stream sinks.** `Crew.WithStream` / `StreamFunc` receive **raw model text** deltas (and redacted terminal errors). Unlike `Progress`, stream content is intentionally the completion itself — filter/redact in the app before exposing to untrusted multi-tenant clients. `RedactHandler` does not wrap StreamFunc. Provider stream readers cap **raw HTTP body bytes** at `MaxProviderResponseBytes` (same as non-stream).
-- **Kickoff single-flight.** Concurrent `Kickoff` on the same `*Crew` returns `ErrCrewRunning` (fail fast; does not queue).
+- **Kickoff single-flight.** Concurrent `Kickoff` on the same `*Crew` returns `ErrCrewRunning` (fail fast; does not queue). Concurrent `Flow.Run` returns `ErrFlowRunning`.
+- **Flows.** `Flow[S]` events are metadata-only. The library does not lock user state `S` — parallel steps share `*S` and the app owns synchronization. Cancellation is checked at the next barrier (in-flight steps are not hard-killed).
 - **Native tool calling.** Argument size/depth and tool output size are capped (`MaxToolArgsBytes`, `MaxToolArgsDepth`, `MaxToolOutputBytes`). Provider response bodies are capped at `MaxProviderResponseBytes` (10 MiB).

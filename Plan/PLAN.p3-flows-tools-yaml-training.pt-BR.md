@@ -1,6 +1,6 @@
 # Plano — P3: Flows, tools embutidas, YAML declarativo, training/export de traces
 
-> **Status:** **Trem T entregue**. Decisões da Fase 0 **todas fechadas** 2026-09-16 (D-F1–F12 + D-T1–T10 + D-Y1–Y10 + D-X1–X8). Trens F/Y/X em código seguem não iniciados.  
+> **Status:** **Trens T e F entregues**. Decisões da Fase 0 **todas fechadas** 2026-09-16. Trens Y/X podem aterrissar à parte.  
 > **Decisões:** **Fase 0 completa** — ver `DECISIONS.pt-BR.md` §7B para status canônico; este plano guarda a rationale + recs.  
 > **Relacionado:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go`, `tool.go`, `tools/websearch.go` (guards SSRF), `task.go` (jail OutputDir), `memory_embed.go`, `schema.go`, `loop.go`.  
 > **Restrições:** zero deps externas no core (stdlib não tem parser YAML); gates: ≥90% cobertura por pacote tocado **e** agregado, race-clean, gofmt+vet, docs EN+PT, CHANGELOG, SECURITY quando aplicável.  
@@ -216,8 +216,8 @@ Obrigatórios **por PR**, não só na entrega final.
 Fase 0   ~~Fechar D-F*, D-T*, D-Y*, D-X* neste doc → mover para DECISIONS.md~~ **feito 2026-09-16**
 ── T1    ~~extração urlguard + HTTPFetch + testes + docs~~ **feito**
 ── T2    ~~extração pathJail + File tools + testes + docs~~ **feito**
-── F1    Flow core (runner + builder) + validação de DAG
-── F2    concorrência do Flow (listeners paralelos, join/fold) + eventos
+── F1    ~~Flow core (runner + builder) + validação de DAG~~ **feito**
+── F2    ~~concorrência do Flow (listeners paralelos, join/fold) + eventos~~ **feito**
 ── Y1    loader JSON-subset + validação schema + Build maps
 ── X1    TraceRecorder metadata default + Save
 ── RAG   doc/exemplo (pode entrar a qualquer momento; M3 já existe)
@@ -319,9 +319,9 @@ Fechadas em DECISIONS.pt-BR.md §7B/§9: D-F1–D-F12 (12 IDs). Resto da Fase 0 
 ## 11. Aceite (epic concluído)
 
 - [x] D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8 fechadas em `DECISIONS.md`
-- [ ] Runner `Flow[S]` com DAG, fold em barreira, eventos, `examples/flows_research`
+- [x] Runner `Flow[S]` com DAG, fold em barreira, eventos, `examples/flows_research`
 - [x] `tools.HTTPFetch`, `FileRead`/`FileWrite` (jail, SSRF, tetos) + 3 examples
-- [ ] `docs/rag.md` (+ exemplo opcional)
+- [x] `docs/rag.md` (+ exemplo opcional)
 - [ ] `LoadCrew` subconjunto JSON + validação + `examples/declarative`
 - [ ] `TraceRecorder` metadata-default JSONL + `examples/trace_export`
 - [ ] Docs EN+PT dos quatro trens; What's new; notas SECURITY
