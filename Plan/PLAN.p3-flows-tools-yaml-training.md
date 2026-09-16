@@ -276,7 +276,7 @@ Phase 0   ~~Close D-F*, D-T*, D-Y*, D-X* in this doc → move into DECISIONS.md~
 ── T2 pathJail extract + File tools + tests + docs
 ── F1 Flow core (Runner, D-F2 builder) + cycle validation
 ── F2 Flow concurrency (parallel listeners, join/fold) + events
-── Y1 JSON-subset loader + schema validation + Build maps
+── Y1 ~~JSON-subset loader + schema validation + Build maps~~ **done**
 ── X1 TraceRecorder metadata default + Save
 ── RAG doc/example (docs-only train, can be anytime after M3 exists — already does)
 ── Release sync (CHANGELOG/PLAN/DECISIONS) → tag v0.9.0 (or split minors per train)
@@ -381,7 +381,7 @@ Closed in DECISIONS.md §7B/§9: D-F1–D-F12 (12 IDs). Phase-0 remainder (D-F11
 - [ ] `Flow[S]` runner with DAG validation, barrier fold, events, `examples/flows_research`
 - [ ] `tools.HTTPFetch`, `tools.FileRead`/`FileWrite` (jail, SSRF, caps) + 3 examples
 - [ ] `docs/rag.md` pattern (+ optional example)
-- [ ] `LoadCrew` JSON-subset loader + schema validation + `examples/declarative`
+- [x] `LoadCrew` JSON-subset loader + schema validation + `examples/declarative`
 - [ ] `TraceRecorder` metadata-default JSONL + `examples/trace_export`
 - [ ] Docs EN+PT for all four trains; README What's new; SECURITY notes
 - [ ] Coverage ≥90% (aggregate + each touched pkg), `-race` clean

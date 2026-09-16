@@ -19,6 +19,7 @@ Each subfolder is a standalone executable program.
 | `memory_embed`  | `AutoEmbed` + cosine Query with mock embedder (offline) | ❌ No |
 | `agentic_loop`  | Plan-Execute-Evaluate-Refine cycle (mock LLM)      | ❌ No                   |
 | `tools`         | An agent using tools via ReAct                     | ✅ OpenAI               |
+| `declarative`   | `LoadCrewFile` JSON-subset + Build (offline)       | ❌ No                   |
 | `native_tools`  | Provider-native function calling (`ToolModeNative`) | ✅ OpenAI / offline wiring |
 | `facts`         | `Fact` provenance from deterministic tools         | ❌ No                   |
 | `guardrails`    | Post-output `Guardrail` blocking invalid results   | ❌ No                   |
@@ -32,6 +33,7 @@ Each subfolder is a standalone executable program.
 ```bash
 # Without an API key:
 go run ./examples/custom_llm
+go run ./examples/declarative  # LoadCrewFile JSON-subset (offline)
 
 # With OpenAI:
 export OPENAI_API_KEY=sk-...

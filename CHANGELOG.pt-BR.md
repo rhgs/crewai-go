@@ -7,6 +7,11 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ### Adicionado
 
+- **P3 Trem Y — JSON-subset declarativo (D-Y1–D-Y10)**: `LoadCrew` /
+  `LoadCrewFile` + `CrewConfig.Build` com maps de llm/tool/guardrail.
+  Sem parser YAML (JSON da stdlib); cap 1 MiB; fail closed em ref
+  desconhecida; Context name-first. Exemplo: `examples/declarative`.
+  Guia: `docs/declarative.md`.
 - **`format: time` (O-J2 → D-JT1)**: formato `time` do JSON Schema validado
   como full-time RFC 3339 (`HH:MM:SS[.fff][Z|±hh:mm]`); docs da allowlist
   atualizados.

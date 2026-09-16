@@ -253,16 +253,16 @@ Closed in this pass (P3 Phase 0 remainder, 2026-09-16):
 
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|
-| **D-Y1** | Parser | (A) JSON-subset in core (B) yaml dep (C) submodule | **A**, C deferred | closed | — | Preserves `P-DEPS` (stdlib only); full YAML stays in optional submodule |
-| **D-Y2** | API entry | `LoadCrew(io.Reader)` / `LoadCrewFile` | **both** | closed | — | |
-| **D-Y3** | Build wiring | reference maps for llm/tools/guardrails | **yes** | closed | — | No code from file; fail closed on unknown refs |
-| **D-Y4** | Validation | internal JSON Schema via P2 validator | **yes** | closed | — | Reuses `schema.go` + pointer paths |
-| **D-Y5** | Unknown refs | fail closed at Build | **yes** | closed | — | |
-| **D-Y6** | Context refs | name-first, index fallback | **name-first** | closed | — | Same DAG check as runtime |
-| **D-Y7** | Field parity with Go structs | full vs subset | **subset + docs table** | closed | — | Stable surface; documented |
-| **D-Y8** | Interpolation | none in v1 (no env expansion) | **none** | closed | — | Wires env in Go |
-| **D-Y9** | Size cap | 1 MiB reader cap | **yes** | closed | — | Anti-bomb |
-| **D-Y10** | Error format | `ValidationError` pointer paths | **reuse** | closed | — | |
+| **D-Y1** | Parser | (A) JSON-subset in core (B) yaml dep (C) submodule | **A**, C deferred | closed | load.go | Preserves `P-DEPS` (stdlib only); full YAML stays in optional submodule |
+| **D-Y2** | API entry | `LoadCrew(io.Reader)` / `LoadCrewFile` | **both** | closed | load.go | |
+| **D-Y3** | Build wiring | reference maps for llm/tools/guardrails | **yes** | closed | load.go | No code from file; fail closed on unknown refs |
+| **D-Y4** | Validation | internal JSON Schema via P2 validator | **yes** | closed | load_schema.go | Reuses `schema.go` + pointer paths |
+| **D-Y5** | Unknown refs | fail closed at Build | **yes** | closed | load.go | |
+| **D-Y6** | Context refs | name-first, index fallback | **name-first** | closed | load.go | Same DAG check as runtime |
+| **D-Y7** | Field parity with Go structs | full vs subset | **subset + docs table** | closed | docs/declarative.md | Stable surface; documented |
+| **D-Y8** | Interpolation | none in v1 (no env expansion) | **none** | closed | load.go | Wires env in Go |
+| **D-Y9** | Size cap | 1 MiB reader cap | **yes** | closed | load.go | Anti-bomb |
+| **D-Y10** | Error format | `ValidationError` pointer paths | **reuse** | closed | load.go | |
 
 ### Training/export (D-X1–D-X8) — closed 2026-09-16
 
@@ -326,6 +326,7 @@ When closing an open item: move it into the right section table, set **Status=cl
 | 2026-08-21 | Product ack (A1–A5): O-J2 → **D-JT1** (ship time); M5 → D-MT1–D-MT5 settled-unscheduled; D-S10 → D-ST1–D-ST4; D-J9 → D-JE1–D-JE3; A5 stays deferred |
 | 2026-08-24 | P3 Phase 0 partial: **D-F1–D-F10** closed (B/B/B/C/B/A/A/B/B/A). D-F11/D-F12 and D-T\*/D-Y\*/D-X\* still open. |
 | 2026-09-16 | P3 Phase 0 complete: **D-F11/D-F12** + **D-T1–T10** + **D-Y1–Y10** + **D-X1–X8** closed (30 IDs). No code change yet — Phase 1 trains still unstarted. |
+| 2026-09-16 | P3 Train Y shipped: LoadCrew/LoadCrewFile + Build maps; D-Y1–D-Y10 **Shipped** filled. |
 
 ---
 

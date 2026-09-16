@@ -19,6 +19,7 @@ Cada subpasta é um programa executável independente.
 | `memory_embed`  | `AutoEmbed` + Query por cosseno com embedder mock (offline) | ❌ Não |
 | `agentic_loop`  | Ciclo Planejar-Executar-Avaliar-Refinar (mock LLM)| ❌ Não                  |
 | `tools`         | Agente usando ferramentas via ReAct               | ✅ OpenAI               |
+| `declarative`   | `LoadCrewFile` subconjunto JSON + Build (offline)  | ❌ Não                  |
 | `native_tools`  | Function calling nativo do provedor (`ToolModeNative`) | ✅ OpenAI / wiring offline |
 | `facts`         | Proveniência `Fact` via tools determinísticas      | ❌ Não                  |
 | `guardrails`    | `Guardrail` pós-saída bloqueando resultados inválidos | ❌ Não               |
@@ -32,6 +33,7 @@ Cada subpasta é um programa executável independente.
 ```bash
 # Sem chave de API:
 go run ./examples/custom_llm
+go run ./examples/declarative  # LoadCrewFile subconjunto JSON (offline)
 go run ./examples/events      # WithEvents JSONL (offline)
 go run ./examples/streaming  # demux de stream mock offline
 go run ./examples/async_tasks  # waves Task.Async; USE_OPENAI=1 para live

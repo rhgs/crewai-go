@@ -218,7 +218,7 @@ Fase 0   ~~Fechar D-F*, D-T*, D-Y*, D-X* neste doc → mover para DECISIONS.md~~
 ── T2    extração pathJail + File tools + testes + docs
 ── F1    Flow core (runner + builder) + validação de DAG
 ── F2    concorrência do Flow (listeners paralelos, join/fold) + eventos
-── Y1    loader JSON-subset + validação schema + Build maps
+── Y1    ~~loader JSON-subset + validação schema + Build maps~~ **feito**
 ── X1    TraceRecorder metadata default + Save
 ── RAG   doc/exemplo (pode entrar a qualquer momento; M3 já existe)
 ── Sync release (CHANGELOG/PLAN/DECISIONS) → tag(s)
@@ -322,7 +322,7 @@ Fechadas em DECISIONS.pt-BR.md §7B/§9: D-F1–D-F12 (12 IDs). Resto da Fase 0 
 - [ ] Runner `Flow[S]` com DAG, fold em barreira, eventos, `examples/flows_research`
 - [ ] `tools.HTTPFetch`, `FileRead`/`FileWrite` (jail, SSRF, tetos) + 3 examples
 - [ ] `docs/rag.md` (+ exemplo opcional)
-- [ ] `LoadCrew` subconjunto JSON + validação + `examples/declarative`
+- [x] `LoadCrew` subconjunto JSON + validação + `examples/declarative`
 - [ ] `TraceRecorder` metadata-default JSONL + `examples/trace_export`
 - [ ] Docs EN+PT dos quatro trens; What's new; notas SECURITY
 - [ ] Cobertura ≥90% (agregado + pacotes tocados), `-race` limpo
