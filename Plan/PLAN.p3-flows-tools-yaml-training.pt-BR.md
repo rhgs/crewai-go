@@ -213,7 +213,7 @@ Obrigatórios **por PR**, não só na entrega final.
 ## 8. Ordem de implementação (trens de PR)
 
 ```
-Fase 0   Fechar D-F*, D-T*, D-Y*, D-X* neste doc → mover para DECISIONS.md
+Fase 0   ~~Fechar D-F*, D-T*, D-Y*, D-X* neste doc → mover para DECISIONS.md~~ **feito 2026-09-16**
 ── T1    extração urlguard + HTTPFetch + testes + docs
 ── T2    extração pathJail + File tools + testes + docs
 ── F1    Flow core (runner + builder) + validação de DAG
@@ -318,7 +318,7 @@ Fechadas em DECISIONS.pt-BR.md §7B/§9: D-F1–D-F12 (12 IDs). Resto da Fase 0 
 
 ## 11. Aceite (epic concluído)
 
-- [ ] D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8 fechadas em `DECISIONS.md`
+- [x] D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8 fechadas em `DECISIONS.md`
 - [ ] Runner `Flow[S]` com DAG, fold em barreira, eventos, `examples/flows_research`
 - [ ] `tools.HTTPFetch`, `FileRead`/`FileWrite` (jail, SSRF, tetos) + 3 examples
 - [ ] `docs/rag.md` (+ exemplo opcional)

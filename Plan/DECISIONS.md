@@ -210,9 +210,9 @@ Settled by product ack (A3) — code only when requested:
 | **D-JE2** | Interaction with $ref/allOf | (A) per-node only (B) eval-set merges across resolved applicators | **B** | closed (unscheduled) |
 | **D-JE3** | Boolean values as unevaluated* | (A) allow bool form for properties only (B) schema maps only in v1 | **B** | closed (unscheduled) |
 
-## 7B. P3 Flows Phase 0 (product ack 2026-08-24)
+## 7B. P3 Phase 0 (product ack 2026-08-24 + remainder 2026-09-16)
 
-Source: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) §9. Closed D-F1–D-F10 only; **D-F11 / D-F12 and all D-T\*/D-Y\*/D-X\* stay open**. Code still not started.
+Source: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) §9. **All Phase-0 IDs closed** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Code still not started.
 
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|
@@ -297,7 +297,7 @@ Roadmap-level choices not owned by a single epic table. Update when product dire
 
 Deferred / open items with unblock conditions and pre-allocated IDs: [`PLAN.deferred-backlog.md`](PLAN.deferred-backlog.md) ([PT](PLAN.deferred-backlog.pt-BR.md)).
 
-Nothing in D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\*, **D-F1–D-F10** is open for re-litigation without a new ID.
+Nothing in D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\*, **D-F1–D-F12**, **D-T1–D-T10**, **D-Y1–D-Y10**, **D-X1–D-X8** is open for re-litigation without a new ID.
 
 | ID | Topic | Status | Next step |
 |----|-------|--------|-----------|

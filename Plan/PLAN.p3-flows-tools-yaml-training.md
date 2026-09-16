@@ -271,7 +271,7 @@ No changes to `process.go` dispatch in v1 (Flows is a separate runner type).
 ## 8. Implementation order (PR trains)
 
 ```
-Phase 0   Close D-F*, D-T*, D-Y*, D-X* in this doc → move into DECISIONS.md
+Phase 0   ~~Close D-F*, D-T*, D-Y*, D-X* in this doc → move into DECISIONS.md~~ **done 2026-09-16**
 ── T1 first: T1 urlguard extract + HTTPTool + tests + docs
 ── T2 pathJail extract + File tools + tests + docs
 ── F1 Flow core (Runner, D-F2 builder) + cycle validation
@@ -377,7 +377,7 @@ Closed in DECISIONS.md §7B/§9: D-F1–D-F12 (12 IDs). Phase-0 remainder (D-F11
 
 ## 11. Acceptance (epic done)
 
-- [ ] D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8 closed in `DECISIONS.md`
+- [x] D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8 closed in `DECISIONS.md`
 - [ ] `Flow[S]` runner with DAG validation, barrier fold, events, `examples/flows_research`
 - [ ] `tools.HTTPFetch`, `tools.FileRead`/`FileWrite` (jail, SSRF, caps) + 3 examples
 - [ ] `docs/rag.md` pattern (+ optional example)

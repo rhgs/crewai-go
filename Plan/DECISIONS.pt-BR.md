@@ -183,9 +183,9 @@ Fechado pelo ack de produto (A3) — código só quando pedido:
 | **D-JE2** | Interação com $ref/allOf | (A) só por nó (B) eval-set faz merge entre aplicadores resolvidos | **B** | closed (unscheduled) |
 | **D-JE3** | Booleanos como unevaluated* | (A) permitir bool só em properties (B) só maps de schema no v1 | **B** | closed (unscheduled) |
 
-## 7B. P3 Flows Fase 0 (ack de produto 2026-08-24)
+## 7B. P3 Fase 0 (ack de produto 2026-08-24 + restante 2026-09-16)
 
-Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) §9. Fecha só D-F1–D-F10; **D-F11 / D-F12 e todas D-T\*/D-Y\*/D-X\* seguem abertas**. Sem código ainda.
+Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) §9. **Todas as IDs da Fase 0 fechadas** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Sem código ainda.
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
 |----|----------|--------|---------|--------|----------|-------|
@@ -199,8 +199,6 @@ Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-t
 | **D-F8** | Onde guardar continue-on-error | (A) mutar estado do usuário (B) `FlowResult.Errors` | **B** | closed | — | Não poluir `S` |
 | **D-F9** | `Run` concorrente no mesmo flow | (A) permitir (B) single-flight | **B** | closed | — | `ErrFlowRunning` (igual `ErrCrewRunning`) |
 | **D-F10** | Join multi-dep | (A) todos os deps (B) qualquer dep | **A** | closed | — | “Qualquer” é papel do Router |
-
-Ainda abertos nesta família: **D-F11** (cancel / fail-fast default), **D-F12** (ordem de fold do trace paralelo).
 
 Fechados nesta rodada (P3 Fase 0 restante, 2026-09-16):
 
@@ -270,7 +268,7 @@ Fechados nesta rodada (P3 Fase 0 restante, 2026-09-16):
 
 Itens adiados/abertos com condições de desbloqueio e IDs pré-alocados: [`PLAN.deferred-backlog.pt-BR.md`](PLAN.deferred-backlog.pt-BR.md) ([EN](PLAN.deferred-backlog.md)).
 
-Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F10** está aberto para relitigar sem **novo ID**.
+Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F12** / **D-T1–D-T10** / **D-Y1–D-Y10** / **D-X1–D-X8** está aberto para relitigar sem **novo ID**.
 
 | ID | Tópico | Status | Próximo passo |
 |----|--------|--------|---------------|
