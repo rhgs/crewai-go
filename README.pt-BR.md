@@ -41,6 +41,7 @@
 - [Guardrails](#guardrails)
 - [Facts e proveniência](#facts-e-proveniência)
 - [MCP](#mcp-model-context-protocol)
+- [Flows](#flows)
 - [Progresso e warnings](#progresso-e-warnings)
 - [Memória](#memória)
 - [Exemplos](#exemplos)
@@ -54,7 +55,7 @@
 
 ## Por que crewai-go
 
-- 🧩 **API simples e composável** — `Agent`, `Task`, `Crew`, `Tool`, `LLM`.
+- 🧩 **API simples e composável** — `Agent`, `Task`, `Crew`, `Tool`, `LLM`, mais `Flow[S]` tipado.
 - ⚡ **Sem dependências** — só stdlib; builds pequenos e rápidos.
 - 🔌 **Qualquer LLM** — OpenAI (e compatíveis: Ollama, Groq, Azure…), Anthropic (Claude) e qualquer implementação sua da interface `LLM`.
 - 🛠️ **Ferramentas via ReAct** — agentes raciocinam e chamam ferramentas em texto.
@@ -84,6 +85,7 @@
 - 🔌 **MCP** — conecte a servidores Model Context Protocol e exponha as tools como `crewai.Tool` (schema preservado).
 - 📡 **Progresso e warnings** — callbacks `WithProgress` em tempo real e warnings não-fatais por tarefa.
 - 🌊 **Streaming** — `StreamingLLM` opcional + `Crew.WithStream` para deltas de tokens da resposta final (ReAct/native sem tools); demux Task/Agent em waves Async.
+- 🔀 **Flows** — runner event-driven tipado `Flow[S]` (`Start` / `Listen` / `Router`) que compõe crews como steps sem substituir Sequential/Hierarchical/Staged.
 - 📊 **Eventos de lifecycle** — `WithEvents` / `CrewEvent` telemetria de metadados (llm_call, turns ReAct, repairs) junto com Progress.
 - ✅ **Testável** — LLM mock incluído; ~90% de cobertura no núcleo.
 
@@ -107,6 +109,7 @@
 | **StreamingLLM** | Interface opcional de LLM para streaming de tokens (`CallStream`). |
 | **StreamChunk** | Unidade de stream: `Delta`, `Task`, `Agent`, `Done`, `Err`. |
 | **CrewEvent** | Registro de lifecycle (só metadados) para telemetria `WithEvents`. |
+| **Flow[S]** | Runner event-driven sobre estado tipado (`Start` / `Listen` / `Router`). |
 | **ToolTrace** | Registra cada chamada nativa de tool (nome, args, output, duracao). |
 
 ## Instalação
@@ -252,6 +255,8 @@ agente.WithTools(
 	tools.Calculator(),        // avalia expressões aritméticas
 	tools.CurrentTime(""),     // data/hora atual
 	tools.WordCount(),         // conta palavras/caracteres
+	tools.NewHTTPFetch(tools.WithHTTPAllowlist("api.example.com")),
+	tools.NewFileRead("/var/data"),
 )
 ```
 
@@ -583,6 +588,23 @@ Timeout HTTP default e 30s (`DefaultHTTPTimeout`); o JSON aceita
 `"timeout"` por servidor. Veja [`docs/pt-BR/mcp.md`](docs/pt-BR/mcp.md) para
 configuracao, modelo de ameaca, guards de catalogo e a API programatica.
 
+## Flows
+
+Runner event-driven tipado sobre estado `S`. **Não** substitui Sequential /
+Hierarchical / Staged — um step pode dar `Kickoff` num Crew.
+
+```go
+f := crewai.NewFlow[MyState]().
+    Start("boot", stepBoot).
+    Listen("work", stepWork, "boot")
+res, err := f.Run(ctx, MyState{})
+```
+
+Contratos: a lib não trava `S`; traces paralelos fazem fold por ordem de
+registro; `Run` concorrente devolve `ErrFlowRunning`. Detalhes em
+[`docs/pt-BR/flows.md`](docs/pt-BR/flows.md). Demo offline:
+`examples/flows_research`.
+
 ## Progresso e warnings
 
 **Progresso.** Exponha eventos de execucao em tempo real para um frontend
@@ -656,7 +678,9 @@ Veja [docs/pt-BR/memory.md](docs/pt-BR/memory.md), `examples/memory_file` e
 Execute os exemplos incluídos:
 
 ```bash
-go run ./examples/custom_llm     # offline, sem chave de API
+go run ./examples/custom_llm     # offline, sem chave
+go run ./examples/flows_research # Flow[S] Start/Listen/Router (offline)
+go run ./examples/flows_research # Flow[S] Start/Listen/Router (offline) de API
 go run ./examples/ollama         # Ollama local (ou OLLAMA_CLOUD=1)
 go run ./examples/streaming     # deltas WithStream (mock offline)
 go run ./examples/async_tasks    # waves Task.Async (mock offline)
@@ -691,6 +715,8 @@ go run ./examples/xai_oauth
 | Tasks | [PT](docs/pt-BR/tasks.md) | [EN](docs/tasks.md) |
 | Crews | [PT](docs/pt-BR/crews.md) | [EN](docs/crews.md) |
 | Tools | [PT](docs/pt-BR/tools.md) | [EN](docs/tools.md) |
+| Flows | [PT](docs/pt-BR/flows.md) | [EN](docs/flows.md) |
+| Padrão RAG | [PT](docs/pt-BR/rag.md) | [EN](docs/rag.md) |
 | Crews declarativos | [PT](docs/pt-BR/declarative.md) | [EN](docs/declarative.md) |
 | LLMs | [PT](docs/pt-BR/llms.md) | [EN](docs/llms.md) |
 | Memory | [PT](docs/pt-BR/memory.md) | [EN](docs/memory.md) |
@@ -748,6 +774,7 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 | `Process.hierarchical` | `crewai.Hierarchical`             |
 | `Process.staged`       | `crewai.Staged`                   |
 | `@tool` / `BaseTool`   | `crewai.NewTool` / `crewai.Tool`  |
+| `@start` / `@listen` / `@router` | `Flow[S].Start` / `Listen` / `Router` |
 | litellm                | interface `LLM` (openai/anthropic)|
 
 ### Recursos do crewai-go que o CrewAI original NÃO tem
@@ -779,7 +806,7 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 | **Consumo de memória** | ✅ ~10-20 MB típico | ❌ ~100-300 MB típico (Python + deps) |
 | **Cross-compilation** | ✅ `GOOS=linux GOARCH=arm64 go build` — qualquer alvo a partir de qualquer host | ❌ exige Python da plataforma alvo ou container |
 
-Este port cobre o núcleo do CrewAI (agentes, tarefas, crews, processos, ferramentas, memória) mais vários recursos originais não presentes na versão Python. Recursos avançados do projeto original (Flows event-driven, training, telemetria) não fazem parte desta versão.
+Este port cobre o núcleo do CrewAI (agentes, tarefas, crews, processos, ferramentas, memória) mais vários recursos originais não presentes na versão Python. Flows event-driven embarcam como `Flow[S]` tipado (ver [`docs/pt-BR/flows.md`](docs/pt-BR/flows.md)). Training / export de traces e YAML declarativo seguem no roadmap P3.
 
 ## Contribuindo
 

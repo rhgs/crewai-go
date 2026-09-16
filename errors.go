@@ -70,6 +70,24 @@ var (
 	// body bytes read (D-S8).
 	ErrStreamResponseTooLarge = errors.New("crewai: stream response exceeds size limit")
 
+	// ErrFlowRunning is returned when Run is called on a Flow that is
+	// already executing. One Run at a time per Flow value (D-F9).
+	ErrFlowRunning = errors.New("crewai: flow already running")
+	// ErrFlowCycle is returned when the Flow step graph contains a cycle
+	// or a self-dependency.
+	ErrFlowCycle = errors.New("crewai: flow has a cycle")
+	// ErrFlowUnknownStep is returned when a dependency or router result
+	// names a step that was not registered (D-F6).
+	ErrFlowUnknownStep = errors.New("crewai: flow unknown step")
+	// ErrFlowNoStart is returned when a Flow has no start steps (no
+	// zero-dep Listen/Router and no Start marker).
+	ErrFlowNoStart = errors.New("crewai: flow has no start step")
+	// ErrFlowDuplicateStep is returned when two steps share the same name.
+	ErrFlowDuplicateStep = errors.New("crewai: flow duplicate step name")
+	// ErrFlowStartDeps is returned when Start is used on a step that
+	// declares dependencies (D-F4).
+	ErrFlowStartDeps = errors.New("crewai: Start step cannot declare deps")
+
 	// ErrSchemaRefCycle is returned when JSON Schema $ref resolution detects a cycle.
 	ErrSchemaRefCycle = errors.New("crewai: JSON Schema $ref cycle")
 	// ErrSchemaRefInvalid is returned for external or non-fragment $ref values.

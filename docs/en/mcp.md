@@ -1,5 +1,7 @@
 # MCP (Model Context Protocol) support
 
+> **Languages:** **English** (current) · [Português](../pt-BR/mcp.md)
+
 crewai-go can connect to external [Model Context Protocol](https://modelcontextprotocol.io/)
 servers over Streamable HTTP (JSON-RPC 2.0) and expose the server's tool
 catalog as `crewai.Tool` values. The original `inputSchema` for each tool is

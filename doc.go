@@ -226,6 +226,29 @@
 // blocked, and domain names are resolved via DNS to prevent rebinding attacks.
 // Fail-closed: unresolvable hosts are blocked.
 //
+// # HTTP fetch and file tools
+//
+// tools.HTTPFetch is an SSRF-safe GET (deny-by-default allowlist, max 3
+// re-validated redirects, MaxToolOutputBytes cap). tools.FileRead and
+// tools.FileWrite jail paths with the same EvalSymlinks helper as
+// Task.OutputDir; write is off until WithAllowWrite; NUL bytes are rejected
+// unless WithAllowBinary. RAG is a docs/example pattern (no vector DB).
+//
+//	ht := tools.NewHTTPFetch(tools.WithHTTPAllowlist("api.example.com"))
+//	fr := tools.NewFileRead("/var/data")
+//
+// # Flows
+//
+// Flow[S] is an event-driven runner over typed state (D-F1). Register steps
+// with Start / Listen / Router (no reflection). Parallel ready steps share
+// *S (caller owns sync). Traces fold by registration order. Concurrent Run
+// returns ErrFlowRunning. See docs/flows.md.
+//
+//	f := crewai.NewFlow[MyState]().
+//	    Start("boot", stepBoot).
+//	    Listen("work", stepWork, "boot")
+//	res, err := f.Run(ctx, MyState{})
+//
 // # Declarative crews
 //
 // LoadCrew / LoadCrewFile parse a JSON-subset document (no YAML parser;

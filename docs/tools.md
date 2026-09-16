@@ -40,7 +40,54 @@ import "github.com/rhgs/crewai-go/tools"
 tools.Calculator()      // evaluates "2 + 2 * (3 - 1)" — offline and safe
 tools.CurrentTime("")   // current date/time (time package layout; "" = RFC3339)
 tools.WordCount()       // counts words and characters in the text
+
+tools.NewHTTPFetch(tools.WithHTTPAllowlist("api.example.com"))
+tools.NewFileRead("/var/data")
+tools.NewFileWrite("/var/data", tools.WithAllowWrite())
 ```
+
+### HTTPFetch (SSRF-safe)
+
+Deny-by-default: an empty allowlist rejects every request. Hosts are matched
+with `path.Match` (case-insensitive). Default method is GET. Redirects are
+capped at 3 hops and **re-validated** (scheme, userinfo, private/loopback/
+link-local/CGNAT, DNS rebind). Response bodies are capped at
+`crewai.MaxToolOutputBytes` (1 MiB).
+
+```go
+ht := tools.NewHTTPFetch(
+    tools.WithHTTPAllowlist("api.example.com", "docs.*.internal"),
+    tools.WithHTTPTimeout(30*time.Second),
+    tools.WithHTTPMaxResponse(1<<20),
+    tools.WithHTTPHeader("User-Agent", "crewai-go"),
+)
+out, err := ht.Call(ctx, "https://api.example.com/v1/status")
+```
+
+Never pass a model-controlled URL without an allowlist. Link-local / metadata
+hosts (`169.254.169.254`, `metadata.google.internal`) cannot be allowlisted.
+
+Offline demo: `examples/tools_http`.
+
+### FileRead / FileWrite (directory jail)
+
+Both tools resolve paths with the same symlink-aware jail as `Task.OutputDir`
+(`EvalSymlinks`, fail closed). Write is **off** until `WithAllowWrite`.
+Binary (NUL) reads are rejected unless `WithAllowBinary`.
+
+```go
+read := tools.NewFileRead("/var/data")
+write := tools.NewFileWrite("/var/data", tools.WithAllowWrite())
+
+text, _ := read.Call(ctx, "/var/data/note.txt")
+_, _ = write.Call(ctx, `{"path":"/var/data/out.txt","content":"saved"}`)
+```
+
+`FileWrite` input is JSON `{"path","content"}`. Files are written with mode
+`0600`. Offline demo: `examples/tools_files`.
+
+RAG stays a **pattern**, not a built-in tool — see [`docs/rag.md`](rag.md)
+and `examples/rag_file`.
 
 ## Attaching tools
 

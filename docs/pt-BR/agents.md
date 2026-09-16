@@ -115,7 +115,7 @@ Se a saída nunca passar na avaliação, `Kickoff` retorna
 `crewai.ErrEvaluationFailed`. Se o avaliador retornar uma resposta não
 parseável, retorna `crewai.ErrInvalidEvaluation`.
 
-Veja [examples/agentic_loop](../examples/agentic_loop) para um exemplo executável.
+Veja [examples/agentic_loop](../../examples/agentic_loop) para um exemplo executável.
 
 ## Boas práticas
 

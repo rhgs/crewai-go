@@ -19,6 +19,10 @@ Cada subpasta é um programa executável independente.
 | `memory_embed`  | `AutoEmbed` + Query por cosseno com embedder mock (offline) | ❌ Não |
 | `agentic_loop`  | Ciclo Planejar-Executar-Avaliar-Refinar (mock LLM)| ❌ Não                  |
 | `tools`         | Agente usando ferramentas via ReAct               | ✅ OpenAI               |
+| `tools_http`    | `HTTPFetch` allowlist + SSRF deny (httptest, offline) | ❌ Não              |
+| `tools_files`   | Jail `FileRead`/`FileWrite` (offline)              | ❌ Não                  |
+| `rag_file`      | Padrão RAG: FileStore + embedder como Tool (offline) | ❌ Não               |
+| `flows_research`| `Flow[S]` Start/Listen/Router (offline)            | ❌ Não                  |
 | `declarative`   | `LoadCrewFile` subconjunto JSON + Build (offline)  | ❌ Não                  |
 | `native_tools`  | Function calling nativo do provedor (`ToolModeNative`) | ✅ OpenAI / wiring offline |
 | `facts`         | Proveniência `Fact` via tools determinísticas      | ❌ Não                  |
@@ -33,6 +37,7 @@ Cada subpasta é um programa executável independente.
 ```bash
 # Sem chave de API:
 go run ./examples/custom_llm
+go run ./examples/flows_research  # demo Flow[S] offline
 go run ./examples/declarative  # LoadCrewFile subconjunto JSON (offline)
 go run ./examples/events      # WithEvents JSONL (offline)
 go run ./examples/streaming  # demux de stream mock offline
@@ -50,6 +55,9 @@ go run ./examples/sequential
 go run ./examples/hierarchical
 go run ./examples/staged
 go run ./examples/tools
+go run ./examples/tools_http   # HTTPFetch httptest (offline)
+go run ./examples/tools_files  # FileRead/FileWrite jail (offline)
+go run ./examples/rag_file     # padrão RAG FileStore (offline)
 go run ./examples/delegation   # wiring; live com OPENAI_API_KEY
 ```
 

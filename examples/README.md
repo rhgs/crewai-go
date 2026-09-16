@@ -19,6 +19,10 @@ Each subfolder is a standalone executable program.
 | `memory_embed`  | `AutoEmbed` + cosine Query with mock embedder (offline) | ❌ No |
 | `agentic_loop`  | Plan-Execute-Evaluate-Refine cycle (mock LLM)      | ❌ No                   |
 | `tools`         | An agent using tools via ReAct                     | ✅ OpenAI               |
+| `tools_http`    | `HTTPFetch` allowlist + SSRF deny (httptest, offline) | ❌ No                |
+| `tools_files`   | `FileRead`/`FileWrite` directory jail (offline)    | ❌ No                   |
+| `rag_file`      | RAG pattern: FileStore + embedder as a Tool (offline) | ❌ No                |
+| `flows_research`| `Flow[S]` Start/Listen/Router (offline)            | ❌ No                   |
 | `declarative`   | `LoadCrewFile` JSON-subset + Build (offline)       | ❌ No                   |
 | `native_tools`  | Provider-native function calling (`ToolModeNative`) | ✅ OpenAI / offline wiring |
 | `facts`         | `Fact` provenance from deterministic tools         | ❌ No                   |
@@ -33,6 +37,7 @@ Each subfolder is a standalone executable program.
 ```bash
 # Without an API key:
 go run ./examples/custom_llm
+go run ./examples/flows_research  # Flow[S] offline demo
 go run ./examples/declarative  # LoadCrewFile JSON-subset (offline)
 
 # With OpenAI:
@@ -48,6 +53,9 @@ go run ./examples/memory_file  # FileStore JSONL; MEMORY_DIR optional
 go run ./examples/memory_embed # AutoEmbed + cosine (mock)
 go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
+go run ./examples/tools_http   # HTTPFetch httptest (offline)
+go run ./examples/tools_files  # FileRead/FileWrite jail (offline)
+go run ./examples/rag_file     # RAG pattern FileStore (offline)
 go run ./examples/logging      # offline redaction demo
 go run ./examples/delegation   # wiring; live with OPENAI_API_KEY
 go run ./examples/mcp          # wiring; live with MCP_ENDPOINT
