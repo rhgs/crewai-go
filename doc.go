@@ -226,6 +226,17 @@
 // blocked, and domain names are resolved via DNS to prevent rebinding attacks.
 // Fail-closed: unresolvable hosts are blocked.
 //
+// # HTTP fetch and file tools
+//
+// tools.HTTPFetch is an SSRF-safe GET (deny-by-default allowlist, max 3
+// re-validated redirects, MaxToolOutputBytes cap). tools.FileRead and
+// tools.FileWrite jail paths with the same EvalSymlinks helper as
+// Task.OutputDir; write is off until WithAllowWrite; NUL bytes are rejected
+// unless WithAllowBinary. RAG is a docs/example pattern (no vector DB).
+//
+//	ht := tools.NewHTTPFetch(tools.WithHTTPAllowlist("api.example.com"))
+//	fr := tools.NewFileRead("/var/data")
+//
 // # Memory
 //
 // Setting Crew.Memory = true ensures an InMemory MemoryStore for the Kickoff

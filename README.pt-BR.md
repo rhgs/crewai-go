@@ -252,6 +252,8 @@ agente.WithTools(
 	tools.Calculator(),        // avalia expressões aritméticas
 	tools.CurrentTime(""),     // data/hora atual
 	tools.WordCount(),         // conta palavras/caracteres
+	tools.NewHTTPFetch(tools.WithHTTPAllowlist("api.example.com")),
+	tools.NewFileRead("/var/data"),
 )
 ```
 
@@ -691,6 +693,7 @@ go run ./examples/xai_oauth
 | Tasks | [PT](docs/pt-BR/tasks.md) | [EN](docs/tasks.md) |
 | Crews | [PT](docs/pt-BR/crews.md) | [EN](docs/crews.md) |
 | Tools | [PT](docs/pt-BR/tools.md) | [EN](docs/tools.md) |
+| Padrão RAG | [PT](docs/pt-BR/rag.md) | [EN](docs/rag.md) |
 | LLMs | [PT](docs/pt-BR/llms.md) | [EN](docs/llms.md) |
 | Memory | [PT](docs/pt-BR/memory.md) | [EN](docs/memory.md) |
 | MCP | [PT](docs/pt-BR/mcp.md) | [EN](docs/en/mcp.md) |
