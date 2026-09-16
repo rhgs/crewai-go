@@ -1,7 +1,7 @@
 # Plano — P3: Flows, tools embutidas, YAML declarativo, training/export de traces
 
-> **Status:** **Design** (não iniciado). Último tier do roadmap após v0.8.0.  
-> **Decisões:** **D-F1–D-F10 fechadas** 2026-08-24 (ver `DECISIONS.pt-BR.md` §7B). D-F11/D-F12 e D-T\*/D-Y\*/D-X\* ainda propostas no §9; fechar antes de qualquer código.  
+> **Status:** **Design** (não iniciado). Decisões da Fase 0 **todas fechadas** 2026-09-16 (D-F1–F12 + D-T1–T10 + D-Y1–Y10 + D-X1–X8). Trens da Fase 1 (T/F/Y/X em código) seguem não iniciados.  
+> **Decisões:** **Fase 0 completa** — ver `DECISIONS.pt-BR.md` §7B para status canônico; este plano guarda a rationale + recs.  
 > **Relacionado:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go`, `tool.go`, `tools/websearch.go` (guards SSRF), `task.go` (jail OutputDir), `memory_embed.go`, `schema.go`, `loop.go`.  
 > **Restrições:** zero deps externas no core (stdlib não tem parser YAML); gates: ≥90% cobertura por pacote tocado **e** agregado, race-clean, gofmt+vet, docs EN+PT, CHANGELOG, SECURITY quando aplicável.  
 > **Não-objetivos:** backlog adiado (xAI OAuth, M5, A5, D-S10, D-J9, O-J2 — ver `PLAN.deferred-backlog.pt-BR.md`); breaking changes; vector DB no core.
@@ -213,7 +213,7 @@ Obrigatórios **por PR**, não só na entrega final.
 ## 8. Ordem de implementação (trens de PR)
 
 ```
-Fase 0   Fechar D-F*, D-T*, D-Y*, D-X* neste doc → mover para DECISIONS.md
+Fase 0   ~~Fechar D-F*, D-T*, D-Y*, D-X* neste doc → mover para DECISIONS.md~~ **feito 2026-09-16**
 ── T1    extração urlguard + HTTPFetch + testes + docs
 ── T2    extração pathJail + File tools + testes + docs
 ── F1    Flow core (runner + builder) + validação de DAG
@@ -230,9 +230,12 @@ Empacotamento: um minor por trem (T→v0.9.0, F→v0.10.0, …) **ou** bundle v0
 
 ## 9. Decisões a fechar (Fase 0)
 
+> **Status:** todas as decisões da Fase 0 agora estão **fechadas** em [`DECISIONS.pt-BR.md`](DECISIONS.pt-BR.md) §7B.
+> Esta seção retém só a **rationale** (opções + rec) por ID; o status canônico vive no registro de decisões.
+
 ### Flows (D-F*)
 
-Ack de produto 2026-08-24 fechou **D-F1–D-F10**. D-F11 e D-F12 seguem abertas.
+Fechadas em DECISIONS.pt-BR.md §7B/§9: D-F1–D-F12 (12 IDs). Resto da Fase 0 (D-F11/D-F12) fechado em 2026-09-16.
 
 | ID | Pergunta | Opções | Escolha | Status |
 |---|---|---|---|---|
@@ -246,10 +249,12 @@ Ack de produto 2026-08-24 fechou **D-F1–D-F10**. D-F11 e D-F12 seguem abertas.
 | **D-F8** | ContinueOnError | (A) estado (B) `FlowResult.Errors` | **B** | **fechada** |
 | **D-F9** | Runs concorrentes | (A) permitir (B) single-flight | **B** | **fechada** |
 | **D-F10** | Join multi-dep | (A) todos (B) qualquer | **A** | **fechada** |
-| **D-F11** | Cancelamento | ctx + fail-fast default | rec: padrão | **aberta** |
-| **D-F12** | Ordem de trace paralela | completion vs fold por registro | rec: **fold por ordem de registro** | **aberta** |
+| **D-F11** | Cancelamento | ctx + fail-fast default | rec: padrão | **fechada** (2026-09-16, DECISIONS.pt-BR.md §7B) |
+| **D-F12** | Ordem de trace paralela | completion vs fold por registro | rec: **fold por ordem de registro** | **fechada** (2026-09-16, DECISIONS.pt-BR.md §7B) |
 
 ### Tools (D-T*)
+
+> Todas fechadas em 2026-09-16 — ver DECISIONS.pt-BR.md §7B-tools para status canônico.
 
 | ID | Pergunta | Decisão |
 |---|---|---|
@@ -266,6 +271,8 @@ Ack de produto 2026-08-24 fechou **D-F1–D-F10**. D-F11 e D-F12 seguem abertas.
 
 ### YAML (D-Y*)
 
+> Todas fechadas em 2026-09-16 — ver DECISIONS.pt-BR.md §7B-yaml para status canônico.
+
 | ID | Pergunta | Decisão |
 |---|---|---|
 | **D-Y1** | Parser | **A** subconjunto JSON no core |
@@ -280,6 +287,8 @@ Ack de produto 2026-08-24 fechou **D-F1–D-F10**. D-F11 e D-F12 seguem abertas.
 | **D-Y10** | Erros | `ValidationError` com pointer |
 
 ### Training (D-X*)
+
+> Todas fechadas em 2026-09-16 — ver DECISIONS.pt-BR.md §7B-train para status canônico.
 
 | ID | Pergunta | Decisão |
 |---|---|---|
@@ -309,7 +318,7 @@ Ack de produto 2026-08-24 fechou **D-F1–D-F10**. D-F11 e D-F12 seguem abertas.
 
 ## 11. Aceite (epic concluído)
 
-- [ ] D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8 fechadas em `DECISIONS.md`
+- [x] D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8 fechadas em `DECISIONS.md`
 - [ ] Runner `Flow[S]` com DAG, fold em barreira, eventos, `examples/flows_research`
 - [ ] `tools.HTTPFetch`, `FileRead`/`FileWrite` (jail, SSRF, tetos) + 3 examples
 - [ ] `docs/rag.md` (+ exemplo opcional)
@@ -325,4 +334,4 @@ Ack de produto 2026-08-24 fechou **D-F1–D-F10**. D-F11 e D-F12 seguem abertas.
 
 ## 12. Resumo
 
-Quatro trens P3 independentes com a mesma doutrina: APIs aditivas, só stdlib, concorrência determinística, telemetria metadata-safe, tools deny-by-default. Fase 0 fecha decisões; depois os trens F/T/Y/X entram na ordem do §8, com code review, security review, cobertura e revisão de docs por PR já enumerados no §6.
+Quatro trens P3 independentes com a mesma doutrina: APIs aditivas, só stdlib, concorrência determinística, telemetria metadata-safe, tools deny-by-default. **Fase 0 (decisões) está completa** (2026-09-16). Os trens F/T/Y/X entram na ordem do §8, com code review, security review, cobertura e revisão de docs por PR já enumerados no §6.

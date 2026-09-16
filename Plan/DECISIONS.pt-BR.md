@@ -183,9 +183,9 @@ Fechado pelo ack de produto (A3) — código só quando pedido:
 | **D-JE2** | Interação com $ref/allOf | (A) só por nó (B) eval-set faz merge entre aplicadores resolvidos | **B** | closed (unscheduled) |
 | **D-JE3** | Booleanos como unevaluated* | (A) permitir bool só em properties (B) só maps de schema no v1 | **B** | closed (unscheduled) |
 
-## 7B. P3 Flows Fase 0 (ack de produto 2026-08-24)
+## 7B. P3 Fase 0 (ack de produto 2026-08-24 + restante 2026-09-16)
 
-Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) §9. Fecha só D-F1–D-F10; **D-F11 / D-F12 e todas D-T\*/D-Y\*/D-X\* seguem abertas**. Sem código ainda.
+Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) §9. **Todas as IDs da Fase 0 fechadas** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Sem código ainda.
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
 |----|----------|--------|---------|--------|----------|-------|
@@ -200,7 +200,55 @@ Fonte: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-t
 | **D-F9** | `Run` concorrente no mesmo flow | (A) permitir (B) single-flight | **B** | closed | — | `ErrFlowRunning` (igual `ErrCrewRunning`) |
 | **D-F10** | Join multi-dep | (A) todos os deps (B) qualquer dep | **A** | closed | — | “Qualquer” é papel do Router |
 
-Ainda abertos nesta família: **D-F11** (cancel / fail-fast default), **D-F12** (ordem de fold do trace paralelo).
+Fechados nesta rodada (P3 Fase 0 restante, 2026-09-16):
+
+| ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
+|----|----------|--------|---------|--------|----------|-------|
+| **D-F11** | Cancelamento | (A) hard cancel mid-step (B) ctx aborta na próxima barreira + fail-fast default true | **B** | closed | — | Simétrico com barreira D-M7 |
+| **D-F12** | Ordem do trace paralelo | (A) por conclusão (B) fold por ordem de registro | **B** | closed | — | Mesma doutrina de D-M7/G1/G6/D-X8 |
+
+### Tools (D-T1–D-T10) — fechadas 2026-09-16
+
+| ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
+|----|----------|--------|---------|--------|----------|-------|
+| **D-T1** | HTTP tool no pkg `tools` | sim | **sim** | closed | — | `tools.HTTPFetch` |
+| **D-T2** | Default da allowlist | (A) deny-by-default (B) public-net allow | **A** | closed | — | Lista vazia rejeita tudo |
+| **D-T3** | Compartilhar jail | extrair helper interno compartilhado | **sim** | closed | — | Extrair `tools/urlguard.go` |
+| **D-T4** | Redirect | máx 3, revalida cada hop | **sim** | closed | — | Reusa checagens SSRF |
+| **D-T5** | File write | off por default, `AllowWrite` explícito | **sim** | closed | — | |
+| **D-T6** | Caps de bytes | reusa `MaxToolOutputBytes`; cap separado? | **reuso único** v1 | closed | — | |
+| **D-T7** | Binário | rejeitar por default (NUL), opt `AllowBinary` | **rejeitar** | closed | — | |
+| **D-T8** | Métodos HTTP default | só GET | **sim** | closed | — | |
+| **D-T9** | Helper RAG | (A) nenhum, só doc (B) `tools.MemoryQueryTool` | **A** v1 | closed | — | Exemplo carrega o pattern |
+| **D-T10** | Naming | `tools.HTTPFetch`, `tools.FileRead`, `tools.FileWrite` | **como descrito** | closed | — | |
+
+### YAML (D-Y1–D-Y10) — fechadas 2026-09-16
+
+| ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
+|----|----------|--------|---------|--------|----------|-------|
+| **D-Y1** | Parser | (A) JSON-subset no core (B) dep yaml (C) submodule | **A**, C deferido | closed | — | Preserva `P-DEPS` |
+| **D-Y2** | Entry API | `LoadCrew(io.Reader)` / `LoadCrewFile` | **ambos** | closed | — | |
+| **D-Y3** | Build wiring | reference maps | **sim** | closed | — | Fail closed em ref desconhecida |
+| **D-Y4** | Validação | JSON Schema via validator P2 | **sim** | closed | — | Reusa `schema.go` |
+| **D-Y5** | Refs desconhecidas | fail closed no Build | **sim** | closed | — | |
+| **D-Y6** | Context refs | name-first, index fallback | **name-first** | closed | — | |
+| **D-Y7** | Paridade de campos | full vs subset | **subset + tabela** | closed | — | |
+| **D-Y8** | Interpolação | nenhuma em v1 | **nenhuma** | closed | — | Env vai via Go |
+| **D-Y9** | Cap de tamanho | 1 MiB | **sim** | closed | — | |
+| **D-Y10** | Formato de erro | `ValidationError` pointer paths | **reuso** | closed | — | |
+
+### Training/export (D-X1–D-X8) — fechadas 2026-09-16
+
+| ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
+|----|----------|--------|---------|--------|----------|-------|
+| **D-X1** | Anexação | `Crew.Tracer` / `WithTracer` | **field + option** | closed | — | |
+| **D-X2** | Emissão | post-execute (pre-guardrail? filtro?) | **post-execute, pre-guardrail + filtro** | closed | — | |
+| **D-X3** | Formato | JSONL | **sim** | closed | — | |
+| **D-X4** | Bodies | metadata-only default; `WithTraceBodies(true)` opt-in | **opt-in** | closed | — | Alinha D-C4 |
+| **D-X5** | Save path | caller-trusted + jail | **caller-trusted + 0600** | closed | — | |
+| **D-X6** | Filtro | `WithTraceFilter` | **sim** | closed | — | |
+| **D-X7** | Concorrência | mutex | **mutex** | closed | — | |
+| **D-X8** | Wave async | fold order vs conclusão | **fold order + KickoffID + wave** | closed | — | |
 
 ## 8. Escolhas de produto permanentes (P-*)
 
@@ -220,7 +268,7 @@ Ainda abertos nesta família: **D-F11** (cancel / fail-fast default), **D-F12** 
 
 Itens adiados/abertos com condições de desbloqueio e IDs pré-alocados: [`PLAN.deferred-backlog.pt-BR.md`](PLAN.deferred-backlog.pt-BR.md) ([EN](PLAN.deferred-backlog.md)).
 
-Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F10** está aberto para relitigar sem **novo ID**.
+Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F12** / **D-T1–D-T10** / **D-Y1–D-Y10** / **D-X1–D-X8** está aberto para relitigar sem **novo ID**.
 
 | ID | Tópico | Status | Próximo passo |
 |----|--------|--------|---------------|
@@ -229,11 +277,11 @@ Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F10**
 | **P-A5** | Alias `Process=DAG` | deferred | Não fechar; revisitar só com sinal de confusão (A2) |
 | **D-S10** follow-up | Stream parcial de tool-call nativo | deferred — design fechado (D-ST1–D-ST4) | Implementar só sob demanda |
 | **D-J9** follow-up | unevaluatedProperties/Items | deferred — design fechado (D-JE1–D-JE3) | Implementar só sob demanda |
-| **D-F11** | Cancel / fail-fast default do Flow | open (P3 Fase 0) | Ack de produto; rec: ctx aborta na próxima barreira, fail-fast default true |
-| **D-F12** | Ordem de trace de steps paralelos | open (P3 Fase 0) | Ack de produto; rec: fold por ordem de registro |
-| **D-T1–D-T10** | Tools HTTP/files/RAG do P3 | open (P3 Fase 0) | Ack das recs do §9 |
-| **D-Y1–D-Y10** | YAML subconjunto JSON do P3 | open (P3 Fase 0) | Ack das recs do §9 |
-| **D-X1–D-X8** | TraceRecorder do P3 | open (P3 Fase 0) | Ack das recs do §9 |
+| ~~**D-F11**~~ | Cancel / fail-fast do Flow | **fechado 2026-09-16** | ctx aborta na próxima barreira + fail-fast default true |
+| ~~**D-F12**~~ | Ordem do trace paralelo | **fechado 2026-09-16** | Fold por ordem de registro |
+| ~~**D-T1–D-T10**~~ | Tools HTTP/files/RAG | **fechado 2026-09-16** | Ver §7B-tools |
+| ~~**D-Y1–D-Y10**~~ | YAML subconjunto JSON | **fechado 2026-09-16** | Ver §7B-yaml |
+| ~~**D-X1–D-X8**~~ | TraceRecorder | **fechado 2026-09-16** | Ver §7B-train |
 | ~~**O-J2**~~ | `format: time` | **fechado → D-JT1 (ship)** | Implementado em `schema.go` |
 
 ---
@@ -246,6 +294,7 @@ Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F10**
 | 2026-08-21 | Marcar D-C\* / D-J\* entregues na **v0.8.0** |
 | 2026-08-21 | Ack de produto (A1–A5): O-J2 → **D-JT1** (ship time); M5 → D-MT1–D-MT5 fechados sem agenda; D-S10 → D-ST1–D-ST4; D-J9 → D-JE1–D-JE3; A5 permanece adiado |
 | 2026-08-24 | P3 Fase 0 parcial: **D-F1–D-F10** fechadas (B/B/B/C/B/A/A/B/B/A). D-F11/D-F12 e D-T\*/D-Y\*/D-X\* seguem abertas. |
+| 2026-09-16 | P3 Fase 0 completa: **D-F11/D-F12** + **D-T1–T10** + **D-Y1–Y10** + **D-X1–X8** fechadas (30 IDs). Sem código ainda — trens da Fase 1 seguem não iniciados. |
 
 ## 11. Relacionados
 
