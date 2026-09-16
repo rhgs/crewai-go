@@ -298,9 +298,9 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   (CrewAI-style Flows), sem substituir Sequential/Hierarchical/Staged/
   waves Async. **Plano de design:** [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md)
   Trem F (D-F1–D-F12 fechadas 2026-09-16) **entregue**.
-- [ ] **Mais tools embutidas** — cliente HTTP (SSRF-safe, allowlists),
+- [x] **Mais tools embutidas** — cliente HTTP (SSRF-safe, allowlists),
   leitura/escrita de arquivo com jail, padrões RAG (vector DB fora do core).
-  **Mesmo plano**, Trem T (D-T1–D-T10).
+  **Mesmo plano**, Trem T (D-T1–D-T10) **entregue**.
 - [ ] **YAML declarativo** — `agents.yaml` / `tasks.yaml` compilados para
   tipos Go existentes; validação no load. v1 = **subconjunto JSON do YAML**
   (sem novas deps). **Mesmo plano**, Trem Y (D-Y1–D-Y10).
@@ -324,7 +324,7 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 | P2 | **Callbacks / telemetria** | **Entregue na v0.8.0** (PR #39): [`PLAN.p2-callbacks-schema.pt-BR.md`](PLAN.p2-callbacks-schema.pt-BR.md) Parte C |
 | P2 | **Remainder de JSON Schema** | **Entregue na v0.8.0** (PR #39): mesmo plano Parte J |
 | P3 | **Flows** | Design: [`PLAN.p3-flows-tools-yaml-training.pt-BR.md`](PLAN.p3-flows-tools-yaml-training.pt-BR.md) Trem F — D-F1–D-F12 **entregue** |
-| P3 | **Tools: HTTP, arquivos, padrões RAG** | Mesmo plano Trem T (SSRF/jail) — não iniciado |
+| P3 | **Tools: HTTP, arquivos, padrões RAG** | Mesmo plano Trem T (SSRF/jail) — **entregue** |
 | P3 | **Definições YAML de crew** | Mesmo plano Trem Y (subconjunto JSON) — não iniciado |
 | P3 | **Training / export de traces** | Mesmo plano Trem X (recorder JSONL) — não iniciado |
 | Adiado (memory-async P3) | **M5** `recall_memory` / `remember` | Tools de memória do agente |

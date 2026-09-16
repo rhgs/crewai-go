@@ -1,6 +1,6 @@
 # Plan — P3: Flows, built-in tools, declarative YAML, training/trace export
 
-> **Status:** **Train F shipped**. Phase 0 decisions **all closed** 2026-09-16. Trains T/Y/X may land separately.  
+> **Status:** **Trains T and F shipped**. Phase 0 decisions **all closed** 2026-09-16. Trains Y/X may land separately.  
 > **Decisions:** **Phase 0 complete** — see `DECISIONS.md` §7B for canonical status; this file keeps the rationale + recs.  
 > **Related:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go` (`Kickoff`, `emitEvent`), `tool.go`/`toolcall.go`, `tools/websearch.go` (SSRF helpers), `task.go` (OutputDir jail), `memory_embed.go` (`EmbeddingFunc`), `schema.go` (validator), `loop.go` (AgenticLoop), `examples/` (offline demos).  
 > **Constraints:** zero external module deps in core (`go.mod` stdlib-only); stdlib has **no YAML parser**; gates: ≥90% coverage on touched packages (per-package and aggregate), race-clean, gofmt+vet clean, EN+PT docs, CHANGELOG, SECURITY when applicable.  
@@ -272,8 +272,8 @@ No changes to `process.go` dispatch in v1 (Flows is a separate runner type).
 
 ```
 Phase 0   ~~Close D-F*, D-T*, D-Y*, D-X* in this doc → move into DECISIONS.md~~ **done 2026-09-16**
-── T1 first: T1 urlguard extract + HTTPTool + tests + docs
-── T2 pathJail extract + File tools + tests + docs
+── T1 first: ~~T1 urlguard extract + HTTPTool + tests + docs~~ **done**
+── T2 ~~pathJail extract + File tools + tests + docs~~ **done**
 ── F1 ~~Flow core (Runner, D-F2 builder) + cycle validation~~ **done**
 ── F2 ~~Flow concurrency (parallel listeners, join/fold) + events~~ **done**
 ── Y1 JSON-subset loader + schema validation + Build maps
@@ -379,8 +379,8 @@ Closed in DECISIONS.md §7B/§9: D-F1–D-F12 (12 IDs). Phase-0 remainder (D-F11
 
 - [x] D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8 closed in `DECISIONS.md`
 - [x] `Flow[S]` runner with DAG validation, barrier fold, events, `examples/flows_research`
-- [ ] `tools.HTTPFetch`, `tools.FileRead`/`FileWrite` (jail, SSRF, caps) + 3 examples
-- [ ] `docs/rag.md` pattern (+ optional example)
+- [x] `tools.HTTPFetch`, `tools.FileRead`/`FileWrite` (jail, SSRF, caps) + 3 examples
+- [x] `docs/rag.md` pattern (+ optional example)
 - [ ] `LoadCrew` JSON-subset loader + schema validation + `examples/declarative`
 - [ ] `TraceRecorder` metadata-default JSONL + `examples/trace_export`
 - [ ] Docs EN+PT for all four trains; README What's new; SECURITY notes

@@ -238,16 +238,16 @@ Closed in this pass (P3 Phase 0 remainder, 2026-09-16):
 
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|
-| **D-T1** | HTTP tool in `tools` pkg | yes | **yes** | closed | — | `tools.HTTPFetch` |
-| **D-T2** | Allowlist default | (A) deny-by-default (B) public-net allow | **A** | closed | — | Empty allowlist rejects all |
-| **D-T3** | Jail helper sharing | extract shared internal helper | **yes** | closed | — | Extract `tools/urlguard.go` from websearch.go |
-| **D-T4** | Redirect policy | max 3, re-validate each hop | **yes** | closed | — | Reuse SSRF checks per hop |
-| **D-T5** | File write | off by default, explicit `AllowWrite` | **yes** | closed | — | `tools.FileWrite` opt-in |
-| **D-T6** | Byte caps | reuse `MaxToolOutputBytes`; separate input cap | **single cap reuse** v1 | closed | — | Parity with current tools |
-| **D-T7** | Binary content | reject by default (NUL/check), opt `AllowBinary` | **reject default** | closed | — | NUL byte check on read |
-| **D-T8** | HTTP methods default | GET only | **yes** | closed | — | Caller can extend via option |
-| **D-T9** | RAG helper | (A) none, docs pattern (B) `tools.MemoryQueryTool` | **A** v1 | closed | — | Example carries the pattern; no vector DB in core |
-| **D-T10** | Tool naming | `tools.HTTPFetch`, `tools.FileRead`, `tools.FileWrite` | **as written** | closed | — | |
+| **D-T1** | HTTP tool in `tools` pkg | yes | **yes** | closed | tools/http.go | `tools.HTTPFetch` |
+| **D-T2** | Allowlist default | (A) deny-by-default (B) public-net allow | **A** | closed | tools/http.go | Empty allowlist rejects all |
+| **D-T3** | Jail helper sharing | extract shared internal helper | **yes** | closed | tools/urlguard.go, internal/pathjail | Extracted from websearch.go / task.go |
+| **D-T4** | Redirect policy | max 3, re-validate each hop | **yes** | closed | tools/http.go | Reuse SSRF checks per hop |
+| **D-T5** | File write | off by default, explicit `AllowWrite` | **yes** | closed | tools/files.go | `tools.FileWrite` opt-in |
+| **D-T6** | Byte caps | reuse `MaxToolOutputBytes`; separate input cap | **single cap reuse** v1 | closed | tools/http.go, tools/files.go | Parity with current tools |
+| **D-T7** | Binary content | reject by default (NUL/check), opt `AllowBinary` | **reject default** | closed | tools/files.go | NUL byte check on read |
+| **D-T8** | HTTP methods default | GET only | **yes** | closed | tools/http.go | Caller can extend via option |
+| **D-T9** | RAG helper | (A) none, docs pattern (B) `tools.MemoryQueryTool` | **A** v1 | closed | docs/rag.md, examples/rag_file | Example carries the pattern; no vector DB in core |
+| **D-T10** | Tool naming | `tools.HTTPFetch`, `tools.FileRead`, `tools.FileWrite` | **as written** | closed | tools/http.go, tools/files.go | |
 
 ### YAML (D-Y1–D-Y10) — closed 2026-09-16
 
@@ -326,6 +326,7 @@ When closing an open item: move it into the right section table, set **Status=cl
 | 2026-08-21 | Product ack (A1–A5): O-J2 → **D-JT1** (ship time); M5 → D-MT1–D-MT5 settled-unscheduled; D-S10 → D-ST1–D-ST4; D-J9 → D-JE1–D-JE3; A5 stays deferred |
 | 2026-08-24 | P3 Phase 0 partial: **D-F1–D-F10** closed (B/B/B/C/B/A/A/B/B/A). D-F11/D-F12 and D-T\*/D-Y\*/D-X\* still open. |
 | 2026-09-16 | P3 Phase 0 complete: **D-F11/D-F12** + **D-T1–T10** + **D-Y1–Y10** + **D-X1–X8** closed (30 IDs). No code change yet — Phase 1 trains still unstarted. |
+| 2026-09-16 | P3 Train T shipped: HTTPFetch + FileRead/FileWrite + urlguard/pathjail extract; D-T1–T10 **Shipped** filled. |
 | 2026-09-16 | P3 Train F shipped: `Flow[S]` + Start/Listen/Router; D-F1–D-F12 **Shipped** filled. |
 
 ---

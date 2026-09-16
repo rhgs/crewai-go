@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/rhgs/crewai-go/internal/pathjail"
 )
 
 // WarningSink is an optional interface available via context.Context
@@ -219,64 +221,20 @@ func writeTaskOutputFile(path, jail string, data []byte) error {
 	return os.WriteFile(path, data, 0o600)
 }
 
-// resolveOutputPathInJail returns an absolute, symlink-resolved path that
-// must equal jail or live under jail+separator. EvalSymlinks is applied to
-// the jail and to the deepest existing ancestor of the target (so new files
-// can still be created). Any resolution error fails closed.
+// resolveOutputPathInJail wraps pathjail.Resolve and maps failures onto
+// ErrOutputPathRejected (fail closed).
 func resolveOutputPathInJail(path, jail string) (string, error) {
-	absJail, err := filepath.Abs(strings.TrimSpace(jail))
+	resolved, err := pathjail.Resolve(path, jail)
 	if err != nil {
-		return "", fmt.Errorf("%w: jail abs: %v", ErrOutputPathRejected, err)
+		return "", fmt.Errorf("%w: %v", ErrOutputPathRejected, err)
 	}
-	absJail, err = filepath.EvalSymlinks(absJail)
-	if err != nil {
-		return "", fmt.Errorf("%w: jail symlinks: %v", ErrOutputPathRejected, err)
-	}
-	absJail = filepath.Clean(absJail)
-
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return "", fmt.Errorf("%w: path abs: %v", ErrOutputPathRejected, err)
-	}
-	resolved, err := evalSymlinksExisting(absPath)
-	if err != nil {
-		return "", fmt.Errorf("%w: path symlinks: %v", ErrOutputPathRejected, err)
-	}
-	resolved = filepath.Clean(resolved)
-
-	sep := string(filepath.Separator)
-	if resolved == absJail || strings.HasPrefix(resolved, absJail+sep) {
-		return resolved, nil
-	}
-	return "", fmt.Errorf("%w: %q escapes output dir", ErrOutputPathRejected, path)
+	return resolved, nil
 }
 
-// evalSymlinksExisting resolves symlinks for path. If path does not exist
-// yet, it resolves the deepest existing ancestor and rejoins the missing
-// trailing components (so OutputFile can create a new file inside the jail).
+// evalSymlinksExisting is kept as a thin alias so existing tests that
+// exercise the ancestor-walk still compile.
 func evalSymlinksExisting(path string) (string, error) {
-	if _, err := os.Lstat(path); err == nil {
-		return filepath.EvalSymlinks(path)
-	}
-	// Walk up until an existing ancestor is found.
-	var missing []string
-	cur := path
-	for {
-		parent := filepath.Dir(cur)
-		if parent == cur {
-			// Reached root without a resolvable ancestor.
-			return "", fmt.Errorf("no existing ancestor for %s", path)
-		}
-		missing = append([]string{filepath.Base(cur)}, missing...)
-		if _, err := os.Lstat(parent); err == nil {
-			resolvedParent, err := filepath.EvalSymlinks(parent)
-			if err != nil {
-				return "", err
-			}
-			return filepath.Join(append([]string{resolvedParent}, missing...)...), nil
-		}
-		cur = parent
-	}
+	return pathjail.EvalExisting(path)
 }
 
 // setToolTraces records the native tool call traces for this task.

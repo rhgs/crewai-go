@@ -211,16 +211,16 @@ Fechados nesta rodada (P3 Fase 0 restante, 2026-09-16):
 
 | ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
 |----|----------|--------|---------|--------|----------|-------|
-| **D-T1** | HTTP tool no pkg `tools` | sim | **sim** | closed | — | `tools.HTTPFetch` |
-| **D-T2** | Default da allowlist | (A) deny-by-default (B) public-net allow | **A** | closed | — | Lista vazia rejeita tudo |
-| **D-T3** | Compartilhar jail | extrair helper interno compartilhado | **sim** | closed | — | Extrair `tools/urlguard.go` |
-| **D-T4** | Redirect | máx 3, revalida cada hop | **sim** | closed | — | Reusa checagens SSRF |
-| **D-T5** | File write | off por default, `AllowWrite` explícito | **sim** | closed | — | |
-| **D-T6** | Caps de bytes | reusa `MaxToolOutputBytes`; cap separado? | **reuso único** v1 | closed | — | |
-| **D-T7** | Binário | rejeitar por default (NUL), opt `AllowBinary` | **rejeitar** | closed | — | |
-| **D-T8** | Métodos HTTP default | só GET | **sim** | closed | — | |
-| **D-T9** | Helper RAG | (A) nenhum, só doc (B) `tools.MemoryQueryTool` | **A** v1 | closed | — | Exemplo carrega o pattern |
-| **D-T10** | Naming | `tools.HTTPFetch`, `tools.FileRead`, `tools.FileWrite` | **como descrito** | closed | — | |
+| **D-T1** | HTTP tool no pkg `tools` | sim | **sim** | closed | tools/http.go | `tools.HTTPFetch` |
+| **D-T2** | Default da allowlist | (A) deny-by-default (B) public-net allow | **A** | closed | tools/http.go | Lista vazia rejeita tudo |
+| **D-T3** | Compartilhar jail | extrair helper interno compartilhado | **sim** | closed | tools/urlguard.go, internal/pathjail | Extraído de websearch.go / task.go |
+| **D-T4** | Redirect | máx 3, revalida cada hop | **sim** | closed | tools/http.go | Reusa checagens SSRF |
+| **D-T5** | File write | off por default, `AllowWrite` explícito | **sim** | closed | tools/files.go | |
+| **D-T6** | Caps de bytes | reusa `MaxToolOutputBytes`; cap separado? | **reuso único** v1 | closed | tools/http.go, tools/files.go | |
+| **D-T7** | Binário | rejeitar por default (NUL), opt `AllowBinary` | **rejeitar** | closed | tools/files.go | |
+| **D-T8** | Métodos HTTP default | só GET | **sim** | closed | tools/http.go | |
+| **D-T9** | Helper RAG | (A) nenhum, só doc (B) `tools.MemoryQueryTool` | **A** v1 | closed | docs/rag.md, examples/rag_file | Exemplo carrega o pattern |
+| **D-T10** | Naming | `tools.HTTPFetch`, `tools.FileRead`, `tools.FileWrite` | **como descrito** | closed | tools/http.go, tools/files.go | |
 
 ### YAML (D-Y1–D-Y10) — fechadas 2026-09-16
 
@@ -295,6 +295,7 @@ Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F12**
 | 2026-08-21 | Ack de produto (A1–A5): O-J2 → **D-JT1** (ship time); M5 → D-MT1–D-MT5 fechados sem agenda; D-S10 → D-ST1–D-ST4; D-J9 → D-JE1–D-JE3; A5 permanece adiado |
 | 2026-08-24 | P3 Fase 0 parcial: **D-F1–D-F10** fechadas (B/B/B/C/B/A/A/B/B/A). D-F11/D-F12 e D-T\*/D-Y\*/D-X\* seguem abertas. |
 | 2026-09-16 | P3 Fase 0 completa: **D-F11/D-F12** + **D-T1–T10** + **D-Y1–Y10** + **D-X1–X8** fechadas (30 IDs). Sem código ainda — trens da Fase 1 seguem não iniciados. |
+| 2026-09-16 | P3 Trem T entregue: HTTPFetch + FileRead/FileWrite + extração urlguard/pathjail; D-T1–T10 **Entregue** preenchido. |
 | 2026-09-16 | P3 Trem F entregue: `Flow[S]` + Start/Listen/Router; D-F1–D-F12 **Entregue** preenchido. |
 
 ## 11. Relacionados

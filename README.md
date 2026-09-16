@@ -254,6 +254,8 @@ agent.WithTools(
 	tools.Calculator(),        // evaluates arithmetic expressions
 	tools.CurrentTime(""),      // current date/time
 	tools.WordCount(),         // counts words/characters
+	tools.NewHTTPFetch(tools.WithHTTPAllowlist("api.example.com")),
+	tools.NewFileRead("/var/data"),
 )
 ```
 
@@ -738,6 +740,7 @@ go run ./examples/xai_oauth
 | Crews | [EN](docs/crews.md) | [PT](docs/pt-BR/crews.md) |
 | Tools | [EN](docs/tools.md) | [PT](docs/pt-BR/tools.md) |
 | Flows | [EN](docs/flows.md) | [PT](docs/pt-BR/flows.md) |
+| RAG pattern | [EN](docs/rag.md) | [PT](docs/pt-BR/rag.md) |
 | LLMs | [EN](docs/llms.md) | [PT](docs/pt-BR/llms.md) |
 | Memory | [EN](docs/memory.md) | [PT](docs/pt-BR/memory.md) |
 | MCP | [EN](docs/en/mcp.md) | [PT](docs/pt-BR/mcp.md) |

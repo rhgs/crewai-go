@@ -40,7 +40,53 @@ import "github.com/rhgs/crewai-go/tools"
 tools.Calculator()      // avalia "2 + 2 * (3 - 1)" — offline e seguro
 tools.CurrentTime("")   // data/hora atual (layout do pacote time; "" = RFC3339)
 tools.WordCount()       // conta palavras e caracteres do texto
+
+tools.NewHTTPFetch(tools.WithHTTPAllowlist("api.example.com"))
+tools.NewFileRead("/var/data")
+tools.NewFileWrite("/var/data", tools.WithAllowWrite())
 ```
+
+### HTTPFetch (SSRF-safe)
+
+Deny-by-default: allowlist vazia rejeita tudo. Hosts batem com `path.Match`
+(case-insensitive). Método default é GET. Redirects: máx. 3 hops,
+**revalidados**. Corpo limitado a `crewai.MaxToolOutputBytes` (1 MiB).
+
+```go
+ht := tools.NewHTTPFetch(
+    tools.WithHTTPAllowlist("api.example.com", "docs.*.internal"),
+    tools.WithHTTPTimeout(30*time.Second),
+    tools.WithHTTPMaxResponse(1<<20),
+    tools.WithHTTPHeader("User-Agent", "crewai-go"),
+)
+out, err := ht.Call(ctx, "https://api.example.com/v1/status")
+```
+
+Nunca passe URL controlada pelo modelo sem allowlist. Hosts link-local /
+metadata (`169.254.169.254`, `metadata.google.internal`) não podem ser
+allowlisted.
+
+Demo offline: `examples/tools_http`.
+
+### FileRead / FileWrite (jail de diretório)
+
+Os dois resolvem paths com o mesmo jail symlink-aware de `Task.OutputDir`
+(`EvalSymlinks`, fail closed). Write fica **off** até `WithAllowWrite`.
+Binário (NUL) é rejeitado salvo `WithAllowBinary`.
+
+```go
+read := tools.NewFileRead("/var/data")
+write := tools.NewFileWrite("/var/data", tools.WithAllowWrite())
+
+text, _ := read.Call(ctx, "/var/data/note.txt")
+_, _ = write.Call(ctx, `{"path":"/var/data/out.txt","content":"saved"}`)
+```
+
+Input do `FileWrite` é JSON `{"path","content"}`. Arquivos saem com modo
+`0600`. Demo offline: `examples/tools_files`.
+
+RAG continua um **padrão**, não uma tool embutida — ver
+[`docs/pt-BR/rag.md`](rag.md) e `examples/rag_file`.
 
 ## Anexando ferramentas
 
