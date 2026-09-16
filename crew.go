@@ -135,6 +135,10 @@ type Crew struct {
 	// Set via WithEvents before Kickoff. Concurrent-safe; panics recovered.
 	events EventFunc
 
+	// Tracer captures per-task JSONL records (D-X1). Set via WithTracer
+	// or assign before Kickoff.
+	Tracer *TraceRecorder
+
 	// runMu enforces a single in-flight Kickoff per Crew value. Concurrent
 	// Kickoff calls return ErrCrewRunning (fail fast; they do not queue).
 	runMu sync.Mutex
@@ -340,6 +344,9 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 	c.mem = nil
 	c.failedTasks = make(map[*Task]error)
 	c.discardMemoryBuffer()
+	if c.Tracer != nil {
+		c.Tracer.Reset()
+	}
 
 	if c.store == nil && c.Memory {
 		c.mem = NewMemory()
@@ -537,6 +544,7 @@ func (c *Crew) runSequentialSerial(ctx context.Context) (*CrewOutput, error) {
 			ToolTraces: task.ToolTraces(),
 			Warnings:   warnings,
 		})
+		c.publishTrace(task)
 		out.Facts = dedupFacts(out.Facts, facts)
 		out.Warnings = append(out.Warnings, warnings...)
 		out.Final = result
@@ -660,6 +668,7 @@ func (c *Crew) runWaveGroup(ctx context.Context, label string, idxs []int, agent
 	// D-M7: arm the per-group AutoSave buffer before workers start.
 	c.beginMemoryBuffer()
 
+	ctx = contextWithTraceWave(ctx, label)
 	results, firstErr, firstIdx := c.runTaskGroup(ctx, groupRun{
 		label:    label,
 		labelKey: "wave",
@@ -706,6 +715,7 @@ func (c *Crew) runWaveGroup(ctx context.Context, label string, idxs []int, agent
 			ToolTraces: res.task.ToolTraces(),
 			Warnings:   warnings,
 		})
+		c.publishTrace(res.task)
 		out.Facts = dedupFacts(out.Facts, res.facts)
 		out.Warnings = append(out.Warnings, warnings...)
 		out.Final = res.out
@@ -819,6 +829,7 @@ func (c *Crew) runHierarchical(ctx context.Context) (*CrewOutput, error) {
 			ToolTraces: task.ToolTraces(),
 			Warnings:   warnings,
 		})
+		c.publishTrace(task)
 		out.Facts = dedupFacts(out.Facts, facts)
 		out.Warnings = append(out.Warnings, warnings...)
 		out.Final = result
@@ -891,6 +902,7 @@ func (c *Crew) runStaged(ctx context.Context) (*CrewOutput, error) {
 				ToolTraces: res.task.ToolTraces(),
 				Warnings:   warnings,
 			})
+			c.publishTrace(res.task)
 			out.Facts = dedupFacts(out.Facts, res.facts)
 			out.Warnings = append(out.Warnings, warnings...)
 			out.Final = res.out
@@ -1108,7 +1120,11 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, [
 		}
 	}
 
+	t0 := time.Now()
 	result, facts, err := executeTask(ctx, agent, task, contextText, c.logger)
+	if c.Tracer != nil {
+		c.Tracer.capture(ctx, task, agent, contextText, result, facts, time.Since(t0), err)
+	}
 	if err != nil {
 		return "", nil, err
 	}
@@ -1153,6 +1169,12 @@ func (c *Crew) execute(ctx context.Context, agent *Agent, task *Task) (string, [
 	}
 
 	return result, facts, nil
+}
+
+func (c *Crew) publishTrace(task *Task) {
+	if c.Tracer != nil {
+		c.Tracer.publish(task)
+	}
 }
 
 // resolveManager returns the manager agent for the hierarchical process.

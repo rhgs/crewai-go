@@ -1,6 +1,6 @@
 # Plano — P3: Flows, tools embutidas, YAML declarativo, training/export de traces
 
-> **Status:** **Trens T, F e Y entregues**. Decisões da Fase 0 **todas fechadas** 2026-09-16. Trem X pode aterrissar à parte.  
+> **Status:** **Trens T, F, Y e X entregues**. Decisões da Fase 0 **todas fechadas** 2026-09-16.  
 > **Decisões:** **Fase 0 completa** — ver `DECISIONS.pt-BR.md` §7B para status canônico; este plano guarda a rationale + recs.  
 > **Relacionado:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go`, `tool.go`, `tools/websearch.go` (guards SSRF), `task.go` (jail OutputDir), `memory_embed.go`, `schema.go`, `loop.go`.  
 > **Restrições:** zero deps externas no core (stdlib não tem parser YAML); gates: ≥90% cobertura por pacote tocado **e** agregado, race-clean, gofmt+vet, docs EN+PT, CHANGELOG, SECURITY quando aplicável.  
@@ -219,7 +219,7 @@ Fase 0   ~~Fechar D-F*, D-T*, D-Y*, D-X* neste doc → mover para DECISIONS.md~~
 ── F1    ~~Flow core (runner + builder) + validação de DAG~~ **feito**
 ── F2    ~~concorrência do Flow (listeners paralelos, join/fold) + eventos~~ **feito**
 ── Y1    ~~loader JSON-subset + validação schema + Build maps~~ **feito**
-── X1    TraceRecorder metadata default + Save
+── X1    ~~TraceRecorder metadata default + Save~~ **feito**
 ── RAG   doc/exemplo (pode entrar a qualquer momento; M3 já existe)
 ── Sync release (CHANGELOG/PLAN/DECISIONS) → tag(s)
 ```
@@ -323,9 +323,9 @@ Fechadas em DECISIONS.pt-BR.md §7B/§9: D-F1–D-F12 (12 IDs). Resto da Fase 0 
 - [x] `tools.HTTPFetch`, `FileRead`/`FileWrite` (jail, SSRF, tetos) + 3 examples
 - [x] `docs/rag.md` (+ exemplo opcional)
 - [x] `LoadCrew` subconjunto JSON + validação + `examples/declarative`
-- [ ] `TraceRecorder` metadata-default JSONL + `examples/trace_export`
-- [ ] Docs EN+PT dos quatro trens; What's new; notas SECURITY
-- [ ] Cobertura ≥90% (agregado + pacotes tocados), `-race` limpo
+- [x] `TraceRecorder` metadata-default JSONL + `examples/trace_export`
+- [x] Docs EN+PT dos quatro trens; What's new; notas SECURITY
+- [x] Cobertura ≥90% (agregado + pacotes tocados), `-race` limpo
 - [ ] CHANGELOG EN+PT; tags conforme §8
 
 **Janela-alvo:** pós v0.8.0; **não** empacotar com backlog adiado.

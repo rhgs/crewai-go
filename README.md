@@ -742,6 +742,7 @@ go run ./examples/xai_oauth
 | Flows | [EN](docs/flows.md) | [PT](docs/pt-BR/flows.md) |
 | RAG pattern | [EN](docs/rag.md) | [PT](docs/pt-BR/rag.md) |
 | Declarative crews | [EN](docs/declarative.md) | [PT](docs/pt-BR/declarative.md) |
+| Training / traces | [EN](docs/training.md) | [PT](docs/pt-BR/training.md) |
 | LLMs | [EN](docs/llms.md) | [PT](docs/pt-BR/llms.md) |
 | Memory | [EN](docs/memory.md) | [PT](docs/pt-BR/memory.md) |
 | MCP | [EN](docs/en/mcp.md) | [PT](docs/pt-BR/mcp.md) |

@@ -212,7 +212,7 @@ Settled by product ack (A3) — code only when requested:
 
 ## 7B. P3 Phase 0 (product ack 2026-08-24 + remainder 2026-09-16)
 
-Source: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) §9. **All Phase-0 IDs closed** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Trains T, F, and Y shipped; train X (TraceRecorder) still unstarted.
+Source: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) §9. **All Phase-0 IDs closed** (D-F1–D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8). Trains T, F, Y, and X shipped.
 
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|
@@ -268,14 +268,14 @@ Closed in this pass (P3 Phase 0 remainder, 2026-09-16):
 
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|
-| **D-X1** | Recorder attachment | `Crew.Tracer` field / `WithTracer` | **field + option** | closed | — | Idiomatic options pattern |
-| **D-X2** | Record emission point | post-execute (post-guardrail? filter?) | **post-execute, pre-guardrail + filter** | closed | — | Filter decides publication |
-| **D-X3** | Format | JSONL | **yes** | closed | — | Append-friendly |
-| **D-X4** | Bodies | metadata-only default; `WithTraceBodies(true)` opt-in | **opt-in** | closed | — | Aligns D-C4; redaction stays on |
-| **D-X5** | Save path safety | caller-trusted path or jail option | **caller-trusted + 0600** | closed | — | |
-| **D-X6** | Filter hook | `WithTraceFilter(func(TaskTraceRecord) bool)` | **yes** | closed | — | |
-| **D-X7** | Concurrency | recorder serializes records under mutex | **mutex** | closed | — | Fold order preserved |
-| **D-X8** | Async wave records | fold order vs completion | **fold order + KickoffID + wave label** | closed | — | Deterministic with D-M7 |
+| **D-X1** | Recorder attachment | `Crew.Tracer` field / `WithTracer` | **field + option** | closed | trace.go | Idiomatic options pattern |
+| **D-X2** | Record emission point | post-execute (post-guardrail? filter?) | **post-execute, pre-guardrail + filter** | closed | crew.go | Filter decides publication |
+| **D-X3** | Format | JSONL | **yes** | closed | trace.go | Append-friendly |
+| **D-X4** | Bodies | metadata-only default; `WithTraceBodies(true)` opt-in | **opt-in** | closed | trace.go | Aligns D-C4; redaction stays on |
+| **D-X5** | Save path safety | caller-trusted path or jail option | **caller-trusted + 0600** | closed | trace.go | |
+| **D-X6** | Filter hook | `WithTraceFilter(func(TaskTraceRecord) bool)` | **yes** | closed | trace.go | |
+| **D-X7** | Concurrency | recorder serializes records under mutex | **mutex** | closed | trace.go | Fold order preserved |
+| **D-X8** | Async wave records | fold order vs completion | **fold order + KickoffID + wave label** | closed | crew.go | Deterministic with D-M7 |
 
 ## 8. Standing product choices (P-*)
 
@@ -329,6 +329,7 @@ When closing an open item: move it into the right section table, set **Status=cl
 | 2026-09-16 | P3 Train T shipped: HTTPFetch + FileRead/FileWrite + urlguard/pathjail extract; D-T1–T10 **Shipped** filled. |
 | 2026-09-16 | P3 Train F shipped: `Flow[S]` + Start/Listen/Router; D-F1–D-F12 **Shipped** filled. |
 | 2026-09-16 | P3 Train Y shipped: LoadCrew/LoadCrewFile + Build maps; D-Y1–D-Y10 **Shipped** filled. |
+| 2026-09-16 | P3 Train X shipped: TraceRecorder JSONL; D-X1–D-X8 **Shipped** filled. |
 
 ---
 

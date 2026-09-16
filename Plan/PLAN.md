@@ -316,7 +316,7 @@ and environment variable names in docs/README. The `.gitignore` protects
   composition) compiled into the existing Go types; validation errors at load
   time. v1 = **JSON-subset YAML** (no new deps). **Same plan**, Train Y
   (D-Y1–D-Y10).
-- [ ] **Training** — prompt fine-tuning / few-shot distillation from successful
+- [x] **Training** — prompt fine-tuning / few-shot distillation from successful
   executions (export traces → curated examples). Out of core model training;
   library-side capture + export only. **Same plan**, Train X (D-X1–D-X8).
 
@@ -336,7 +336,7 @@ unless explicitly accepted).
 | P3 | **Flows** | Design: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) Train F — D-F1–D-F12 **shipped** |
 | P3 | **Tools: HTTP, files, RAG patterns** | Same plan Train T (SSRF/jail) — **shipped** |
 | P3 | **YAML crew definitions** | Same plan Train Y (JSON-subset v1) — **shipped** |
-| P3 | **Training / trace export** | Same plan Train X (JSONL recorder) — not started |
+| P3 | **Training / trace export** | Same plan Train X (JSONL recorder) — **shipped** |
 | Deferred (memory-async P3) | **M5** `recall_memory` / `remember` | Agent-driven memory tools |
 | Deferred (memory-async P3) | **A5** `Process=DAG` alias | Naming sugar only |
 

@@ -24,6 +24,7 @@ Cada subpasta é um programa executável independente.
 | `rag_file`      | Padrão RAG: FileStore + embedder como Tool (offline) | ❌ Não               |
 | `flows_research`| `Flow[S]` Start/Listen/Router (offline)            | ❌ Não                  |
 | `declarative`   | `LoadCrewFile` subconjunto JSON + Build (offline)  | ❌ Não                  |
+| `trace_export`  | `TraceRecorder` JSONL metadata-only (offline)      | ❌ Não                  |
 | `native_tools`  | Function calling nativo do provedor (`ToolModeNative`) | ✅ OpenAI / wiring offline |
 | `facts`         | Proveniência `Fact` via tools determinísticas      | ❌ Não                  |
 | `guardrails`    | `Guardrail` pós-saída bloqueando resultados inválidos | ❌ Não               |
@@ -39,6 +40,7 @@ Cada subpasta é um programa executável independente.
 go run ./examples/custom_llm
 go run ./examples/flows_research  # demo Flow[S] offline
 go run ./examples/declarative  # LoadCrewFile subconjunto JSON (offline)
+go run ./examples/trace_export  # TraceRecorder JSONL (offline)
 go run ./examples/events      # WithEvents JSONL (offline)
 go run ./examples/streaming  # demux de stream mock offline
 go run ./examples/async_tasks  # waves Task.Async; USE_OPENAI=1 para live

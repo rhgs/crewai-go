@@ -1,6 +1,6 @@
 # Plan — P3: Flows, built-in tools, declarative YAML, training/trace export
 
-> **Status:** **Trains T, F, and Y shipped**. Phase 0 decisions **all closed** 2026-09-16. Train X may land separately.  
+> **Status:** **Trains T, F, Y, and X shipped**. Phase 0 decisions **all closed** 2026-09-16.  
 > **Decisions:** **Phase 0 complete** — see `DECISIONS.md` §7B for canonical status; this file keeps the rationale + recs.  
 > **Related:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go` (`Kickoff`, `emitEvent`), `tool.go`/`toolcall.go`, `tools/websearch.go` (SSRF helpers), `task.go` (OutputDir jail), `memory_embed.go` (`EmbeddingFunc`), `schema.go` (validator), `loop.go` (AgenticLoop), `examples/` (offline demos).  
 > **Constraints:** zero external module deps in core (`go.mod` stdlib-only); stdlib has **no YAML parser**; gates: ≥90% coverage on touched packages (per-package and aggregate), race-clean, gofmt+vet clean, EN+PT docs, CHANGELOG, SECURITY when applicable.  
@@ -277,7 +277,7 @@ Phase 0   ~~Close D-F*, D-T*, D-Y*, D-X* in this doc → move into DECISIONS.md~
 ── F1 ~~Flow core (Runner, D-F2 builder) + cycle validation~~ **done**
 ── F2 ~~Flow concurrency (parallel listeners, join/fold) + events~~ **done**
 ── Y1 ~~JSON-subset loader + schema validation + Build maps~~ **done**
-── X1 TraceRecorder metadata default + Save
+── X1 ~~TraceRecorder metadata default + Save~~ **done**
 ── RAG doc/example (docs-only train, can be anytime after M3 exists — already does)
 ── Release sync (CHANGELOG/PLAN/DECISIONS) → tag v0.9.0 (or split minors per train)
 ```
@@ -382,9 +382,9 @@ Closed in DECISIONS.md §7B/§9: D-F1–D-F12 (12 IDs). Phase-0 remainder (D-F11
 - [x] `tools.HTTPFetch`, `tools.FileRead`/`FileWrite` (jail, SSRF, caps) + 3 examples
 - [x] `docs/rag.md` pattern (+ optional example)
 - [x] `LoadCrew` JSON-subset loader + schema validation + `examples/declarative`
-- [ ] `TraceRecorder` metadata-default JSONL + `examples/trace_export`
-- [ ] Docs EN+PT for all four trains; README What's new; SECURITY notes
-- [ ] Coverage ≥90% (aggregate + each touched pkg), `-race` clean
+- [x] `TraceRecorder` metadata-default JSONL + `examples/trace_export`
+- [x] Docs EN+PT for all four trains; README What's new; SECURITY notes
+- [x] Coverage ≥90% (aggregate + each touched pkg), `-race` clean
 - [ ] CHANGELOG EN+PT; release tags per §8 packaging decision
 
 **Target window:** after v0.8.0; do **not** bundle with deferred backlog items.

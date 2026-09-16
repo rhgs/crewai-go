@@ -258,6 +258,16 @@
 //	cfg, err := crewai.LoadCrewFile("crew.json")
 //	crew, err := cfg.Build(crewai.WithLLMMap(map[string]crewai.LLM{"echo": llm}))
 //
+// # Trace export
+//
+// TraceRecorder captures per-task JSONL records during Kickoff. Default is
+// metadata-only; WithTraceBodies(true) opts into redacted bodies. Save writes
+// 0600 JSONL to a caller-trusted path. See docs/training.md.
+//
+//	rec := crewai.NewTraceRecorder()
+//	crew.WithTracer(rec)
+//	_ = rec.Save("traces.jsonl")
+//
 // # Memory
 //
 // Setting Crew.Memory = true ensures an InMemory MemoryStore for the Kickoff
