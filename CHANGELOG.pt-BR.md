@@ -31,6 +31,12 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   como full-time RFC 3339 (`HH:MM:SS[.fff][Z|±hh:mm]`); docs da allowlist
   atualizados.
 
+### Segurança
+
+- **TraceRecorder `WithTraceBodies`**: claims de facts, args e outputs de
+  tools agora passam por `redactString` (antes só prompt e output eram
+  redigidos).
+
 ### Documentação
 
 - **P3 Fase 0 (completa)** — D-F1–D-F10 fechadas 2026-08-24

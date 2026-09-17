@@ -25,6 +25,21 @@ func (s *seqLLM) Call(_ context.Context, _ []Message) (string, error) {
 	return r, nil
 }
 
+type mockNativeTool struct{ calls []*ToolCallResponse }
+
+func (m *mockNativeTool) Model() string { return "native-mock" }
+func (m *mockNativeTool) Call(context.Context, []Message) (string, error) {
+	return "", errors.New("Call not used")
+}
+func (m *mockNativeTool) CallWithTools(_ context.Context, _ []Message, _ []ToolSpec) (*ToolCallResponse, error) {
+	if len(m.calls) == 0 {
+		return &ToolCallResponse{Content: "done"}, nil
+	}
+	c := m.calls[0]
+	m.calls = m.calls[1:]
+	return c, nil
+}
+
 type traceLLM string
 
 func (t traceLLM) Model() string { return "trace" }
@@ -161,6 +176,64 @@ func TestTraceRecorder_NilAndReset(t *testing.T) {
 	r.Reset()
 	if len(r.Records()) != 0 {
 		t.Fatal("reset")
+	}
+}
+
+func TestTraceRecorder_BodiesRedactFactsAndTools(t *testing.T) {
+	secretOut := "token=sk-abcdefghijklmnopqrstuvwxyz0123"
+	tool := NewTool("fetch", "f", func(context.Context, string) (string, error) {
+		return secretOut, nil
+	})
+
+	mock := &mockNativeTool{calls: []*ToolCallResponse{
+		{ToolCalls: []ToolCall{{Function: ToolCallFunction{Name: "fetch", Arguments: json.RawMessage(`{"k":"v"}`)}}}},
+	}}
+	a := NewAgent("A", "", "", mock)
+	a.ToolMode = ToolModeNative
+	a.WithTools(tool)
+	task := NewTask("native tool", "", a)
+
+	rec := NewTraceRecorder(WithTraceBodies(true))
+	crew := NewCrew([]*Agent{a}, []*Task{task}).WithTracer(rec)
+	if _, err := crew.Kickoff(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	got := rec.Records()
+	if len(got) != 1 || len(got[0].Tools) == 0 {
+		t.Fatalf("%+v", got)
+	}
+	if strings.Contains(got[0].Tools[0].Output, secretOut) {
+		t.Fatalf("tool output leaked: %q", got[0].Tools[0].Output)
+	}
+}
+
+func TestTraceRecorder_BodiesRedactFacts(t *testing.T) {
+	secret := "claim-token-abcdefghijklmnopqrstuvwxyz0123"
+	tool := NewFactSourceTool("f", "f", func(_ context.Context, in string) (string, error) {
+		return in, nil
+	}, func(_ context.Context, _ string) []Fact {
+		return []Fact{NewFact(secret, "org", "https://example.com", []byte("raw"))}
+	})
+	a := NewAgent("A", "", "", &seqLLM{responses: []string{
+		"Thought: x\nAction: f\nAction Input: q",
+		"Final Answer: done",
+	}})
+	a.WithTools(tool)
+	task := NewTask("fact tool", "", a)
+	rec := NewTraceRecorder(WithTraceBodies(true))
+	crew := NewCrew([]*Agent{a}, []*Task{task}).WithTracer(rec)
+	if _, err := crew.Kickoff(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	got := rec.Records()
+	if len(got) != 1 || len(got[0].Facts) == 0 {
+		t.Fatalf("%+v", got)
+	}
+	if strings.Contains(got[0].Facts[0].Claim, secret) {
+		t.Fatalf("claim leaked: %q", got[0].Facts[0].Claim)
+	}
+	if got[0].Facts[0].PayloadHash == "" {
+		t.Fatal("payload hash kept")
 	}
 }
 

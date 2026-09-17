@@ -20,7 +20,9 @@ Bodies (prompt, output, tool args) are **opt-in**:
 rec := crewai.NewTraceRecorder(crewai.WithTraceBodies(true))
 ```
 
-Even with bodies on, strings pass through `redactString`. Filter what is
+Even with bodies on, prompt / output / fact-claim / tool-arg / tool-output
+strings pass through `redactString` (fact `payload_hash` is a hash, not a
+secret, and stays as-is). Filter what is
 published (e.g. only named tasks):
 
 ```go
