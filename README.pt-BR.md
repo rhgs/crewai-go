@@ -726,17 +726,19 @@ go run ./examples/xai_oauth
 | Plano / Roadmap | [PT](Plan/PLAN.pt-BR.md) | [EN](Plan/PLAN.md) |
 | Politica de seguranca | — | [EN](SECURITY.md) |
 
-### Novidades da v0.8.0
+### Novidades da v0.9.0
 
-Todas as features são **backward compatible** — só APIs aditivas.
+Todas as features são **backward compatible** — só APIs aditivas. Trens P3 T+F+Y+X.
 
 | Recurso | Descrição | Docs (PT) | Docs (EN) |
 |---------|-----------|-----------|-----------|
-| **`WithEvents` / `CrewEvent`** | Telemetria de lifecycle só com metadados: kickoff, task/wave, `llm_call_*`, `react_iteration`, `structured_repair`, `loop_phase`, `guardrail_blocked`; `KickoffID`; dual-emit com Progress. | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) | [docs/crews.md](docs/crews.md) |
-| **Remainder de JSON Schema** | `$ref` local, allowlist de `format`, `const`/`not`/`if`/`then`/`else`, contagens de properties, `uniqueItems`; `unevaluated*` ainda Strict-fail. | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) | [docs/tasks.md](docs/tasks.md) |
-| **Guia de concorrência** | Data races vs semantic races; barreira + fold por declaração; Memory D-M7. | [docs/pt-BR/concurrency.md](docs/pt-BR/concurrency.md) | [docs/concurrency.md](docs/concurrency.md) |
-| **Registro de decisões** | Catálogo vivo de decisões de design com opções. | [Plan/DECISIONS.pt-BR.md](Plan/DECISIONS.pt-BR.md) | [Plan/DECISIONS.md](Plan/DECISIONS.md) |
-| **Exemplo** | Offline `examples/events`. | [examples/events](examples/events) | [examples/](examples/) |
+| **`Flow[S]`** | Runner event-driven tipado (`Start` / `Listen` / `Router`); fold na barreira; `ErrFlowRunning`. | [docs/pt-BR/flows.md](docs/pt-BR/flows.md) | [docs/flows.md](docs/flows.md) |
+| **HTTPFetch / FileRead / FileWrite** | GET SSRF-safe (allowlist deny-by-default); arquivos com jail (write opt-in). RAG é padrão de docs. | [docs/pt-BR/tools.md](docs/pt-BR/tools.md) | [docs/tools.md](docs/tools.md) |
+| **Crews declarativos** | Subconjunto JSON `LoadCrew` / `Build` (sem parser YAML; refs fail-closed). | [docs/pt-BR/declarative.md](docs/pt-BR/declarative.md) | [docs/declarative.md](docs/declarative.md) |
+| **`TraceRecorder`** | Export JSONL do Kickoff; metadata-only default; bodies opt-in (redigidos). | [docs/pt-BR/training.md](docs/pt-BR/training.md) | [docs/training.md](docs/training.md) |
+| **Exemplos** | `flows_research`, `tools_http`, `tools_files`, `rag_file`, `declarative`, `trace_export`. | [examples/](examples/) | [examples/](examples/) |
+
+**Também na v0.8.0**: `WithEvents` / `CrewEvent`, remainder de JSON Schema, guia de concorrência, registro de decisões.
 
 **Também na v0.7.0**: `StreamingLLM` + `WithStream`, `CallStream` nos providers, `CollectStream`.
 
@@ -748,7 +750,7 @@ Todas as features são **backward compatible** — só APIs aditivas.
 
 **Também na v0.3.0**: native tool calling, web search, logging estruturado via `log/slog`, redação de segredos.
 
-Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.8.0](https://github.com/rhgs/crewai-go/releases/tag/v0.8.0) para detalhes.
+Veja o [CHANGELOG](CHANGELOG.pt-BR.md) para a lista completa de mudanças e o [release v0.9.0](https://github.com/rhgs/crewai-go/releases/tag/v0.9.0) para detalhes.
 
 
 ## Testes

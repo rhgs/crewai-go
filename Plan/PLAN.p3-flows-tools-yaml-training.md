@@ -247,7 +247,7 @@ These apply to **every implementation PR**, not just the epic end.
 ### 6.4 Documentation review checklist (per train)
 
 - [ ] New guide: `docs/flows.md`, `docs/tools.md` expansion, `docs/declarative.md`, `docs/training.md` (+ PT mirrors).
-- [ ] README Why bullet + Concepts rows + What's new on release tag.
+- [x] README Why bullet + Concepts rows + What's new on release tag.
 - [ ] `doc.go` short section.
 - [ ] Examples README tables + run blocks.
 - [ ] CHANGELOG EN+PT; PLAN checkbox; DECISIONS.md new IDs.
@@ -385,7 +385,7 @@ Closed in DECISIONS.md §7B/§9: D-F1–D-F12 (12 IDs). Phase-0 remainder (D-F11
 - [x] `TraceRecorder` metadata-default JSONL + `examples/trace_export`
 - [x] Docs EN+PT for all four trains; README What's new; SECURITY notes
 - [x] Coverage ≥90% (aggregate + each touched pkg), `-race` clean
-- [ ] CHANGELOG EN+PT; release tags per §8 packaging decision
+- [x] CHANGELOG EN+PT; release tags per §8 packaging decision (**v0.9.0 bundle**)
 
 **Target window:** after v0.8.0; do **not** bundle with deferred backlog items.
 

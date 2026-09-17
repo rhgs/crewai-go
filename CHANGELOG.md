@@ -5,6 +5,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [v0.9.0] — 2026-09-17
+
 ### Added
 
 - **P3 Train F — Flows (D-F1–D-F12)**: `Flow[S]` + `Start`/`Listen`/`Router`.
@@ -40,8 +42,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **P3 Phase 0 (complete)** — D-F1–D-F10 closed 2026-08-24
   (B/B/B/C/B/A/A/B/B/A); D-F11/D-F12, D-T1–D-T10, D-Y1–D-Y10, D-X1–D-X8
-  closed 2026-09-16 (30 IDs total). Trains T, F, Y, and X shipped (this
-  unreleased). See `Plan/DECISIONS.md` §7B.
+  closed 2026-09-16 (30 IDs total). Trains T, F, Y, and X shipped in this
+  release. See `Plan/DECISIONS.md` §7B.
 - **Deferred backlog** — product ack 2026-08-21 (A1–A5): M5 → D-MT1–D-MT5,
   D-S10 → D-ST1–D-ST4, D-J9 → D-JE1–D-JE3 settled (unscheduled); A5 stays
   deferred; P-XAI-OAUTH still external. See `Plan/DECISIONS.md` §7A.
@@ -49,7 +51,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Flows (D-F1–D-F12), built-in tools (D-T1–D-T10), declarative YAML
   JSON-subset (D-Y1–D-Y10), training/trace export (D-X1–D-X8); per-train
   code/security review, ≥90% coverage and docs-review gates; linked from
-  roadmap P3. Trains T, F, Y, and X shipped (this unreleased).
+  roadmap P3. Trains T, F, Y, and X shipped in this release.
 - **Deferred backlog plan**: `Plan/PLAN.deferred-backlog.md` (+ PT) — six
   open/deferred items (xAI OAuth, M5, A5, D-S10, D-J9, O-J2) with unblock
   conditions, design space, and pre-allocated decision IDs.
@@ -515,7 +517,8 @@ First public release: an idiomatic Go port of the CrewAI framework core.
   runtime inter-agent calls), no streaming, in-process memory only, no native
   function calling. See `Plan/PLAN.md` for the full roadmap.
 
-[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.9.0...HEAD
+[v0.9.0]: https://github.com/rhgs/crewai-go/compare/v0.8.0...v0.9.0
 [v0.8.0]: https://github.com/rhgs/crewai-go/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/rhgs/crewai-go/compare/v0.6.0...v0.7.0
 [v0.6.0]: https://github.com/rhgs/crewai-go/compare/v0.5.0...v0.6.0
