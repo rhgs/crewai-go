@@ -20,7 +20,9 @@ Bodies (prompt, output, args de tool) são **opt-in**:
 rec := crewai.NewTraceRecorder(crewai.WithTraceBodies(true))
 ```
 
-Mesmo com bodies, strings passam por `redactString`. Filtro de publicação:
+Mesmo com bodies, strings de prompt / output / claim de facts / args / output
+de tools passam por `redactString` (o `payload_hash` de facts é hash, não
+segredo, e permanece). Filtro de publicação:
 
 ```go
 rec := crewai.NewTraceRecorder(crewai.WithTraceFilter(func(r crewai.TaskTraceRecord) bool {

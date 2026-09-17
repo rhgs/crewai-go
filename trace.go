@@ -150,8 +150,8 @@ func (r *TraceRecorder) capture(ctx context.Context, task *Task, agent *Agent, c
 			Description: redactString(task.Description),
 			Context:     redactString(contextText),
 		}
-		rec.Facts = facts
-		rec.Tools = task.ToolTraces()
+		rec.Facts = bodyFacts(facts)
+		rec.Tools = bodyTools(task.ToolTraces())
 	} else {
 		rec.Facts = metadataFacts(facts)
 		rec.Tools = metadataTools(task.ToolTraces())
@@ -179,6 +179,47 @@ func (r *TraceRecorder) publish(task *Task) {
 		return
 	}
 	r.records = append(r.records, rec)
+}
+
+// bodyFacts redacts free-text free-text fields (Claim) while keeping
+// provenance metadata. PayloadHash is unchanged (it is a hash, not a secret).
+func bodyFacts(facts []Fact) []Fact {
+	if len(facts) == 0 {
+		return nil
+	}
+	out := make([]Fact, len(facts))
+	for i, f := range facts {
+		out[i] = Fact{
+			Claim:       redactString(f.Claim),
+			SourceOrg:   redactString(f.SourceOrg),
+			SourceURL:   redactString(f.SourceURL),
+			CollectedAt: f.CollectedAt,
+			PayloadHash: f.PayloadHash,
+		}
+	}
+	return out
+}
+
+// bodyTools keeps args/output for bodies mode but redacts their string
+// content so secrets do not pass through unmarked.
+func bodyTools(tr []ToolTrace) []ToolTrace {
+	if len(tr) == 0 {
+		return nil
+	}
+	out := make([]ToolTrace, len(tr))
+	for i, t := range tr {
+		out[i] = ToolTrace{
+			Tool:     t.Tool,
+			Failed:   t.Failed,
+			Duration: t.Duration,
+			Output:   redactString(t.Output),
+		}
+		if len(t.Args) > 0 {
+			red := redactString(string(t.Args))
+			out[i].Args = json.RawMessage(red)
+		}
+	}
+	return out
 }
 
 func metadataFacts(facts []Fact) []Fact {

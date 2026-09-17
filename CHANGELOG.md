@@ -30,6 +30,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`format: time` (O-J2 → D-JT1)**: JSON Schema `time` format validated as
   RFC 3339 full-time (`HH:MM:SS[.fff][Z|±hh:mm]`); allowlist docs updated.
 
+### Security
+
+- **TraceRecorder `WithTraceBodies`**: fact claims, tool args, and tool
+  outputs are now redacted via `redactString` (previously only prompt and
+  output text were redacted).
+
 ### Documentation
 
 - **P3 Phase 0 (complete)** — D-F1–D-F10 closed 2026-08-24
