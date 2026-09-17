@@ -191,7 +191,7 @@ Obrigatórios **por PR**, não só na entrega final.
 ### 6.4 Checklist de revisão de documentação (por trem)
 
 - [ ] Guias novos: `docs/flows.md`, expansão `docs/tools.md`, `docs/declarative.md`, `docs/training.md`, `docs/rag.md` (+ PT).
-- [ ] README Why + Concepts + What's new na tag de release.
+- [x] README Why + Concepts + What's new na tag de release.
 - [ ] `doc.go`, examples READMEs, CHANGELOG EN+PT, checkbox PLAN, IDs novos em DECISIONS.
 - [ ] Revisão de docs: snippets dos guias compilam/executam via examples.
 
@@ -326,7 +326,7 @@ Fechadas em DECISIONS.pt-BR.md §7B/§9: D-F1–D-F12 (12 IDs). Resto da Fase 0 
 - [x] `TraceRecorder` metadata-default JSONL + `examples/trace_export`
 - [x] Docs EN+PT dos quatro trens; What's new; notas SECURITY
 - [x] Cobertura ≥90% (agregado + pacotes tocados), `-race` limpo
-- [ ] CHANGELOG EN+PT; tags conforme §8
+- [x] CHANGELOG EN+PT; tags conforme §8 (**bundle v0.9.0**)
 
 **Janela-alvo:** pós v0.8.0; **não** empacotar com backlog adiado.
 

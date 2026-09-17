@@ -750,17 +750,19 @@ go run ./examples/xai_oauth
 | Plan / Roadmap | [EN](Plan/PLAN.md) | [PT](Plan/PLAN.pt-BR.md) |
 | Security policy | [EN](SECURITY.md) | — |
 
-### What's new in v0.8.0
+### What's new in v0.9.0
 
-All features are **backward compatible** — additive APIs only.
+All features are **backward compatible** — additive APIs only. P3 trains T+F+Y+X.
 
 | Feature | Description | Docs (EN) | Docs (PT) |
 |---------|-------------|-----------|-----------|
-| **`WithEvents` / `CrewEvent`** | Metadata-only lifecycle telemetry: kickoff, task/wave, `llm_call_*`, `react_iteration`, `structured_repair`, `loop_phase`, `guardrail_blocked`; `KickoffID`; dual-emit with Progress. | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
-| **JSON Schema remainder** | Local `$ref`, `format` allowlist, `const`/`not`/`if`/`then`/`else`, property counts, `uniqueItems`; `unevaluated*` still Strict-fail. | [docs/tasks.md](docs/tasks.md) | [docs/pt-BR/tasks.md](docs/pt-BR/tasks.md) |
-| **Concurrency guide** | Data races vs semantic races; barrier + declaration-order fold; Memory D-M7. | [docs/concurrency.md](docs/concurrency.md) | [docs/pt-BR/concurrency.md](docs/pt-BR/concurrency.md) |
-| **Decision log** | Living catalog of design decisions with options. | [Plan/DECISIONS.md](Plan/DECISIONS.md) | [Plan/DECISIONS.pt-BR.md](Plan/DECISIONS.pt-BR.md) |
-| **Example** | Offline `examples/events`. | [examples/events](examples/events) | [examples/](examples/) |
+| **`Flow[S]`** | Typed event-driven runner (`Start` / `Listen` / `Router`); barrier fold; `ErrFlowRunning`. | [docs/flows.md](docs/flows.md) | [docs/pt-BR/flows.md](docs/pt-BR/flows.md) |
+| **HTTPFetch / FileRead / FileWrite** | SSRF-safe GET (deny-by-default allowlist); jailed files (write opt-in). RAG is a docs pattern. | [docs/tools.md](docs/tools.md) | [docs/pt-BR/tools.md](docs/pt-BR/tools.md) |
+| **Declarative crews** | JSON-subset `LoadCrew` / `Build` (no YAML parser; fail-closed refs). | [docs/declarative.md](docs/declarative.md) | [docs/pt-BR/declarative.md](docs/pt-BR/declarative.md) |
+| **`TraceRecorder`** | JSONL Kickoff export; metadata-only default; bodies opt-in (redacted). | [docs/training.md](docs/training.md) | [docs/pt-BR/training.md](docs/pt-BR/training.md) |
+| **Examples** | `flows_research`, `tools_http`, `tools_files`, `rag_file`, `declarative`, `trace_export`. | [examples/](examples/) | [examples/](examples/) |
+
+**Also in v0.8.0**: `WithEvents` / `CrewEvent`, JSON Schema remainder, concurrency guide, decision log.
 
 **Also in v0.7.0**: `StreamingLLM` + `WithStream`, provider `CallStream`, `CollectStream`.
 
@@ -772,7 +774,7 @@ All features are **backward compatible** — additive APIs only.
 
 **Also in v0.3.0**: native tool calling, web search, structured logging via `log/slog`, secret redaction.
 
-See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.8.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.8.0) for details.
+See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.9.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.9.0) for details.
 
 
 ## Tests

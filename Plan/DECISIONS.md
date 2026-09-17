@@ -330,6 +330,7 @@ When closing an open item: move it into the right section table, set **Status=cl
 | 2026-09-16 | P3 Train F shipped: `Flow[S]` + Start/Listen/Router; D-F1–D-F12 **Shipped** filled. |
 | 2026-09-16 | P3 Train Y shipped: LoadCrew/LoadCrewFile + Build maps; D-Y1–D-Y10 **Shipped** filled. |
 | 2026-09-16 | P3 Train X shipped: TraceRecorder JSONL; D-X1–D-X8 **Shipped** filled. |
+| 2026-09-17 | **v0.9.0** tagged — P3 trains T+F+Y+X bundled (PRs #48–#53). |
 
 ---
 

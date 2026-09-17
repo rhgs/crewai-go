@@ -299,6 +299,7 @@ Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F12**
 | 2026-09-16 | P3 Trem F entregue: `Flow[S]` + Start/Listen/Router; D-F1–D-F12 **Entregue** preenchido. |
 | 2026-09-16 | P3 Trem Y entregue: LoadCrew/LoadCrewFile + Build maps; D-Y1–D-Y10 **Entregue** preenchido. |
 | 2026-09-16 | P3 Trem X entregue: TraceRecorder JSONL; D-X1–D-X8 **Entregue** preenchido. |
+| 2026-09-17 | **v0.9.0** tagueada — trens P3 T+F+Y+X no mesmo bundle (PRs #48–#53). |
 
 ## 11. Relacionados
 

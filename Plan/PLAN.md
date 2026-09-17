@@ -111,23 +111,23 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
   repair loop, `WithToolCall` (emit_result), `WithAllowTools` (gather→capture),
   expanded keywords (v0.5.0). Sentinels `ErrInvalidOutput`,
   `ErrRepairBudgetExceeded`, `ErrToolCallStructuredUnsupported`.
-- [x] Documentation: bilingual README + guides + MCP + SECURITY + memory/async; 17 examples.
+- [x] Documentation: bilingual README + guides + MCP + SECURITY + flows/rag/declarative/training; 24 examples.
 - [x] Clean `go build`, `go vet`, and `go test ./...`.
 
-### Maturity snapshot (2026-08-21 — v0.8.0)
+### Maturity snapshot (2026-09-17 — v0.9.0)
 
 | Metric | Value |
 |---------|-------|
-| Latest release | **v0.8.0** (2026-08-21) — P2 events + schema PRs #39–#42 |
+| Latest release | **v0.9.0** (2026-09-17) — P3 Flows + tools + YAML + traces (PRs #48–#53) |
 | Go LOC (approx.) | ~25k+ |
 | External dependencies | 0 (stdlib) |
-| Coverage — core (`crewai`) | ~94%+ (memory/async epic) |
-| Coverage — `mcp` / `tools` / `llm/*` | all ≥ 90% |
-| Runnable examples | 17 (+ pt-BR mirrors): +async_tasks, memory_file, memory_embed |
-| Documentation | bilingual README + guides + MCP + SECURITY + memory/async |
+| Coverage — core (`crewai`) | ~94% |
+| Coverage — `mcp` / `tools` / `llm/*` / `internal/pathjail` | all ≥ 90% |
+| Runnable examples | 24 (+ pt-BR mirrors): +flows_research, tools_http, tools_files, rag_file, declarative, trace_export |
+| Documentation | bilingual README + guides + MCP + SECURITY + flows/rag/declarative/training |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
-### Known limitations (post v0.8.0)
+### Known limitations (post v0.9.0)
 
 - **Streaming is opt-in** — without `WithStream` / `StreamingLLM`, `LLM.Call`
   still returns the full response. Stream covers final text / no-tools paths
@@ -139,11 +139,14 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 - **MCP servers are trusted** — tool descriptions/results enter the model
   context; use `FilterTools`, network allowlists, and least privilege (see
   MCP threat model docs).
-- **No event-driven Flows / YAML / training** — roadmap §6 P3.
+- **Flows / YAML / training shipped in v0.9.0** — `Flow[S]`, JSON-subset
+  `LoadCrew`, `TraceRecorder`. Full YAML (anchors/block scalars) stays out of
+  core (`P-DEPS`). Trace bodies are opt-in. OpenTelemetry is not bundled.
 - **Lifecycle events are metadata-only** — `WithEvents` does not carry prompt
-  bodies (by design). OpenTelemetry is not bundled in core.
-- **Tool surface beyond web search** — no built-in HTTP/files/RAG tools yet
-  (roadmap §6 P3). Web search shipped in v0.3+.
+  bodies (by design).
+- **HTTPFetch is GET-only in v1** — `WithHTTPMethods` gates whether GET is
+  allowed; it does not send POST/PUT. RAG is a docs/example pattern (no vector
+  DB in core). Web search shipped in v0.3+.
 
 > **Closed in **v0.6.0** (PR #31):** long-term `MemoryStore` + FileStore
 > JSONL + embeddings hook, and `Task.Async` DAG waves beyond Staged. See
@@ -176,7 +179,7 @@ priority (highest impact / lowest effort first):
 - [x] **Expanded JSON Schema** + `WithStrictSchema`.
 - [x] **`RedactHandler`**, OutputFile jail, Kickoff single-flight.
 - [x] **Real delegation tool** `delegate_to_coworker` + `EnableDelegationTool`.
-- [x] Tags **v0.1.0 … v0.8.0**; bilingual docs; CI + CodeQL.
+- [x] Tags **v0.1.0 … v0.9.0**; bilingual docs; CI + CodeQL.
 
 ### P0 — Publishing and fundamentals
 
