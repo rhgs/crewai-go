@@ -5,6 +5,28 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **M5 memory tools (D-MT1–D-MT5)**: opt-in `recall_memory` / `remember`.
+  `Crew.EnableMemoryTools` (default false) auto-attaches at Kickoff;
+  `NewRecallMemoryTool` / `NewRememberTool` attach explicitly. `remember`
+  Puts immediately (D-MT4, bypasses the D-M7 AutoSave buffer).
+  `recall_memory` uses text plus cosine when `Crew.Embed` is set (D-MT3);
+  output capped at `MaxToolOutputBytes` (D-MT5). `Memory=true` alone does
+  not attach the tools (D-MT2). Declarative field `enable_memory_tools`.
+  Example: `examples/memory_tools`. Guide: `docs/memory.md`.
+- **A5 `Process=DAG` alias (D-A7)**: `crewai.DAG` is Sequential (same wire
+  value `"sequential"`). `Crew.WithAsyncAll()` marks every task Async.
+  Declarative `"process": "dag"` maps to Sequential; tasks still need
+  `"async": true` (or a later `WithAsyncAll`) to run in waves. No scheduler
+  change.
+
+### Security
+
+- Memory tools (`recall_memory` / `remember`) redact store/embed errors in
+  the observation (`redactError`), cap input at `MaxToolArgsBytes`, and
+  serialize `Crew.Embed` with AutoEmbed (`embedMu`, G8).
+
 ## [v0.9.0] — 2026-09-17
 
 ### Added

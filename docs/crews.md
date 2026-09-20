@@ -44,7 +44,7 @@ See [LLMs > Logging](llms.md#logging) for the full reference.
 |----------------|----------------|-------------|
 | `Agents`       | `[]*Agent`     | Team members. |
 | `Tasks`        | `[]*Task`      | Tasks to execute. |
-| `Process`      | `Process`      | `Sequential` (default), `Hierarchical`, or `Staged`. |
+| `Process`      | `Process`      | `Sequential` (default), `Hierarchical`, or `Staged`. `DAG` is an alias for `Sequential` (D-A7). |
 | `Stages`       | `[]Stage`      | Stages for the `Staged` process (takes precedence over `Tasks`). |
 | `Verbose`      | `bool`         | Enables detailed logs (maps to `LevelDebug` when no logger is injected via `WithLogger`). |
 | `logger`       | `*slog.Logger` | Internal — set via `WithLogger`. When nil, `Kickoff` creates a default text logger on stderr. |
@@ -60,6 +60,7 @@ See [LLMs > Logging](llms.md#logging) for the full reference.
 | `Guardrails`   | `[]Guardrail`  | Crew-level post-output validation hooks. |
 | `OutputDir` | `string` | Optional jail for `Task.OutputFile` when the task has none. Symlink-aware; see tasks guide. |
 | `EnableDelegationTool` | `bool` | When true, attaches `delegate_to_coworker` to each agent at Kickoff (default false). Targets still need `AllowDelegation`. |
+| `EnableMemoryTools` | `bool` | When true, attaches `recall_memory` and `remember` at Kickoff (default false). `Memory=true` alone does not attach them. |
 | `stream`       | `StreamFunc`   | Internal — set via `WithStream` (LLM text deltas). |
 | `events`       | `EventFunc`    | Internal — set via `WithEvents` (metadata lifecycle). |
 | `progress`     | `ProgressFunc` | Internal — set via `WithProgress`. |
@@ -137,6 +138,19 @@ out, _ := crew.Kickoff(ctx, nil)
   task pointer fails fast at Kickoff with `ErrTaskDependencyCycle` (G12).
 - Under `Staged` the flag is ignored with a one-shot Warn log (D-A5/G5) —
   stages own the batch parallelism either way.
+- `crewai.DAG` is a **name alias** for `Sequential` (same wire value
+  `"sequential"`). It does not change scheduling. `crew.Process = "dag"` is
+  **not** valid — use the constant `crewai.DAG`. Pair with
+  `crew.WithAsyncAll()` when every task should be wave-eligible:
+
+```go
+crew := crewai.NewCrew(agents, tasks)
+crew.Process = crewai.DAG
+crew.WithAsyncAll()
+```
+
+Declarative JSON-subset accepts `"process": "dag"` and maps it to Sequential;
+tasks still need `"async": true` (or a later `WithAsyncAll`) to run in waves.
 
 ## Staged process
 

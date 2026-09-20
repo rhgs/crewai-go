@@ -1,6 +1,6 @@
 # Plano — Memória de longo prazo & Async além do Staged
 
-> **Status:** **Entregue na v0.6.0** (PR #31, branch `feat/phase1-a1-m1`). PRs núcleo **A1–A4** e **M1–M4** entregues; **M5** / **A5** opcionais permanecem adiados (§10).  
+> **Status:** **Entregue na v0.6.0** (PR #31, branch `feat/phase1-a1-m1`). PRs núcleo **A1–A4** e **M1–M4** entregues; tools de memória **M5** **entregues** 2026-09-20; alias **A5** `Process=DAG` **entregue** 2026-09-20 como D-A7 (§10).  
 > **Decisões:** D-M1–D-M7, D-A1–D-A6 e gaps G1–G12 fechados em 2026-08-21 (§9) — fonte da verdade do *porquê*.  
 > **Relacionado:** `memory.go` / `filestore.go` / `schedule.go`, `Crew.Memory` / `MemoryStore` / `MemoryPolicy`, `Task.Async`, roadmap em `PLAN.pt-BR.md` §6.  
 > **Restrições:** zero deps externas no core (`go.mod` só stdlib). Gates de qualidade do §6.1 de `PLAN.security-residuals.pt-BR.md` em todo PR de implementação.  
@@ -228,7 +228,7 @@ Não copiar Facts automaticamente para MemoryStore na v1.
 | **M2** | `MemoryPolicy` + wiring no Crew; **Save bufferizado + commit na barreira (D-M7)**; deprecar dump-all | `Memory bool` compat; sem visibilidade mid-wave |
 | **M3** | `FileStore` JSONL + docs EN/PT + `examples/memory_file` |
 | **M4** | `EmbeddingFunc` + query cosseno + exemplo com embedder fake |
-| **M5** (opt) | Tools `recall_memory` / `remember` para o agent |
+| **M5** (opt) | Tools `recall_memory` / `remember` para o agent | **Entregue** 2026-09-20 (`EnableMemoryTools`) |
 
 ### 2.9 Testes e gates — Memória
 
@@ -573,6 +573,6 @@ Não estavam numerados em §2.10/§3.11; ficam aqui para os PRs de implementaç�
 | Embeddings hook | P2 | M4 | Entregue 2026-08-21 (branch feat/phase1-a1-m1) |
 | runTaskGroup | P1 | A1 | Entregue 2026-08-21 (branch feat/phase1-a1-m1) — testes dourados do Staged inalterados |
 | DAG + Async | P1 | A2–A4 | A2–A4 entregues 2026-08-21 (branch feat/phase1-a1-m1); A3 worker-cap + wave mista + FailFast dependents corrigidos |
-| Tools / sugar opcionais | P3 | M5/A5 | Adiado (pós v0.6.0) |
+| Tools / sugar opcionais | P3 | M5/A5 | **M5 entregue** 2026-09-20; **A5 entregue** como D-A7 |
 | **Release** | — | v0.6.0 | **Entregue 2026-08-21** (PR #31); G10 cumprido e superado (M3+M4 incluídos) |
 

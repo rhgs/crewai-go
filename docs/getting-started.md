@@ -87,7 +87,7 @@ go run github.com/rhgs/crewai-go/examples/custom_llm
 - [Tasks](tasks.md) — chain tasks with context, `Async` waves, structured output, and warnings.
 - [Crews](crews.md) — sequential, hierarchical, staged, and async-wave scheduling; progress callbacks.
 - [Flows](flows.md) — typed `Flow[S]` event-driven runner (`Start` / `Listen` / `Router`).
-- [Memory](memory.md) — short-term bag, `MemoryStore`, FileStore, embeddings.
+- [Memory](memory.md) — short-term bag, `MemoryStore`, FileStore, embeddings, opt-in `recall_memory` / `remember`.
 - [Tools](tools.md) — give "hands" to your agents (calculator, HTTP fetch, jailed files, web search).
 - [Declarative crews](declarative.md) — JSON-subset `LoadCrew` / `Build`.
 - [Training / traces](training.md) — `TraceRecorder` JSONL export.

@@ -261,8 +261,8 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   `Task.Context`, agendador de waves, `AsyncMaxWorkers` (padrão 8; 0=ilimitado),
   `AsyncFailFast`. Staged dourado inalterado. **Entregue na v0.6.0 (PR #31).**
   Arquivo de design: [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md)
-  ([EN](PLAN.memory-async.md)). Follow-ups opcionais adiados lá: **M5** tools
-  de memória do agente, **A5** alias `Process=DAG`.
+  ([EN](PLAN.memory-async.md)). Follow-up opcional **M5** tools de memória
+  do agente **entregue**; **A5** alias `Process=DAG` **entregue** (D-A7).
 - [x] **Streaming** — `StreamingLLM` opcional (`CallStream` → `<-chan StreamChunk`)
   via type assertion (não quebra implementadores de `LLM`); `Crew.WithStream`
   / sink no context; v1 streama só texto final / caminhos sem tools com
@@ -330,8 +330,8 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 | P3 | **Tools: HTTP, arquivos, padrões RAG** | Mesmo plano Trem T (SSRF/jail) — **entregue** |
 | P3 | **Definições YAML de crew** | Mesmo plano Trem Y (subconjunto JSON) — **entregue** |
 | P3 | **Training / export de traces** | Mesmo plano Trem X (recorder JSONL) — **entregue** |
-| Adiado (memory-async P3) | **M5** `recall_memory` / `remember` | Tools de memória do agente |
-| Adiado (memory-async P3) | **A5** alias `Process=DAG` | Açúcar de naming |
+| Entregue (memory-async P3) | **M5** `recall_memory` / `remember` | Opt-in `EnableMemoryTools` (D-MT1–D-MT5) |
+| Entregue (memory-async P3) | **A5** alias `Process=DAG` | `const DAG = Sequential` + `WithAsyncAll` (D-A7) |
 
 ## 7. Decisões em aberto
 
@@ -355,7 +355,5 @@ memory-async):
   quando a xAI publicar documentação oficial.
 - **Module path** — publicado como `github.com/rhgs/crewai-go` (resolvido).
 
-Adiados do memory-async: **M5** tools de memória (design fechado — D-MT1–D-MT5,
-sem agenda), **A5** alias `Process=DAG` (permanece adiado; revisitar só com
-sinal de confusão — 2026-08-21; não fechar ainda) — ver
-[`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md) §10.
+Entregue do memory-async: **M5** tools de memória (D-MT1–D-MT5) e **A5**
+alias `Process=DAG` (D-A7). Ver [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md) §10.

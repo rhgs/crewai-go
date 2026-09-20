@@ -1,6 +1,6 @@
 # Plan — Long-term Memory & Async beyond Staged
 
-> **Status:** **Shipped in v0.6.0** (PR #31, branch `feat/phase1-a1-m1`). Core PRs **A1–A4** and **M1–M4** delivered; optional **M5** / **A5** remain deferred (§10).  
+> **Status:** **Shipped in v0.6.0** (PR #31, branch `feat/phase1-a1-m1`). Core PRs **A1–A4** and **M1–M4** delivered; optional **M5** memory tools **shipped** 2026-09-20; **A5** `Process=DAG` alias **shipped** 2026-09-20 as D-A7 (§10).  
 > **Decisions:** D-M1–D-M7, D-A1–D-A6 and gaps G1–G12 closed 2026-08-21 (§9) — source of truth for *why*.  
 > **Related:** `memory.go` / `filestore.go` / `schedule.go`, `Crew.Memory` / `MemoryStore` / `MemoryPolicy`, `Task.Async`, roadmap in `PLAN.md` §6.  
 > **Constraints:** zero external module dependencies in the core library (`go.mod` stays stdlib-only). Quality gates from §6.1 of `PLAN.security-residuals.md` apply to every implementation PR (coverage ≥ 90% on touched packages, race-clean, docs EN+PT-BR, CHANGELOG).  
@@ -278,7 +278,7 @@ Do **not** auto-copy Facts into MemoryStore in v1 (apps may do so explicitly).
 | **M2** | `MemoryPolicy` + Crew wiring (`Store`, inject/save paths); **wave-buffered Save + barrier commit (D-M7)**; deprecate dump-all | Backward compatible `Memory bool`; no mid-wave inject visibility |
 | **M3** | `FileStore` JSONL + docs EN/PT + example `examples/memory_file` | Path security, 0600 |
 | **M4** | `EmbeddingFunc` + cosine query path + docs; example with mock embedder | No network in tests |
-| **M5** (opt) | Memory tool for agents (`recall_memory` / `remember`) | Only if product wants agent-driven recall |
+| **M5** (opt) | Memory tool for agents (`recall_memory` / `remember`) | **Shipped** 2026-09-20 (`EnableMemoryTools`) |
 
 ### 2.9 Memory — tests & gates
 
@@ -644,6 +644,6 @@ Not originally numbered in §2.10/§3.11; recorded here so implementation PRs do
 | Embeddings hook | P2 | M4 | Shipped 2026-08-21 (branch feat/phase1-a1-m1) |
 | runTaskGroup extract | P1 | A1 | Shipped 2026-08-21 (branch feat/phase1-a1-m1) — Staged tests golden unchanged |
 | DAG + Async wire-up | P1 | A2–A4 | A2–A4 shipped 2026-08-21 (branch feat/phase1-a1-m1); A3 worker-cap + mixed-wave + FailFast dependents fixed |
-| Optional tools / sugar | P3 | M5/A5 | Deferred (post v0.6.0) |
+| Optional tools / sugar | P3 | M5/A5 | **M5 shipped** 2026-09-20; **A5 shipped** as D-A7 |
 | **Release** | — | v0.6.0 | **Shipped 2026-08-21** (PR #31); G10 met and exceeded (M3+M4 included) |
 

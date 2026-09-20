@@ -8,6 +8,12 @@ const (
 	// each task's output as context to the following ones.
 	Sequential Process = "sequential"
 
+	// DAG is an alias for Sequential (D-A7): naming sugar for crews that
+	// schedule Task.Async + Task.Context as a DAG with barrier+fold.
+	// It does not change scheduling. Pair with Crew.WithAsyncAll when every
+	// task should be wave-eligible. Staged is a separate process.
+	DAG = Sequential
+
 	// Hierarchical uses a manager agent (or a ManagerLLM) to coordinate the
 	// execution, deciding which agent runs each task.
 	Hierarchical Process = "hierarchical"

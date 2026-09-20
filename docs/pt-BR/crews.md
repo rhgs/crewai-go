@@ -41,7 +41,7 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 |----------------|----------------|-----------|
 | `Agents`       | `[]*Agent`     | Membros da equipe. |
 | `Tasks`        | `[]*Task`      | Tarefas a executar. |
-| `Process`      | `Process`      | `Sequential` (padrão), `Hierarchical` ou `Staged`. |
+| `Process`      | `Process`      | `Sequential` (padrão), `Hierarchical` ou `Staged`. `DAG` é alias de `Sequential` (D-A7). |
 | `Stages`       | `[]Stage`      | Estágios do processo `Staged` (têm prioridade sobre `Tasks`). |
 | `Verbose`      | `bool`         | Ativa logs detalhados (mapeia para `LevelDebug` quando nenhum logger é injetado via `WithLogger`). |
 | `logger`       | `*slog.Logger` | Interno — definido via `WithLogger`. Quando nil, `Kickoff` cria um logger de texto padrão no stderr. |
@@ -57,6 +57,7 @@ Veja [LLMs > Logging](llms.md#logging) para a referência completa.
 | `Guardrails`   | `[]Guardrail`  | Hooks de validação pós-saída no nível da crew. |
 | `OutputDir` | `string` | Jail opcional para `Task.OutputFile` quando a task nao define o seu. Symlink-aware; ver tasks. |
 | `EnableDelegationTool` | `bool` | Se true, anexa `delegate_to_coworker` a cada agent no Kickoff (default false). Alvos ainda precisam de `AllowDelegation`. |
+| `EnableMemoryTools` | `bool` | Se true, anexa `recall_memory` e `remember` no Kickoff (default false). `Memory=true` sozinho não anexa. |
 | `stream`       | `StreamFunc`   | Interno — set via `WithStream` (deltas de texto do LLM). |
 | `events`       | `EventFunc`    | Interno — set via `WithEvents` (lifecycle só metadados). |
 | `progress`     | `ProgressFunc` | Interno — definido via `WithProgress`. |
@@ -134,6 +135,20 @@ out, _ := crew.Kickoff(ctx, nil)
   de tarefa duplicado falham no Kickoff com `ErrTaskDependencyCycle` (G12).
 - Em `Staged` o flag é ignorado com um Warn único (D-A5/G5) — os estágios já
   controlam o paralelismo.
+- `crewai.DAG` é um **alias de nome** para `Sequential` (mesmo valor
+  `"sequential"`). Não muda o agendamento. `crew.Process = "dag"` **não** é
+  válido — use a constante `crewai.DAG`. Combine com `crew.WithAsyncAll()`
+  quando todas as tasks devem ser elegíveis a wave:
+
+```go
+crew := crewai.NewCrew(agentes, tarefas)
+crew.Process = crewai.DAG
+crew.WithAsyncAll()
+```
+
+O JSON-subset declarativo aceita `"process": "dag"` e mapeia para Sequential;
+as tasks ainda precisam de `"async": true` (ou um `WithAsyncAll` depois) para
+rodar em waves.
 
 ## Processo em estágios (Staged)
 

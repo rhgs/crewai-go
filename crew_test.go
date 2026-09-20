@@ -159,6 +159,58 @@ func TestCrewHierarchicalNoManager(t *testing.T) {
 	}
 }
 
+func TestProcessDAGIsSequentialAlias(t *testing.T) {
+	if crewai.DAG != crewai.Sequential {
+		t.Fatalf("DAG = %q, Sequential = %q", crewai.DAG, crewai.Sequential)
+	}
+	if string(crewai.DAG) != "sequential" {
+		t.Fatalf("DAG wire value = %q, want sequential", crewai.DAG)
+	}
+	a := crewai.NewAgent("A", "", "", mock.New("ok"))
+	task := crewai.NewTask("t", "", a)
+	crew := crewai.NewCrew([]*crewai.Agent{a}, []*crewai.Task{task})
+	crew.Process = crewai.DAG
+	out, err := crew.Kickoff(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Final != "ok" {
+		t.Errorf("final = %q", out.Final)
+	}
+}
+
+func TestCrewWithAsyncAll(t *testing.T) {
+	a := crewai.NewAgent("A", "", "", mock.New("1", "2"))
+	t1 := crewai.NewTask("one", "", a)
+	t2 := crewai.NewTask("two", "", a)
+	crew := crewai.NewCrew([]*crewai.Agent{a}, []*crewai.Task{t1, t2, nil})
+	got := crew.WithAsyncAll()
+	if got != crew {
+		t.Fatal("WithAsyncAll should return the crew")
+	}
+	if !t1.Async || !t2.Async {
+		t.Fatalf("Async flags = %v/%v", t1.Async, t2.Async)
+	}
+
+	crew.Tasks = []*crewai.Task{t1, t2}
+	crew.Process = crewai.DAG
+	if _, err := crew.Kickoff(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProcessDagWireStringIsInvalid(t *testing.T) {
+	// D-A7: the const DAG equals Sequential ("sequential"). The literal
+	// string "dag" is not a valid Process; only LoadCrew maps it.
+	a := crewai.NewAgent("A", "", "", mock.New("x"))
+	task := crewai.NewTask("t", "", a)
+	crew := crewai.NewCrew([]*crewai.Agent{a}, []*crewai.Task{task})
+	crew.Process = "dag"
+	if _, err := crew.Kickoff(context.Background(), nil); err == nil {
+		t.Fatal("Process(\"dag\") must be invalid; use crewai.DAG")
+	}
+}
+
 func TestCrewInvalidProcess(t *testing.T) {
 	a := crewai.NewAgent("A", "", "", mock.New("x"))
 	task := crewai.NewTask("t", "", a)

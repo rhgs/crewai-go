@@ -96,7 +96,7 @@
 | **Agent**    | Um trabalhador com papel, objetivo, história, um LLM e ferramentas.     |
 | **Task**     | Uma unidade de trabalho com descrição, saída esperada e responsável.    |
 | **Crew**     | A equipe: agrupa agentes e tarefas e as orquestra.                      |
-| **Process**  | Estratégia de execução: `Sequential`, `Hierarchical` ou `Staged`.       |
+| **Process**  | Estratégia de execução: `Sequential` (alias `DAG`), `Hierarchical` ou `Staged`. |
 | **Tool**     | Uma capacidade que o agente pode invocar (cálculo, busca, API…).        |
 | **LLM**      | Abstração do modelo de linguagem. Vários provedores prontos.            |
 | **Memory**   | Bag de curto prazo + `MemoryStore` plugável (FileStore, embeddings).   |
@@ -442,7 +442,7 @@ analise := crewai.NewTask("Analise os dados", "insights", analista).
 ```
 
 **Waves assíncronas (Sequential / Hierarchical)** — marque tarefas
-independentes com `WithAsync()` para sobrepô-las sem migrar para Staged.
+independentes com `WithAsync()` (ou `crew.WithAsyncAll()`) para sobrepô-las sem migrar para Staged. `crewai.DAG` é um alias de nome para `Sequential`.
 `Task.Context` é a DAG; cada wave agrega por **ordem de declaração** após a
 barreira. `NewCrew` usa `AsyncMaxWorkers = 8` por padrão (`0` = ilimitado).
 Ignorado em Staged (Warn único). Veja
@@ -670,8 +670,17 @@ crew.MemoryPolicy = crewai.NewMemoryPolicy()
 // crew.Embed = meuEmbedder; crew.MemoryPolicy.AutoEmbed = true
 ```
 
-Veja [docs/pt-BR/memory.md](docs/pt-BR/memory.md), `examples/memory_file` e
-`examples/memory_embed`.
+Tools acionadas pelo agente (opt-in, default off):
+
+```go
+crew.EnableMemoryTools = true // anexa recall_memory + remember no Kickoff
+// ou: agente.WithTools(crewai.NewRecallMemoryTool(crew), crewai.NewRememberTool(crew))
+```
+
+`remember` faz Put imediato (visível a um `recall_memory` posterior no mesmo
+run, inclusive irmãos paralelos). `Memory=true` sozinho não anexa as tools.
+Veja [docs/pt-BR/memory.md](docs/pt-BR/memory.md), `examples/memory_file`,
+`examples/memory_embed` e `examples/memory_tools`.
 
 ## Exemplos
 
@@ -686,6 +695,7 @@ go run ./examples/streaming     # deltas WithStream (mock offline)
 go run ./examples/async_tasks    # waves Task.Async (mock offline)
 go run ./examples/memory_file    # FileStore JSONL entre Kickoffs
 go run ./examples/memory_embed   # AutoEmbed + Query por cosseno (mock)
+go run ./examples/memory_tools   # recall_memory / remember (offline)
 go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/logging        # demo RedactHandler
 go run ./examples/mcp            # wiring MCP (live com MCP_ENDPOINT)

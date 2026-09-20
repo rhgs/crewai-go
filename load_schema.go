@@ -64,6 +64,7 @@ const crewConfigSchema = `{
         "manager_agent": {"type": "string"},
         "output_dir": {"type": "string"},
         "enable_delegation_tool": {"type": "boolean"},
+        "enable_memory_tools": {"type": "boolean"},
         "async_max_workers": {"type": "integer", "minimum": 0},
         "async_fail_fast": {"type": "boolean"},
         "guardrails": {"type": "array", "items": {"type": "string"}}

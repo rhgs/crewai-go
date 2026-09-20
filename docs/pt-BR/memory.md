@@ -204,3 +204,33 @@ _ = store.Delete(ctx, "", e.ID)
 
 `Crew.Memory` permanece o alias permanente v0.x que garante um store InMemory
 quando `MemoryStore` é nil.
+
+## Tools de memória do agente (`recall_memory` / `remember`)
+
+Tools opt-in para o agente **chamar** memória no meio do raciocínio (M5,
+D-MT1–D-MT5). `Memory = true` sozinho **não** as anexa.
+
+```go
+crew.Memory = true
+crew.EnableMemoryTools = true // auto-anexa no Kickoff (idempotente)
+// ou explicitamente:
+agente.WithTools(crewai.NewRecallMemoryTool(crew), crewai.NewRememberTool(crew))
+```
+
+| Tool | Input | Comportamento |
+|------|-------|---------------|
+| `recall_memory` | texto puro ou `{"query":"..."}` | Consulta o store. Query vazia → últimos N. Com `Crew.Embed`, a query também é embeddada e ranqueada por cosseno (D-MT3). Saída limitada a `MaxToolOutputBytes` (D-MT5). |
+| `remember` | texto puro ou `{"content":"..."}` | `Put` **imediato** (D-MT4) — visível a um `recall_memory` posterior no mesmo Kickoff, inclusive um irmão paralelo. Não passa pelo buffer D-M7 do AutoSave. |
+
+Nenhuma das duas é `FactSource`. Falhas voltam como observation (sem panic);
+erros de store/embed são redigidos. Input limitado a `MaxToolArgsBytes`.
+`Crew.Embed` é serializado com o AutoEmbed (G8). Conteúdo recalled é visível
+ao modelo — trate o store como adjacente ao prompt.
+**Não** use `remember` para juntar saídas de irmãos paralelos — use `WithContext`.
+
+`Tools` no nível da task **substituem** as tools do agente nessa task (igual
+à delegação). Se a task define a própria lista, inclua também
+`NewRecallMemoryTool` / `NewRememberTool`.
+
+JSON-subset declarativo: `"enable_memory_tools": true` em `crew`. Demo offline:
+`examples/memory_tools`.

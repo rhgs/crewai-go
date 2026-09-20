@@ -17,6 +17,7 @@ Cada subpasta é um programa executável independente.
 | `async_tasks`   | Waves `Task.Async` sob Sequential + merge com `WithContext` (mock offline) | ❌ Não / ✅ OpenAI |
 | `memory_file`   | Persistência `FileStore` JSONL entre dois Kickoffs (offline) | ❌ Não |
 | `memory_embed`  | `AutoEmbed` + Query por cosseno com embedder mock (offline) | ❌ Não |
+| `memory_tools`  | Tools opt-in `recall_memory` / `remember` (offline) | ❌ Não |
 | `agentic_loop`  | Ciclo Planejar-Executar-Avaliar-Refinar (mock LLM)| ❌ Não                  |
 | `tools`         | Agente usando ferramentas via ReAct               | ✅ OpenAI               |
 | `tools_http`    | `HTTPFetch` allowlist + SSRF deny (httptest, offline) | ❌ Não              |
@@ -46,6 +47,7 @@ go run ./examples/streaming  # demux de stream mock offline
 go run ./examples/async_tasks  # waves Task.Async; USE_OPENAI=1 para live
 go run ./examples/memory_file  # FileStore JSONL; MEMORY_DIR opcional
 go run ./examples/memory_embed # AutoEmbed + cosseno (mock)
+go run ./examples/memory_tools # recall_memory / remember (offline)
 go run ./examples/agentic_loop # offline, mock LLM
 go run ./examples/logging      # demo offline de redacao
 go run ./examples/mcp          # wiring; live com MCP_ENDPOINT

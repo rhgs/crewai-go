@@ -80,6 +80,13 @@ type Crew struct {
 	// agent.WithTools(NewDelegationTool(crew)) always works regardless.
 	EnableDelegationTool bool
 
+	// EnableMemoryTools, when true, auto-attaches recall_memory and remember
+	// to each crew agent (and ManagerAgent, if set) at the start of Kickoff,
+	// unless the agent already has a tool with that name (D-MT2). Default
+	// false — Memory=true alone does not expose tools. Explicit
+	// NewRecallMemoryTool / NewRememberTool always work regardless.
+	EnableMemoryTools bool
+
 	// AsyncMaxWorkers caps how many Async tasks may run concurrently in a
 	// wave under the sequential and hierarchical processes (D-A4). The
 	// default set by NewCrew and by WithAsyncMaxWorkers is
@@ -117,6 +124,10 @@ type Crew struct {
 	memBufMu  sync.Mutex
 	memBuf    []bufferEntry
 	buffering bool
+
+	// embedMu serializes Crew.Embed so AutoEmbed at the barrier (G8) and
+	// opt-in memory tools never run the embedder concurrently.
+	embedMu sync.Mutex
 
 	// progress is invoked during Kickoff to surface execution events.
 	// Set via WithProgress before Kickoff. NOT CONCURRENT-SAFE in the
@@ -269,6 +280,21 @@ func NewCrew(agents []*Agent, tasks []*Task) *Crew {
 	}
 }
 
+// WithAsyncAll marks every task in Crew.Tasks Async. Pair with the DAG /
+// Sequential process for "all tasks eligible for waves" (D-A7). Call before
+// Kickoff. Ignored under Staged.
+func (c *Crew) WithAsyncAll() *Crew {
+	if c == nil {
+		return c
+	}
+	for _, t := range c.Tasks {
+		if t != nil {
+			t.Async = true
+		}
+	}
+	return c
+}
+
 // WithLogger injects a structured *slog.Logger used for execution logs
 // during Kickoff. When not called, Kickoff creates a default text logger
 // on stderr whose level depends on Verbose.
@@ -388,6 +414,9 @@ func (c *Crew) Kickoff(ctx context.Context, inputs map[string]string) (*CrewOutp
 
 	if c.EnableDelegationTool {
 		c.attachDelegationTools()
+	}
+	if c.EnableMemoryTools {
+		c.attachMemoryTools()
 	}
 
 	// Interpolate inputs into all tasks. In the staged process the tasks

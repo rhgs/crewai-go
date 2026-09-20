@@ -4,7 +4,7 @@
 > **Decisions:** **Phase 0 complete** — see `DECISIONS.md` §7B for canonical status; this file keeps the rationale + recs.  
 > **Related:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go` (`Kickoff`, `emitEvent`), `tool.go`/`toolcall.go`, `tools/websearch.go` (SSRF helpers), `task.go` (OutputDir jail), `memory_embed.go` (`EmbeddingFunc`), `schema.go` (validator), `loop.go` (AgenticLoop), `examples/` (offline demos).  
 > **Constraints:** zero external module deps in core (`go.mod` stdlib-only); stdlib has **no YAML parser**; gates: ≥90% coverage on touched packages (per-package and aggregate), race-clean, gofmt+vet clean, EN+PT docs, CHANGELOG, SECURITY when applicable.  
-> **Non-goals of this epic:** deferred backlog items (xAI OAuth, M5, A5, D-S10, D-J9, O-J2 — see `PLAN.deferred-backlog.md`); breaking changes to `Process`, `Tool`, `Progress`, `StreamFunc`, `EventFunc`; vector DB in core.
+> **Non-goals of this epic:** remaining deferred backlog items (xAI OAuth, D-S10, D-J9 — see `PLAN.deferred-backlog.md`; M5, A5 and O-J2 shipped); breaking changes to `Process`, `Tool`, `Progress`, `StreamFunc`, `EventFunc`; vector DB in core.
 
 ---
 
