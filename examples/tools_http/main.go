@@ -7,8 +7,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +20,8 @@ import (
 
 func main() {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, `{"ok":true,"path":"`+r.URL.Path+`"}`)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "path": r.URL.Path})
 	}))
 	defer srv.Close()
 	host := hostOnly(srv.URL)
