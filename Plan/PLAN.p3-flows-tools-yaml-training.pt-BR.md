@@ -4,7 +4,7 @@
 > **Decisões:** **Fase 0 completa** — ver `DECISIONS.pt-BR.md` §7B para status canônico; este plano guarda a rationale + recs.  
 > **Relacionado:** [`DECISIONS.md`](DECISIONS.md), `process.go`, `crew.go`, `tool.go`, `tools/websearch.go` (guards SSRF), `task.go` (jail OutputDir), `memory_embed.go`, `schema.go`, `loop.go`.  
 > **Restrições:** zero deps externas no core (stdlib não tem parser YAML); gates: ≥90% cobertura por pacote tocado **e** agregado, race-clean, gofmt+vet, docs EN+PT, CHANGELOG, SECURITY quando aplicável.  
-> **Não-objetivos:** backlog adiado (xAI OAuth, M5, A5, D-S10, D-J9, O-J2 — ver `PLAN.deferred-backlog.pt-BR.md`); breaking changes; vector DB no core.
+> **Não-objetivos:** backlog adiado restante (xAI OAuth, D-S10, D-J9 — ver `PLAN.deferred-backlog.pt-BR.md`; M5, A5 e O-J2 entregues); breaking changes; vector DB no core.
 
 Fonte autoritativa: [`PLAN.p3-flows-tools-yaml-training.md`](PLAN.p3-flows-tools-yaml-training.md) (inglês). Este espelho segue a mesma estrutura.
 

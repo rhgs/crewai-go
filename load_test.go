@@ -202,13 +202,33 @@ func TestBuild_DuplicatesAndStaged(t *testing.T) {
 	}
 }
 
+func TestBuild_ProcessDAGAlias(t *testing.T) {
+	cfg, err := LoadCrew(strings.NewReader(`{"agents":[{"role":"A"}],"tasks":[{"description":"d","async":true}],"crew":{"process":"dag"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	crew, err := cfg.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if crew.Process != Sequential {
+		t.Fatalf("process = %q, want Sequential (dag alias)", crew.Process)
+	}
+	if crew.Process != DAG {
+		t.Fatal("DAG must equal Sequential")
+	}
+	if !crew.Tasks[0].Async {
+		t.Fatal("per-task async must survive dag alias")
+	}
+}
+
 func TestBuild_ToolsGuardrailsAndMeta(t *testing.T) {
 	tool := NewTool("calc", "c", func(context.Context, string) (string, error) { return "1", nil })
 	gr := func(context.Context, *CrewOutput) error { return nil }
 	doc := `{
   "agents":[{"name":"a","role":"A","llm":"echo","tools":["calc"],"allow_delegation":true,"max_iterations":3,"tool_mode":"react"}],
   "tasks":[{"description":"d","agent":"a","tools":["calc"],"guardrail":"ok","async":true,"output_file":"out.txt"}],
-  "crew":{"verbose":true,"memory":true,"enable_delegation_tool":true,"async_max_workers":2,"async_fail_fast":false,"guardrails":["ok"],"output_dir":"/tmp","manager_agent":"a"}
+  "crew":{"verbose":true,"memory":true,"enable_delegation_tool":true,"enable_memory_tools":true,"async_max_workers":2,"async_fail_fast":false,"guardrails":["ok"],"output_dir":"/tmp","manager_agent":"a"}
 }`
 	cfg, err := LoadCrew(strings.NewReader(doc))
 	if err != nil {
@@ -224,6 +244,9 @@ func TestBuild_ToolsGuardrailsAndMeta(t *testing.T) {
 	}
 	if !crew.Verbose || !crew.Memory || crew.AsyncMaxWorkers != 2 || crew.AsyncFailFast {
 		t.Fatalf("%+v", crew)
+	}
+	if !crew.EnableMemoryTools {
+		t.Fatal("enable_memory_tools")
 	}
 	if len(crew.Agents[0].Tools) != 1 || !crew.Tasks[0].Async {
 		t.Fatal("tools/async")

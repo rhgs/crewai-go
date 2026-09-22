@@ -2,16 +2,16 @@
 
 ## Supported Versions
 
+Security fixes land on the current **v1.x** line. The last **v0.9.x** patch
+line stays supported for a limited time after `v1.0.0` so 0.9 users can
+upgrade. Older 0.x lines are out of support.
+
 | Version | Supported          |
 |---------|--------------------|
-| v0.9.x  | ✅                 |
-| v0.8.x  | ✅                 |
-| v0.7.x  | ✅                 |
-| v0.6.x  | ✅                 |
-| v0.5.x  | ✅                 |
-| v0.4.x  | ✅                 |
-| v0.3.x  | ✅                 |
-| < v0.3  | ❌                 |
+| v1.x    | ✅                 |
+| v0.9.x  | ✅ (until the first v1.1.0, or 90 days after v1.0.0 — whichever is later) |
+| v0.8.x  | ❌                 |
+| < v0.8  | ❌                 |
 
 ## Reporting a Vulnerability
 
@@ -45,6 +45,7 @@ Issues related to third-party LLM APIs (OpenAI, Anthropic, xAI, Ollama) or third
 - **Output files.** `Task.OutputFile` is written with mode `0600`. Paths are cleaned; empty paths are rejected. Optional `Task.OutputDir` / `Crew.OutputDir` jails writes (symlink-aware `EvalSymlinks`, fail closed with `ErrOutputPathRejected`). Still treat paths as application-trusted — never pass unvalidated model output as `OutputFile`.
 - **File tools.** `tools.FileRead` / `tools.FileWrite` reuse the same jail helper (`internal/pathjail`). Write is off until `WithAllowWrite`. Binary (NUL) reads are rejected unless `WithAllowBinary`. Jail root is caller-trusted; still never pass a model-controlled root.
 - **Memory FileStore.** `OpenFileStore(dir)` roots are **caller-trusted** — never pass model-controlled paths. v1 is single-writer per root; the app owns `Close`. Files `0600`, dirs `0700`. Corrupt JSONL lines are skipped on open (`CorruptSkipped()`).
+- **Memory tools.** `recall_memory` / `remember` are opt-in (`EnableMemoryTools` or explicit attach). `Memory=true` does not attach them. `remember` Puts immediately (visible to parallel siblings) — do not treat it as a sibling-merge channel. Input is capped at `MaxToolArgsBytes`; recall output at `MaxToolOutputBytes`; store Put still enforces `MaxMemoryEntryBytes`. Store/embed errors in the observation are passed through `redactError`. `Crew.Embed` is serialized (`embedMu`) so AutoEmbed (G8) and tools never run the embedder concurrently. Recalled `Content` is model-visible — treat the store as prompt-adjacent. Neither tool is a FactSource.
 - **Lifecycle events.** `Crew.WithEvents` / `CrewEvent` are **metadata-only** by default (no prompt bodies, tool args, or stream text). Error strings are redacted. Same concurrency rules as Progress.
 - **JSON Schema `$ref`.** Only local fragment refs (`#/...`) are resolved — never HTTP/file fetches (SSRF).
 - **Declarative crews.** `LoadCrew` / `LoadCrewFile` accept JSON-subset only (no YAML parser, no env interpolation). Input capped at 1 MiB. `llm`/`tools`/`guardrail` are string refs into caller maps — unknown names fail closed. The file never executes code.

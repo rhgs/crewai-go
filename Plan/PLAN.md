@@ -127,6 +127,17 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 | Documentation | bilingual README + guides + MCP + SECURITY + flows/rag/declarative/training |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
+### v1 compatibility (freeze of the v0.9.0 surface)
+
+`v1.0.0` is **not** a new epic. It freezes the v0.9.0 exported surface under
+[Go module semantic versioning](https://go.dev/doc/modules/version-numbers):
+additive APIs only in 1.x; breaking changes require `github.com/rhgs/crewai-go/v2`.
+Everything exported from `crewai`, `llm/*`, `tools`, and `mcp` is supported
+(no experimental API). `internal/`, examples, and log wording are out of
+contract. Security support: current v1.x plus last v0.9.x (see `SECURITY.md`).
+Shipped with the freeze: **M5** and **A5**. Still deferred (D-S10, D-J9, P-XAI-OAUTH) is **1.1+** if demanded —
+it does not block the freeze.
+
 ### Known limitations (post v0.9.0)
 
 - **Streaming is opt-in** — without `WithStream` / `StreamingLLM`, `LLM.Call`
@@ -144,9 +155,9 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
   core (`P-DEPS`). Trace bodies are opt-in. OpenTelemetry is not bundled.
 - **Lifecycle events are metadata-only** — `WithEvents` does not carry prompt
   bodies (by design).
-- **HTTPFetch is GET-only in v1** — `WithHTTPMethods` gates whether GET is
-  allowed; it does not send POST/PUT. RAG is a docs/example pattern (no vector
-  DB in core). Web search shipped in v0.3+.
+- **HTTPFetch always sends GET in v1** — `WithHTTPMethods` gates whether GET
+  is allowed; it does not send POST/PUT or a body. RAG is a docs/example
+  pattern (no vector DB in core). Web search shipped in v0.3+.
 
 > **Closed in **v0.6.0** (PR #31):** long-term `MemoryStore` + FileStore
 > JSONL + embeddings hook, and `Task.Async` DAG waves beyond Staged. See
@@ -271,8 +282,8 @@ and environment variable names in docs/README. The `.gitignore` protects
   `Task.Context`, wave scheduler, `AsyncMaxWorkers` (default 8; 0=unlimited),
   `AsyncFailFast`. Staged golden unchanged. **Shipped in v0.6.0 (PR #31).**
   Design archive: [`PLAN.memory-async.md`](PLAN.memory-async.md)
-  ([PT](PLAN.memory-async.pt-BR.md)). Optional follow-ups deferred there:
-  **M5** agent memory tools, **A5** `Process=DAG` alias.
+  ([PT](PLAN.memory-async.pt-BR.md)). Optional follow-up **M5** agent memory
+  tools **shipped**; **A5** `Process=DAG` alias **shipped** (D-A7).
 - [x] **Streaming** — optional `StreamingLLM` (`CallStream` → `<-chan StreamChunk`)
   via type assertion (does not break existing `LLM` implementers); `Crew.WithStream`
   / context sink; v1 streams final text / no-tools paths only with Call fallback.
@@ -340,8 +351,8 @@ unless explicitly accepted).
 | P3 | **Tools: HTTP, files, RAG patterns** | Same plan Train T (SSRF/jail) — **shipped** |
 | P3 | **YAML crew definitions** | Same plan Train Y (JSON-subset v1) — **shipped** |
 | P3 | **Training / trace export** | Same plan Train X (JSONL recorder) — **shipped** |
-| Deferred (memory-async P3) | **M5** `recall_memory` / `remember` | Agent-driven memory tools |
-| Deferred (memory-async P3) | **A5** `Process=DAG` alias | Naming sugar only |
+| Shipped (memory-async P3) | **M5** `recall_memory` / `remember` | Opt-in `EnableMemoryTools` (D-MT1–D-MT5) |
+| Shipped (memory-async P3) | **A5** `Process=DAG` alias | `const DAG = Sequential` + `WithAsyncAll` (D-A7) |
 
 ## 7. Open decisions
 
@@ -360,6 +371,5 @@ Product/design choices still open for **future** epics (not memory-async):
   publishes official documentation.
 - **Module path** — published as `github.com/rhgs/crewai-go` (resolved).
 
-Deferred from memory-async: **M5** memory tools (design settled — D-MT1–D-MT5,
-unscheduled), **A5** `Process=DAG` alias (stays deferred; revisit only on
-user confusion — 2026-08-21; do not close yet) — see [`PLAN.memory-async.md`](PLAN.memory-async.md) §10.
+Shipped from memory-async: **M5** memory tools (D-MT1–D-MT5) and **A5**
+`Process=DAG` alias (D-A7). See [`PLAN.memory-async.md`](PLAN.memory-async.md) §10.

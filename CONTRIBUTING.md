@@ -53,7 +53,12 @@ No external module dependencies are required (`go.mod` is stdlib-only).
 1. Fork the repository (or create a branch if you have write access).
 2. Create a focused branch: `feat/…`, `fix/…`, `docs/…`.
 3. Make small, reviewable commits.
-4. Keep the default behavior backward compatible unless the PR is an intentional break.
+4. Keep the default behavior backward compatible. **v1.x is additive** — do not
+   rename/remove exported identifiers, change signatures, change documented
+   defaults, or change sentinel error identity (`errors.Is`) without an
+   intentional `v2` module path. Bug fixes that restore the documented
+   contract are allowed. See the README [Compatibility](README.md#compatibility)
+   section.
 5. Update docs and CHANGELOG when user-visible behavior changes.
 6. Open a pull request against `main` and fill in the PR template.
 
@@ -90,6 +95,7 @@ agent flows.
 - [ ] Tests cover the new behavior (including failure paths)
 - [ ] Docs updated (EN + PT-BR when applicable)
 - [ ] CHANGELOG entry under the unreleased / next version section when relevant
+- [ ] v1.x additive: no renamed/removed exports, signature changes, documented-default flips, or sentinel identity changes (see README Compatibility)
 - [ ] No secrets, API keys, or credentials in the diff
 - [ ] PR description explains *why*, not only *what*
 

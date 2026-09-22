@@ -145,3 +145,18 @@ no self-delegation, target must exist on the roster and have
 
 See `examples/delegation`.
 
+## Agent memory tools (`recall_memory` / `remember`)
+
+Opt-in (default off). `Memory = true` does **not** attach these tools.
+
+```go
+crew.Memory = true
+crew.EnableMemoryTools = true
+// or: agent.WithTools(crewai.NewRecallMemoryTool(crew), crewai.NewRememberTool(crew))
+```
+
+`recall_memory` queries the store (text and, when `Crew.Embed` is set, cosine).
+`remember` Puts immediately (bypasses the D-M7 AutoSave buffer). See
+[Memory](memory.md#agent-memory-tools-recall_memory--remember) and
+`examples/memory_tools`.
+

@@ -48,6 +48,8 @@
 - [Documentation](#documentation)
 - [Tests](#tests)
 - [Comparison with CrewAI (Python)](#comparison-with-crewai-python)
+- [Compatibility](#compatibility)
+- [v1 scope (by design)](#v1-scope-by-design)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -95,7 +97,7 @@
 | **Agent**    | A worker with a role, a goal, a backstory, an LLM, and tools.           |
 | **Task**     | A unit of work with a description, expected output, and an assignee.   |
 | **Crew**     | The team: groups agents and tasks and orchestrates them.                |
-| **Process**  | Execution strategy: `Sequential`, `Hierarchical`, or `Staged`.        |
+| **Process**  | Execution strategy: `Sequential` (`DAG` alias), `Hierarchical`, or `Staged`. |
 | **Tool**     | A capability an agent can invoke (calculation, search, API…).          |
 | **LLM**      | Abstraction over the language model. Several providers ready to use.   |
 | **Memory**   | Short-term bag + pluggable `MemoryStore` (FileStore, embeddings).      |
@@ -472,7 +474,7 @@ analysis := crewai.NewTask("Analyze the data", "insights", analyst).
 ```
 
 **Async waves (Sequential / Hierarchical)** — mark independent tasks with
-`WithAsync()` so they overlap without switching to Staged. `Task.Context`
+`WithAsync()` (or `crew.WithAsyncAll()`) so they overlap without switching to Staged. `crewai.DAG` is a name alias for `Sequential`. `Task.Context`
 is the DAG; each wave folds by **declaration order** after a barrier.
 `NewCrew` defaults to `AsyncMaxWorkers = 8` (`0` = unlimited). Ignored under
 Staged (one-shot Warn). See [docs/crews.md](docs/crews.md#async-tasks-under-sequential--hierarchical-a3)
@@ -695,8 +697,17 @@ crew.MemoryPolicy = crewai.NewMemoryPolicy()
 // crew.Embed = myEmbedder; crew.MemoryPolicy.AutoEmbed = true
 ```
 
-See [docs/memory.md](docs/memory.md), `examples/memory_file`, and
-`examples/memory_embed`.
+Agent-driven tools (opt-in, default off):
+
+```go
+crew.EnableMemoryTools = true // attaches recall_memory + remember at Kickoff
+// or: agent.WithTools(crewai.NewRecallMemoryTool(crew), crewai.NewRememberTool(crew))
+```
+
+`remember` Puts immediately (visible to later `recall_memory` in the same
+run, including parallel siblings). `Memory=true` alone does not attach the
+tools. See [docs/memory.md](docs/memory.md), `examples/memory_file`,
+`examples/memory_embed`, and `examples/memory_tools`.
 
 ## Examples
 
@@ -710,6 +721,7 @@ go run ./examples/streaming     # WithStream deltas (offline mock)
 go run ./examples/async_tasks    # Task.Async waves (offline mock)
 go run ./examples/memory_file    # FileStore JSONL across Kickoffs
 go run ./examples/memory_embed   # AutoEmbed + cosine Query (mock)
+go run ./examples/memory_tools   # recall_memory / remember (offline)
 go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/logging        # RedactHandler demo
 go run ./examples/mcp            # MCP wiring (live with MCP_ENDPOINT)
@@ -833,7 +845,34 @@ Tests are **hermetic**: they use the `mock` LLM and `httptest`, with no real net
 | **Memory footprint** | ✅ ~10-20 MB typical | ❌ ~100-300 MB typical (Python + deps) |
 | **Cross-compilation** | ✅ `GOOS=linux GOARCH=arm64 go build` — any target from any host | ❌ requires target-platform Python or container |
 
-This port covers the CrewAI core (agents, tasks, crews, processes, tools, memory) plus several original features not found in the Python version. Event-driven Flows ship as typed `Flow[S]` (see [`docs/flows.md`](docs/flows.md)). Training / trace export and declarative YAML remain on the P3 roadmap.
+This port covers the CrewAI core (agents, tasks, crews, processes, tools, memory) plus several original features not found in the Python version. Event-driven Flows ship as typed `Flow[S]` (see [`docs/flows.md`](docs/flows.md)). Training / trace export (`TraceRecorder`) and declarative JSON-subset crews (`LoadCrew`) shipped in **v0.9.0** (see [`docs/training.md`](docs/training.md) and [`docs/declarative.md`](docs/declarative.md)). Full YAML (anchors, block scalars) stays out of core.
+
+## Compatibility
+
+`crewai-go` follows [Go module semantic versioning](https://go.dev/doc/modules/version-numbers). **v1.x is additive**: exported identifiers, default behavior, and documented contracts will not break without a `v2` module path (`github.com/rhgs/crewai-go/v2`).
+
+- **Additive only** — new types, fields, options, and packages are fine in 1.x.
+- **Breaking changes** — rename/remove exports, change signatures, change documented defaults, or change sentinel error identity (`errors.Is`) require `v2`.
+- **Bug fixes** — correcting behavior that already violated the documented contract is allowed in 1.x.
+- **No experimental API** — everything exported from `crewai`, `llm/*`, `tools`, and `mcp` is supported. Helpers such as `DelegationRoster`, `ContextWithAgentRole`, `ContextWithEvents`, and `ContextWithKickoffID` are part of that surface.
+- **Not covered** — `internal/` packages, example code, and log message wording.
+
+`v1.0.0` freezes the **v0.9.0** surface; it is not a new epic. See [CONTRIBUTING.md](CONTRIBUTING.md) for how this applies to PRs and [SECURITY.md](SECURITY.md) for the support window.
+
+## v1 scope (by design)
+
+These are documented contracts, not missing features. They do not block `v1.0.0`. Longer rationale: [Plan/PLAN.md](Plan/PLAN.md) (Known limitations).
+
+- **Streaming** — opt-in `WithStream` / `StreamingLLM`; final-text / no-tools paths only. ReAct+tools and structured output stay on `Call`.
+- **JSON Schema** — subset: local `$ref`, format allowlist, `const` / `not` / `if`/`then`/`else`, property counts, `uniqueItems`. No `unevaluated*`, remote `$ref`, or `dependent*`.
+- **HTTPFetch** — always sends GET. `WithHTTPMethods` only gates whether GET is allowed; it does not send POST, PUT, or a request body.
+- **Declarative crews** — JSON-subset (`LoadCrew`); no YAML parser, no `${ENV}` interpolation. Out of v1: `Loop`, `StructuredOutput`, `Stages` (process `staged`), Embed / MemoryStore wiring, and `WithProgress` / `WithStream` / `WithEvents` (set those on the built `*Crew`). Full YAML (anchors, block scalars) stays out of core.
+- **FileStore** — single-writer per root (no flock). The path is caller-trusted.
+- **Events / traces** — metadata-only by default. Prompt bodies and tool args are opt-in (`WithTraceBodies`) and redacted.
+- **MCP** — servers are trusted; tool descriptions and results enter the model context. Use `FilterTools`, network allowlists, and least privilege.
+- **RAG / vector DB / OpenTelemetry** — not in core. RAG is a docs/example pattern.
+
+Shipped with this freeze: **M5** `recall_memory` / `remember` (opt-in) and **A5** `Process=DAG` (alias of Sequential). Still deferred (1.1+ if demanded): partial tool-call streaming, `unevaluated*`, xAI OAuth defaults — see [Plan/PLAN.deferred-backlog.md](Plan/PLAN.deferred-backlog.md).
 
 ## Contributing
 

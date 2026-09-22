@@ -46,6 +46,10 @@ tools.NewFileRead("/var/data")
 tools.NewFileWrite("/var/data", tools.WithAllowWrite())
 ```
 
+Tools de memória (`recall_memory` / `remember`) ficam no pacote raiz:
+`crewai.NewRecallMemoryTool(crew)`, `crewai.NewRememberTool(crew)`, ou
+`Crew.EnableMemoryTools`. Veja [Memory](memory.md#tools-de-memória-do-agente-recall_memory--remember).
+
 ### HTTPFetch (SSRF-safe)
 
 Deny-by-default: allowlist vazia rejeita tudo. Hosts batem com `path.Match`

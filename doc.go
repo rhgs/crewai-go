@@ -38,7 +38,7 @@
 //	crew := crewai.NewCrew([]*crewai.Agent{agent}, []*crewai.Task{task})
 //	out, err := crew.Kickoff(context.Background(), nil)
 //
-// Orchestration can be sequential (Sequential), hierarchical (Hierarchical),
+// Orchestration can be sequential (Sequential; DAG is an alias), hierarchical (Hierarchical),
 // or staged (Staged). The staged process groups tasks into stages: stages run
 // in sequence, but the tasks within a single stage run concurrently. The
 // output of each stage is available as context to the tasks of the following
@@ -293,6 +293,15 @@
 // app owns Close). Crew.Embed + MemoryPolicy.AutoEmbed persist vectors at the
 // commit barrier; Query with MemoryQuery.Embedding ranks by cosine. See docs/memory.md.
 //
+// Crew.EnableMemoryTools (default false) auto-attaches recall_memory and
+// remember at Kickoff (D-MT2). NewRecallMemoryTool / NewRememberTool attach
+// explicitly. remember Puts immediately (D-MT4); recall uses text and, when
+// Crew.Embed is set, cosine ranking (D-MT3). Input is capped at
+// MaxToolArgsBytes; output at MaxToolOutputBytes (D-MT5). Store/embed errors
+// in the observation are redacted. Crew.Embed is serialized with AutoEmbed.
+// Memory=true alone does not expose the tools. DAG is an alias for Sequential
+// (D-A7); pair with Crew.WithAsyncAll when every task should be wave-eligible.
+//
 // # Logging
 //
 // crewai-go uses log/slog (structured logging) from the standard library.
@@ -406,4 +415,14 @@
 //	researcher.AllowDelegation = true
 //	crew.EnableDelegationTool = true
 //	// or: writer.WithTools(crewai.NewDelegationTool(crew))
+//
+// # Compatibility
+//
+// v1.x is additive. Exported identifiers in this package and in llm/*,
+// tools, and mcp, documented defaults, and sentinel error identity
+// (errors.Is) do not break without a v2 module path. There is no
+// experimental API: helpers such as DelegationRoster,
+// ContextWithAgentRole, ContextWithEvents, and ContextWithKickoffID are
+// supported. internal/ packages, examples, and log message wording are
+// not part of the compatibility contract. See README Compatibility.
 package crewai

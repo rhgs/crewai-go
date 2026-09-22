@@ -126,6 +126,17 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 | Documentação | README + guias bilíngues + MCP + SECURITY + flows/rag/declarative/training |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
+### Compatibilidade v1 (freeze da superfície v0.9.0)
+
+`v1.0.0` **não** é um epic novo. Congela a superfície exportada da v0.9.0 sob
+[versionamento semântico de módulos Go](https://go.dev/doc/modules/version-numbers):
+só APIs aditivas em 1.x; breaking changes exigem `github.com/rhgs/crewai-go/v2`.
+Tudo exportado de `crewai`, `llm/*`, `tools` e `mcp` é suportado (sem API
+experimental). `internal/`, exemplos e texto de log ficam fora do contrato.
+Suporte de segurança: v1.x atual mais a última v0.9.x (ver `SECURITY.md`).
+Entregue no freeze: **M5** e **A5**. Ainda adiado (D-S10, D-J9, P-XAI-OAUTH) é **1.1+** se houver
+demanda — não bloqueia o freeze.
+
 ### Limitações conhecidas (pós v0.9.0)
 
 - **Streaming é opt-in** — sem `WithStream` / `StreamingLLM`, `LLM.Call`
@@ -144,9 +155,9 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
   do core (`P-DEPS`). Bodies de trace são opt-in. OpenTelemetry não vem no core.
 - **Eventos de lifecycle são só metadados** — `WithEvents` não carrega corpos
   de prompt (de propósito).
-- **HTTPFetch é GET-only na v1** — `WithHTTPMethods` decide se GET é
-  permitido; não envia POST/PUT. RAG é padrão de docs/exemplo (sem vector DB
-  no core). Web search já existe (v0.3+).
+- **HTTPFetch sempre envia GET na v1** — `WithHTTPMethods` decide se GET é
+  permitido; não envia POST/PUT nem corpo. RAG é padrão de docs/exemplo (sem
+  vector DB no core). Web search já existe (v0.3+).
 
 > **Fechado na **v0.6.0** (PR #31):** memória de longo prazo
 > (`MemoryStore` + FileStore JSONL + embeddings) e `Task.Async` com waves
@@ -261,8 +272,8 @@ docs/README. `.gitignore` protege `.claude/`, `.env`, `*token.json`.
   `Task.Context`, agendador de waves, `AsyncMaxWorkers` (padrão 8; 0=ilimitado),
   `AsyncFailFast`. Staged dourado inalterado. **Entregue na v0.6.0 (PR #31).**
   Arquivo de design: [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md)
-  ([EN](PLAN.memory-async.md)). Follow-ups opcionais adiados lá: **M5** tools
-  de memória do agente, **A5** alias `Process=DAG`.
+  ([EN](PLAN.memory-async.md)). Follow-up opcional **M5** tools de memória
+  do agente **entregue**; **A5** alias `Process=DAG` **entregue** (D-A7).
 - [x] **Streaming** — `StreamingLLM` opcional (`CallStream` → `<-chan StreamChunk`)
   via type assertion (não quebra implementadores de `LLM`); `Crew.WithStream`
   / sink no context; v1 streama só texto final / caminhos sem tools com
@@ -330,8 +341,8 @@ race-clean, docs EN+PT, sem novas deps no core salvo aceite explícito).
 | P3 | **Tools: HTTP, arquivos, padrões RAG** | Mesmo plano Trem T (SSRF/jail) — **entregue** |
 | P3 | **Definições YAML de crew** | Mesmo plano Trem Y (subconjunto JSON) — **entregue** |
 | P3 | **Training / export de traces** | Mesmo plano Trem X (recorder JSONL) — **entregue** |
-| Adiado (memory-async P3) | **M5** `recall_memory` / `remember` | Tools de memória do agente |
-| Adiado (memory-async P3) | **A5** alias `Process=DAG` | Açúcar de naming |
+| Entregue (memory-async P3) | **M5** `recall_memory` / `remember` | Opt-in `EnableMemoryTools` (D-MT1–D-MT5) |
+| Entregue (memory-async P3) | **A5** alias `Process=DAG` | `const DAG = Sequential` + `WithAsyncAll` (D-A7) |
 
 ## 7. Decisões em aberto
 
@@ -355,7 +366,5 @@ memory-async):
   quando a xAI publicar documentação oficial.
 - **Module path** — publicado como `github.com/rhgs/crewai-go` (resolvido).
 
-Adiados do memory-async: **M5** tools de memória (design fechado — D-MT1–D-MT5,
-sem agenda), **A5** alias `Process=DAG` (permanece adiado; revisitar só com
-sinal de confusão — 2026-08-21; não fechar ainda) — ver
-[`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md) §10.
+Entregue do memory-async: **M5** tools de memória (D-MT1–D-MT5) e **A5**
+alias `Process=DAG` (D-A7). Ver [`PLAN.memory-async.pt-BR.md`](PLAN.memory-async.pt-BR.md) §10.

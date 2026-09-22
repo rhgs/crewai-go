@@ -53,7 +53,12 @@ Nao ha dependencias externas de modulo (`go.mod` e apenas stdlib).
 1. Faca um fork do repositorio (ou crie uma branch se tiver acesso de escrita).
 2. Crie uma branch focada: `feat/…`, `fix/…`, `docs/…`.
 3. Faca commits pequenos e faceis de revisar.
-4. Mantenha o comportamento padrao backward compatible, salvo se o PR for uma quebra intencional.
+4. Mantenha o comportamento padrao backward compatible. **v1.x e aditiva** —
+   nao renomeie/remova identificadores exportados, nao mude assinaturas,
+   defaults documentados nem a identidade de sentinel errors (`errors.Is`)
+   sem um path de modulo `v2` intencional. Bug fixes que restauram o contrato
+   documentado sao permitidos. Veja a secao
+   [Compatibilidade](README.pt-BR.md#compatibilidade) do README.
 5. Atualize docs e CHANGELOG quando o comportamento visivel ao usuario mudar.
 6. Abra um pull request contra `main` e preencha o template do PR.
 
@@ -90,6 +95,7 @@ LLM para fluxos multi-fase de agentes.
 - [ ] Testes cobrem o novo comportamento (incluindo caminhos de falha)
 - [ ] Docs atualizados (EN + PT-BR quando aplicavel)
 - [ ] Entrada no CHANGELOG na secao unreleased / proxima versao quando relevante
+- [ ] v1.x aditiva: sem exports renomeados/removidos, mudanca de assinatura, troca de default documentado ou identidade de sentinel (ver Compatibilidade no README)
 - [ ] Sem segredos, API keys ou credenciais no diff
 - [ ] A descricao do PR explica o *porquê*, nao so o *o que*
 

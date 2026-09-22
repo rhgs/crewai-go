@@ -59,6 +59,7 @@ type CrewMetaConfig struct {
 	ManagerAgent         string   `json:"manager_agent,omitempty"`
 	OutputDir            string   `json:"output_dir,omitempty"`
 	EnableDelegationTool bool     `json:"enable_delegation_tool,omitempty"`
+	EnableMemoryTools    bool     `json:"enable_memory_tools,omitempty"`
 	AsyncMaxWorkers      *int     `json:"async_max_workers,omitempty"`
 	AsyncFailFast        *bool    `json:"async_fail_fast,omitempty"`
 	Guardrails           []string `json:"guardrails,omitempty"`
@@ -205,8 +206,15 @@ func (cfg *CrewConfig) Build(opts ...BuildOption) (*Crew, error) {
 	crew.Memory = meta.Memory
 	crew.OutputDir = meta.OutputDir
 	crew.EnableDelegationTool = meta.EnableDelegationTool
+	crew.EnableMemoryTools = meta.EnableMemoryTools
 	if meta.Process != "" {
 		p := Process(meta.Process)
+		// D-A7: "dag" is an alias for Sequential (naming sugar only); tasks
+		// do not gain implicit Async here. Pair with per-task async or
+		// WithAsyncAll at Build time.
+		if meta.Process == "dag" {
+			p = DAG
+		}
 		if !p.valid() {
 			return nil, &ValidationError{Path: "/crew/process", Message: "invalid process"}
 		}

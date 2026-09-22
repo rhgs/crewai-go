@@ -146,3 +146,18 @@ ciclo, proibicao de auto-delegacao, alvo deve existir no roster e ter
 
 Veja `examples/delegation`.
 
+## Tools de memória do agente (`recall_memory` / `remember`)
+
+Opt-in (default off). `Memory = true` **não** anexa essas tools.
+
+```go
+crew.Memory = true
+crew.EnableMemoryTools = true
+// ou: agente.WithTools(crewai.NewRecallMemoryTool(crew), crewai.NewRememberTool(crew))
+```
+
+`recall_memory` consulta o store (texto e, com `Crew.Embed`, cosseno).
+`remember` faz Put imediato (fora do buffer D-M7 do AutoSave). Veja
+[Memory](memory.md#tools-de-memória-do-agente-recall_memory--remember) e
+`examples/memory_tools`.
+

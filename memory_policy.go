@@ -3,6 +3,7 @@ package crewai
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 )
@@ -198,21 +199,33 @@ func (c *Crew) commitMemoryBuffer(ctx context.Context, tasks []*Task, p *MemoryP
 	}
 }
 
+// embedLocked runs Crew.Embed under embedMu so AutoEmbed (G8) and memory
+// tools never invoke the embedder concurrently.
+func (c *Crew) embedLocked(ctx context.Context, texts []string) ([][]float32, error) {
+	c.embedMu.Lock()
+	defer c.embedMu.Unlock()
+	return c.Embed(ctx, texts)
+}
+
 // maybeEmbedEntry runs Embed serially when AutoEmbed is enabled. Soft-fails
 // on embedder errors / short results (entry saved without embedding).
 func (c *Crew) maybeEmbedEntry(ctx context.Context, e MemoryEntry, t *Task, p *MemoryPolicy) MemoryEntry {
 	if p == nil || !p.AutoEmbed || c.Embed == nil || e.Content == "" {
 		return e
 	}
+	log := slog.Default()
+	if c.logger != nil {
+		log = c.logger
+	}
 	// Respect cancellation between serial embeds without aborting Kickoff.
 	if err := ctx.Err(); err != nil {
-		c.logger.WarnContext(ctx, "memory AutoEmbed skipped",
+		log.WarnContext(ctx, "memory AutoEmbed skipped",
 			"task", taskLabel(t, 0), "error", redactError(err))
 		return e
 	}
-	vecs, err := c.Embed(ctx, []string{e.Content})
+	vecs, err := c.embedLocked(ctx, []string{e.Content})
 	if err != nil {
-		c.logger.WarnContext(ctx, "memory AutoEmbed failed",
+		log.WarnContext(ctx, "memory AutoEmbed failed",
 			"task", taskLabel(t, 0), "error", redactError(err))
 		if t != nil {
 			t.AddWarning(fmt.Sprintf("memory AutoEmbed failed: %v", err))
@@ -220,7 +233,7 @@ func (c *Crew) maybeEmbedEntry(ctx context.Context, e MemoryEntry, t *Task, p *M
 		return e
 	}
 	if len(vecs) < 1 || len(vecs[0]) == 0 {
-		c.logger.WarnContext(ctx, "memory AutoEmbed returned empty vector",
+		log.WarnContext(ctx, "memory AutoEmbed returned empty vector",
 			"task", taskLabel(t, 0))
 		return e
 	}
