@@ -114,16 +114,16 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 - [x] Documentation: bilingual README + guides + MCP + SECURITY + flows/rag/declarative/training; 24 examples.
 - [x] Clean `go build`, `go vet`, and `go test ./...`.
 
-### Maturity snapshot (2026-09-17 — v0.9.0)
+### Maturity snapshot (2026-09-22 — v1.0.0)
 
 | Metric | Value |
 |---------|-------|
-| Latest release | **v0.9.0** (2026-09-17) — P3 Flows + tools + YAML + traces (PRs #48–#53) |
+| Latest release | **v1.0.0** (2026-09-22) — API freeze of v0.9.0 + M5 memory tools + A5 `Process=DAG` (PR #56) |
 | Go LOC (approx.) | ~25k+ |
 | External dependencies | 0 (stdlib) |
 | Coverage — core (`crewai`) | ~94% |
 | Coverage — `mcp` / `tools` / `llm/*` / `internal/pathjail` | all ≥ 90% |
-| Runnable examples | 24 (+ pt-BR mirrors): +flows_research, tools_http, tools_files, rag_file, declarative, trace_export |
+| Runnable examples | 27 (+ pt-BR mirrors): +memory_tools |
 | Documentation | bilingual README + guides + MCP + SECURITY + flows/rag/declarative/training |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
@@ -190,7 +190,7 @@ priority (highest impact / lowest effort first):
 - [x] **Expanded JSON Schema** + `WithStrictSchema`.
 - [x] **`RedactHandler`**, OutputFile jail, Kickoff single-flight.
 - [x] **Real delegation tool** `delegate_to_coworker` + `EnableDelegationTool`.
-- [x] Tags **v0.1.0 … v0.9.0**; bilingual docs; CI + CodeQL.
+- [x] Tags **v0.1.0 … v1.0.0**; bilingual docs; CI + CodeQL.
 
 ### P0 — Publishing and fundamentals
 
