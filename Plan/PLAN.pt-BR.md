@@ -126,6 +126,17 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 | Documentação | README + guias bilíngues + MCP + SECURITY + flows/rag/declarative/training |
 | CI | GitHub Actions (`gofmt`, `vet`, `test -race`) + CodeQL |
 
+### Compatibilidade v1 (freeze da superfície v0.9.0)
+
+`v1.0.0` **não** é um epic novo. Congela a superfície exportada da v0.9.0 sob
+[versionamento semântico de módulos Go](https://go.dev/doc/modules/version-numbers):
+só APIs aditivas em 1.x; breaking changes exigem `github.com/rhgs/crewai-go/v2`.
+Tudo exportado de `crewai`, `llm/*`, `tools` e `mcp` é suportado (sem API
+experimental). `internal/`, exemplos e texto de log ficam fora do contrato.
+Suporte de segurança: v1.x atual mais a última v0.9.x (ver `SECURITY.md`).
+O backlog adiado (M5, A5, D-S10, D-J9, P-XAI-OAUTH) é **1.1+** se houver
+demanda — não bloqueia o freeze.
+
 ### Limitações conhecidas (pós v0.9.0)
 
 - **Streaming é opt-in** — sem `WithStream` / `StreamingLLM`, `LLM.Call`
@@ -144,9 +155,9 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
   do core (`P-DEPS`). Bodies de trace são opt-in. OpenTelemetry não vem no core.
 - **Eventos de lifecycle são só metadados** — `WithEvents` não carrega corpos
   de prompt (de propósito).
-- **HTTPFetch é GET-only na v1** — `WithHTTPMethods` decide se GET é
-  permitido; não envia POST/PUT. RAG é padrão de docs/exemplo (sem vector DB
-  no core). Web search já existe (v0.3+).
+- **HTTPFetch sempre envia GET na v1** — `WithHTTPMethods` decide se GET é
+  permitido; não envia POST/PUT nem corpo. RAG é padrão de docs/exemplo (sem
+  vector DB no core). Web search já existe (v0.3+).
 
 > **Fechado na **v0.6.0** (PR #31):** memória de longo prazo
 > (`MemoryStore` + FileStore JSONL + embeddings) e `Task.Async` com waves

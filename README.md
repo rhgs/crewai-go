@@ -48,6 +48,8 @@
 - [Documentation](#documentation)
 - [Tests](#tests)
 - [Comparison with CrewAI (Python)](#comparison-with-crewai-python)
+- [Compatibility](#compatibility)
+- [v1 scope (by design)](#v1-scope-by-design)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -833,7 +835,34 @@ Tests are **hermetic**: they use the `mock` LLM and `httptest`, with no real net
 | **Memory footprint** | ✅ ~10-20 MB typical | ❌ ~100-300 MB typical (Python + deps) |
 | **Cross-compilation** | ✅ `GOOS=linux GOARCH=arm64 go build` — any target from any host | ❌ requires target-platform Python or container |
 
-This port covers the CrewAI core (agents, tasks, crews, processes, tools, memory) plus several original features not found in the Python version. Event-driven Flows ship as typed `Flow[S]` (see [`docs/flows.md`](docs/flows.md)). Training / trace export and declarative YAML remain on the P3 roadmap.
+This port covers the CrewAI core (agents, tasks, crews, processes, tools, memory) plus several original features not found in the Python version. Event-driven Flows ship as typed `Flow[S]` (see [`docs/flows.md`](docs/flows.md)). Training / trace export (`TraceRecorder`) and declarative JSON-subset crews (`LoadCrew`) shipped in **v0.9.0** (see [`docs/training.md`](docs/training.md) and [`docs/declarative.md`](docs/declarative.md)). Full YAML (anchors, block scalars) stays out of core.
+
+## Compatibility
+
+`crewai-go` follows [Go module semantic versioning](https://go.dev/doc/modules/version-numbers). **v1.x is additive**: exported identifiers, default behavior, and documented contracts will not break without a `v2` module path (`github.com/rhgs/crewai-go/v2`).
+
+- **Additive only** — new types, fields, options, and packages are fine in 1.x.
+- **Breaking changes** — rename/remove exports, change signatures, change documented defaults, or change sentinel error identity (`errors.Is`) require `v2`.
+- **Bug fixes** — correcting behavior that already violated the documented contract is allowed in 1.x.
+- **No experimental API** — everything exported from `crewai`, `llm/*`, `tools`, and `mcp` is supported. Helpers such as `DelegationRoster`, `ContextWithAgentRole`, `ContextWithEvents`, and `ContextWithKickoffID` are part of that surface.
+- **Not covered** — `internal/` packages, example code, and log message wording.
+
+`v1.0.0` freezes the **v0.9.0** surface; it is not a new epic. See [CONTRIBUTING.md](CONTRIBUTING.md) for how this applies to PRs and [SECURITY.md](SECURITY.md) for the support window.
+
+## v1 scope (by design)
+
+These are documented contracts, not missing features. They do not block `v1.0.0`. Longer rationale: [Plan/PLAN.md](Plan/PLAN.md) (Known limitations).
+
+- **Streaming** — opt-in `WithStream` / `StreamingLLM`; final-text / no-tools paths only. ReAct+tools and structured output stay on `Call`.
+- **JSON Schema** — subset: local `$ref`, format allowlist, `const` / `not` / `if`/`then`/`else`, property counts, `uniqueItems`. No `unevaluated*`, remote `$ref`, or `dependent*`.
+- **HTTPFetch** — always sends GET. `WithHTTPMethods` only gates whether GET is allowed; it does not send POST, PUT, or a request body.
+- **Declarative crews** — JSON-subset (`LoadCrew`); no YAML parser, no `${ENV}` interpolation. Out of v1: `Loop`, `StructuredOutput`, `Stages` (process `staged`), Embed / MemoryStore wiring, and `WithProgress` / `WithStream` / `WithEvents` (set those on the built `*Crew`). Full YAML (anchors, block scalars) stays out of core.
+- **FileStore** — single-writer per root (no flock). The path is caller-trusted.
+- **Events / traces** — metadata-only by default. Prompt bodies and tool args are opt-in (`WithTraceBodies`) and redacted.
+- **MCP** — servers are trusted; tool descriptions and results enter the model context. Use `FilterTools`, network allowlists, and least privilege.
+- **RAG / vector DB / OpenTelemetry** — not in core. RAG is a docs/example pattern.
+
+Deferred backlog (memory tools, `Process=DAG` alias, partial tool-call streaming, `unevaluated*`, xAI OAuth defaults) is **1.1+** if demanded — see [Plan/PLAN.deferred-backlog.md](Plan/PLAN.deferred-backlog.md).
 
 ## Contributing
 

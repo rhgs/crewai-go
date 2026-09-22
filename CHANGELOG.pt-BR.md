@@ -5,6 +5,25 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Documentação
+
+- **Contrato de compatibilidade v1** — a seção Compatibilidade do README e o
+  fluxo do CONTRIBUTING passam a afirmar que **v1.x é aditiva**: identificadores
+  exportados, defaults documentados e identidade de sentinel errors
+  (`errors.Is`) não quebram sem um path de módulo `v2`. `v1.0.0` congela a
+  superfície da v0.9.0 (não é um epic novo).
+- **Janela de suporte de segurança** — `SECURITY.md` cobre a linha **v1.x**
+  atual mais a última **v0.9.x** (até a primeira v1.1.0, ou 90 dias após
+  v1.0.0 — o que for mais tarde). Linhas 0.x mais antigas ficam fora de
+  suporte.
+- **Comparação no README** — training / export de traces e crews declarativos
+  em subconjunto JSON constam como entregues na v0.9.0 (não mais como roadmap
+  P3).
+- **Escopo da v1 (de propósito)** — o README lista streaming, subset de JSON
+  Schema, HTTPFetch (sempre GET), declarativo JSON-subset, FileStore
+  single-writer, events/traces só metadados, MCP confiável e ausência de
+  RAG/OTel no núcleo como contratos documentados, não como feature faltando.
+
 ## [v0.9.0] — 2026-09-17
 
 ### Adicionado

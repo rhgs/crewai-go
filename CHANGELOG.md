@@ -5,6 +5,22 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Documentation
+
+- **v1 compatibility contract** — README Compatibility section and CONTRIBUTING
+  workflow now state that **v1.x is additive**: exported identifiers, documented
+  defaults, and sentinel error identity (`errors.Is`) do not break without a
+  `v2` module path. `v1.0.0` freezes the v0.9.0 surface (not a new epic).
+- **Security support window** — `SECURITY.md` covers current **v1.x** plus
+  last **v0.9.x** (until the first v1.1.0, or 90 days after v1.0.0 — whichever
+  is later). Older 0.x lines are out of support.
+- **README comparison** — Training / trace export and declarative JSON-subset
+  crews are documented as shipped in v0.9.0 (no longer listed as P3 roadmap).
+- **v1 scope (by design)** — README lists streaming, JSON Schema subset,
+  HTTPFetch (always GET), declarative JSON-subset, FileStore single-writer,
+  metadata-only events/traces, trusted MCP, and no RAG/OTel in core as
+  documented contracts, not missing features.
+
 ## [v0.9.0] — 2026-09-17
 
 ### Added

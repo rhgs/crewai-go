@@ -48,6 +48,8 @@
 - [Documentação](#documentação)
 - [Testes](#testes)
 - [Comparação com o CrewAI (Python)](#comparação-com-o-crewai-python)
+- [Compatibilidade](#compatibilidade)
+- [Escopo da v1 (de propósito)](#escopo-da-v1-de-propósito)
 - [Contribuindo](#contribuindo)
 - [Licença](#licença)
 
@@ -809,7 +811,34 @@ Os testes são **hermeticos**: usam o LLM `mock` e `httptest`, sem chamadas de r
 | **Consumo de memória** | ✅ ~10-20 MB típico | ❌ ~100-300 MB típico (Python + deps) |
 | **Cross-compilation** | ✅ `GOOS=linux GOARCH=arm64 go build` — qualquer alvo a partir de qualquer host | ❌ exige Python da plataforma alvo ou container |
 
-Este port cobre o núcleo do CrewAI (agentes, tarefas, crews, processos, ferramentas, memória) mais vários recursos originais não presentes na versão Python. Flows event-driven embarcam como `Flow[S]` tipado (ver [`docs/pt-BR/flows.md`](docs/pt-BR/flows.md)). Training / export de traces e YAML declarativo seguem no roadmap P3.
+Este port cobre o núcleo do CrewAI (agentes, tarefas, crews, processos, ferramentas, memória) mais vários recursos originais não presentes na versão Python. Flows event-driven embarcam como `Flow[S]` tipado (ver [`docs/pt-BR/flows.md`](docs/pt-BR/flows.md)). Training / export de traces (`TraceRecorder`) e crews declarativos em subconjunto JSON (`LoadCrew`) embarcaram na **v0.9.0** (ver [`docs/pt-BR/training.md`](docs/pt-BR/training.md) e [`docs/pt-BR/declarative.md`](docs/pt-BR/declarative.md)). YAML completo (anchors, block scalars) permanece fora do núcleo.
+
+## Compatibilidade
+
+`crewai-go` segue o [versionamento semântico de módulos Go](https://go.dev/doc/modules/version-numbers). **v1.x é aditiva**: identificadores exportados, comportamento default e contratos documentados não quebram sem um path de módulo `v2` (`github.com/rhgs/crewai-go/v2`).
+
+- **Só aditivo** — tipos, campos, opções e pacotes novos são ok em 1.x.
+- **Breaking changes** — renomear/remover exports, mudar assinaturas, mudar defaults documentados ou a identidade de sentinel errors (`errors.Is`) exigem `v2`.
+- **Bug fixes** — corrigir comportamento que já violava o contrato documentado é permitido em 1.x.
+- **Sem API experimental** — tudo exportado de `crewai`, `llm/*`, `tools` e `mcp` é suportado. Helpers como `DelegationRoster`, `ContextWithAgentRole`, `ContextWithEvents` e `ContextWithKickoffID` fazem parte dessa superfície.
+- **Fora do contrato** — pacotes `internal/`, código de exemplos e o texto de mensagens de log.
+
+`v1.0.0` congela a superfície da **v0.9.0**; não é um epic novo. Veja [CONTRIBUTING.pt-BR.md](CONTRIBUTING.pt-BR.md) para como isso vale em PRs e [SECURITY.md](SECURITY.md) para a janela de suporte.
+
+## Escopo da v1 (de propósito)
+
+Isto é contrato documentado, não feature faltando. Não bloqueia `v1.0.0`. Racional completo: [Plan/PLAN.pt-BR.md](Plan/PLAN.pt-BR.md) (Limitações conhecidas).
+
+- **Streaming** — opt-in `WithStream` / `StreamingLLM`; só texto final / caminhos sem tools. ReAct+tools e structured output continuam em `Call`.
+- **JSON Schema** — subconjunto: `$ref` local, allowlist de `format`, `const` / `not` / `if`/`then`/`else`, contagens de properties, `uniqueItems`. Sem `unevaluated*`, `$ref` remoto ou `dependent*`.
+- **HTTPFetch** — sempre envia GET. `WithHTTPMethods` só decide se GET é permitido; não envia POST, PUT nem corpo de request.
+- **Crews declarativos** — subconjunto JSON (`LoadCrew`); sem parser YAML, sem interpolação de `${ENV}`. Fora da v1: `Loop`, `StructuredOutput`, `Stages` (process `staged`), wiring de Embed / MemoryStore, e `WithProgress` / `WithStream` / `WithEvents` (configure no `*Crew` já construído). YAML completo (anchors, block scalars) permanece fora do núcleo.
+- **FileStore** — um writer por root (sem flock). O path é confiável pelo caller.
+- **Eventos / traces** — só metadados por default. Corpos de prompt e args de tool são opt-in (`WithTraceBodies`) e redigidos.
+- **MCP** — servidores são confiáveis; descriptions e resultados entram no contexto do modelo. Use `FilterTools`, allowlists de rede e least privilege.
+- **RAG / vector DB / OpenTelemetry** — fora do núcleo. RAG é padrão de docs/exemplo.
+
+O backlog adiado (tools de memória, alias `Process=DAG`, stream parcial de tool-call, `unevaluated*`, defaults OAuth da xAI) é **1.1+** se houver demanda — ver [Plan/PLAN.deferred-backlog.pt-BR.md](Plan/PLAN.deferred-backlog.pt-BR.md).
 
 ## Contribuindo
 

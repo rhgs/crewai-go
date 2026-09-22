@@ -406,4 +406,14 @@
 //	researcher.AllowDelegation = true
 //	crew.EnableDelegationTool = true
 //	// or: writer.WithTools(crewai.NewDelegationTool(crew))
+//
+// # Compatibility
+//
+// v1.x is additive. Exported identifiers in this package and in llm/*,
+// tools, and mcp, documented defaults, and sentinel error identity
+// (errors.Is) do not break without a v2 module path. There is no
+// experimental API: helpers such as DelegationRoster,
+// ContextWithAgentRole, ContextWithEvents, and ContextWithKickoffID are
+// supported. internal/ packages, examples, and log message wording are
+// not part of the compatibility contract. See README Compatibility.
 package crewai

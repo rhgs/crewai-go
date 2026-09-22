@@ -2,16 +2,16 @@
 
 ## Supported Versions
 
+Security fixes land on the current **v1.x** line. The last **v0.9.x** patch
+line stays supported for a limited time after `v1.0.0` so 0.9 users can
+upgrade. Older 0.x lines are out of support.
+
 | Version | Supported          |
 |---------|--------------------|
-| v0.9.x  | ✅                 |
-| v0.8.x  | ✅                 |
-| v0.7.x  | ✅                 |
-| v0.6.x  | ✅                 |
-| v0.5.x  | ✅                 |
-| v0.4.x  | ✅                 |
-| v0.3.x  | ✅                 |
-| < v0.3  | ❌                 |
+| v1.x    | ✅                 |
+| v0.9.x  | ✅ (until the first v1.1.0, or 90 days after v1.0.0 — whichever is later) |
+| v0.8.x  | ❌                 |
+| < v0.8  | ❌                 |
 
 ## Reporting a Vulnerability
 

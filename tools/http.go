@@ -43,6 +43,8 @@ func WithHTTPAllowlist(hosts ...string) HTTPOption {
 }
 
 // WithHTTPMethods replaces the allowed methods. Default is GET only (D-T8).
+// Call always issues GET; this option only gates whether GET is permitted.
+// It does not send POST, PUT, or a request body.
 func WithHTTPMethods(methods ...string) HTTPOption {
 	return func(h *HTTPFetch) {
 		h.methods = map[string]bool{}
