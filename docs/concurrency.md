@@ -86,6 +86,12 @@ parallel groups. It is still **not** a substitute for `WithContext` when you
 need a precise, directed dependency: use Context for the merge edge; use
 Memory for budgeted, policy-driven recall of the **committed** past.
 
+`remember` (opt-in memory tool) **Puts immediately** and is visible to a
+later `recall_memory` in the same Kickoff, including a parallel sibling.
+That is intentional (D-MT4) and is **not** the AutoSave path — do not use
+it as a sibling merge bus; use `WithContext`. `Crew.Embed` used by the tools
+shares the same serial lock as AutoEmbed (G8).
+
 Standalone `Memory.Save` outside Kickoff remains insertion-order (caller’s
 problem). FileStore is single-writer per root in v1.
 

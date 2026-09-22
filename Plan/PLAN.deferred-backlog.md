@@ -1,7 +1,7 @@
 # Plan — Deferred backlog: open/spike items (P-XAI-OAUTH, M5, A5, D-S10, D-J9, O-J2)
 
-> **Status:** **Design settled** — product ack 2026-08-21 (A1–A5). O-J2 closed → **D-JT1** shipped in schema. M5/D-S10/D-J9 design settled but still **unscheduled** (implement only on product request). P-XAI-OAUTH still blocked externally; A5 remains deferred. This plan defines the **conditions to unblock** each, the **design surface** when they start, and the **decision IDs** they will mint.  
-> **Decisions:** Pre-allocated IDs live in [`DECISIONS.md`](DECISIONS.md) §7A. O-J2 closed as **D-JT1**. M5/D-S10/D-J9 design settled (D-MT\*/D-ST\*/D-JE\*) but still unscheduled.  
+> **Status:** **Design settled** — product ack 2026-08-21 (A1–A5). O-J2 closed → **D-JT1** shipped in schema. **M5 shipped** (D-MT1–D-MT5). **A5 shipped** as D-A7. D-S10/D-J9 design settled but still **unscheduled**. P-XAI-OAUTH still blocked externally. This plan defines the **conditions to unblock** each remaining item, the **design surface** when they start, and the **decision IDs** they will mint.  
+> **Decisions:** Pre-allocated IDs live in [`DECISIONS.md`](DECISIONS.md) §7A. O-J2 closed as **D-JT1**. M5 and A5 shipped. D-S10/D-J9 design settled (D-ST\*/D-JE\*) but still unscheduled.  
 > **Related:** [`DECISIONS.md`](DECISIONS.md) §9 (open table), `PLAN.streaming.md` (D-S10), `PLAN.p2-callbacks-schema.md` (D-J9, O-J2), `PLAN.memory-async.md` (M5, A5), `llm/xai/oauth.go` (P-XAI-OAUTH), `schema.go` (D-J9, O-J2).  
 > **Constraints:** Same gates as all epic plans — zero new core deps, ≥ 90% coverage on touched packages, race-clean, EN+PT docs, CHANGELOG.
 
@@ -25,8 +25,8 @@ This is not an implementation plan. Code only starts when the unblock condition 
 | ID | Item | Category | Unblock condition | Complexity |
 |----|------|----------|-------------------|------------|
 | **P-XAI-OAUTH** | Hard-coded xAI OAuth client_id + endpoints | Blocked external | xAI publishes official OAuth docs | Low (config only) |
-| **M5** | `recall_memory` / `remember` agent tools | Deferred — product demand | Product requests agent-driven memory tools | Medium |
-| **A5** | `Process=DAG` alias | Deferred — naming sugar | Users confused by "Sequential+Async" naming | Trivial |
+| ~~**M5**~~ | `recall_memory` / `remember` agent tools | **Shipped** | D-MT1–D-MT5 | Medium |
+| ~~**A5**~~ | `Process=DAG` alias | **Shipped** (D-A7) | `const DAG = Sequential` + `WithAsyncAll` | Trivial |
 | **D-S10** | Stream native tool-call partial JSON | Deferred — technical complexity | Product demand + provider spike | High |
 | **D-J9** | `unevaluatedProperties` / `unevaluatedItems` | Deferred — correctness cost | Real schemas need it; annotation model spike | High |
 | ~~**O-J2**~~ → **D-JT1** | `format: time` | **Closed — ship** | shipped (next patch) | Trivial |
@@ -62,7 +62,10 @@ This is not an implementation plan. Code only starts when the unblock condition 
 
 ### 3.2 M5 — Agent memory tools (`recall_memory` / `remember`)
 
-**Deferred until:** product explicitly wants agents to **call** memory as tools (not just have memory auto-injected).
+**Shipped 2026-09-20** (`memory_tools.go`, `Crew.EnableMemoryTools`). See
+[`DECISIONS.md`](DECISIONS.md) §7A.1.
+
+**Was deferred until:** product explicitly wants agents to **call** memory as tools (not just have memory auto-injected).
 
 **Why deferred (from PLAN.memory-async §10):**
 - Auto-inject + auto-save via `MemoryPolicy` covers the common case.
@@ -88,7 +91,11 @@ This is not an implementation plan. Code only starts when the unblock condition 
 
 ### 3.3 A5 — `Process=DAG` alias
 
-**Deferred until:** enough users find "Sequential + `Task.Async`" confusing.
+**Shipped 2026-09-20** as **D-A7**: `const DAG = Sequential` (same wire
+string `"sequential"`) plus `Crew.WithAsyncAll()`. JSON-subset `"process":
+"dag"` maps to Sequential; tasks do not gain implicit Async.
+
+**Was deferred until:** enough users find "Sequential + `Task.Async`" confusing.
 
 **Why deferred (from PLAN.memory-async D-A6):** fewer concepts is better. `Sequential` with `Async=true` tasks already is "DAG with barrier + fold". Creating a fourth `Process` value adds a name, docs, compatibility surface, and tests for what's already supported.
 
@@ -168,8 +175,8 @@ in `schema.go`.
 | Item | New IDs minted here | When |
 |------|-------------------|------|
 | P-XAI-OAUTH | **D-XA1**, maybe **D-XA2** | On xAI docs publication |
-| M5 | **D-MT1–D-MT5** | On product request |
-| A5 | **D-A7** | On demand signal |
+| ~~M5~~ | **D-MT1–D-MT5** | **Shipped 2026-09-20** |
+| ~~A5~~ | **D-A7** | **Shipped 2026-09-20** |
 | D-S10 | **D-ST1–D-ST4** | On provider spike + product demand |
 | D-J9 | **D-JE1–D-JE3** | On annotation model spike |
 | ~~O-J2~~ | **D-JT1** | **Closed 2026-08-21 (ship)** |
@@ -182,8 +189,8 @@ All new IDs go into the right family table in [`DECISIONS.md`](DECISIONS.md) whe
 
 ```
 P-XAI-OAUTH ──► waits on xAI ──► D-XA1 close
-M5 ──► waits on product request ──► D-MT* close → implement
-A5 ──► waits on user confusion signal ──► D-A7 → alias only
+~~M5~~ ──► **shipped** ──► D-MT1–D-MT5 in memory_tools.go
+~~A5~~ ──► **shipped** ──► D-A7 (`DAG` = Sequential + `WithAsyncAll`)
 D-S10 ──► waits on product + provider spike ──► D-ST* → new stream path
 D-J9 ──► waits on schema demand ──► D-JE* → annotation model
 ~~O-J2~~ ──► **done** ──► D-JT1 in checkFormat (this patch)
@@ -201,8 +208,8 @@ Recommended order (smallest first):
 |---|------|-----------|
 | 1 | ~~**O-J2**~~ — `format: time` | **Done** this patch (D-JT1) |
 | 2 | **P-XAI-OAUTH** | Constant-level change, no interface risk |
-| 3 | **A5** — `Process=DAG` | Naming sugar, ~10 lines, additive |
-| 4 | **M5** — memory tools | Medium complexity; two small tools + policy decision |
+| 3 | ~~**A5**~~ — `Process=DAG` | **Shipped 2026-09-20** |
+| 4 | ~~**M5**~~ — memory tools | **Shipped 2026-09-20** |
 | 5 | **D-S10** — tool-call partial stream | High complexity; touches provider wire protocols |
 | 6 | **D-J9** — unevaluated* | Highest complexity; needs annotation model |
 
@@ -225,4 +232,4 @@ When each item starts:
 
 ## 8. Summary
 
-Six items, one blocked (xAI), five deferred. All have clear design space and decision IDs pre-allocated in [`DECISIONS.md`](DECISIONS.md) §9. When an unblock condition is met, the sub-plan is written here or in its own `PLAN.<item>.md`, and coding starts only after the new decisions close.
+Six items originally: one blocked (xAI), O-J2, M5 and A5 **shipped**, two still deferred (D-S10, D-J9). Remaining items have clear design space and decision IDs pre-allocated in [`DECISIONS.md`](DECISIONS.md) §9. When an unblock condition is met, the sub-plan is written here or in its own `PLAN.<item>.md`, and coding starts only after the new decisions close.

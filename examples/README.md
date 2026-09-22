@@ -17,6 +17,7 @@ Each subfolder is a standalone executable program.
 | `async_tasks`   | `Task.Async` waves under Sequential + `WithContext` merge (offline mock) | ❌ No / ✅ OpenAI |
 | `memory_file`   | `FileStore` JSONL persistence across two Kickoffs (offline) | ❌ No |
 | `memory_embed`  | `AutoEmbed` + cosine Query with mock embedder (offline) | ❌ No |
+| `memory_tools`  | Opt-in `recall_memory` / `remember` tools (offline) | ❌ No |
 | `agentic_loop`  | Plan-Execute-Evaluate-Refine cycle (mock LLM)      | ❌ No                   |
 | `tools`         | An agent using tools via ReAct                     | ✅ OpenAI               |
 | `tools_http`    | `HTTPFetch` allowlist + SSRF deny (httptest, offline) | ❌ No                |
@@ -53,6 +54,7 @@ go run ./examples/streaming  # offline mock stream demux
 go run ./examples/async_tasks  # offline mock; USE_OPENAI=1 for live
 go run ./examples/memory_file  # FileStore JSONL; MEMORY_DIR optional
 go run ./examples/memory_embed # AutoEmbed + cosine (mock)
+go run ./examples/memory_tools # recall_memory / remember (offline)
 go run ./examples/agentic_loop   # offline, mock LLM
 go run ./examples/tools
 go run ./examples/tools_http   # HTTPFetch httptest (offline)

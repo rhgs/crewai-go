@@ -83,7 +83,7 @@ Source: [`PLAN.memory-async.md`](PLAN.memory-async.md) §3.11 / §9.1. PR #31.
 | **D-A3** | `FailFast=false` after a task fails | (A) skip dependents only (B) abort whole crew | **A** | closed | v0.6.0 | `FailFast=true` (default) aborts Kickoff |
 | **D-A4** | Default `AsyncMaxWorkers` | (A) 0 unlimited (B) GOMAXPROCS (C) 8 | **C** default **8**; **0 = unlimited** escape | closed | v0.6.0 | `NewCrew` sets 8; bare `Crew{}` leaves 0 unlimited by design |
 | **D-A5** | `Task.Async` under `Process=Staged` | (A) ignore flag (B) error if set | **A** | closed | v0.6.0 | Stages own batching; G5 one-shot Warn |
-| **D-A6** | New process constant vs flags | (A) Sequential/Hierarchical + `Task.Async` only (B) new `Process=Async` | **A** | closed | v0.6.0 | Optional `Process=DAG` alias deferred (A5 backlog) |
+| **D-A6** | New process constant vs flags | (A) Sequential/Hierarchical + `Task.Async` only (B) new `Process=Async` | **A** | closed | v0.6.0 | Optional `Process=DAG` alias later as **D-A7** |
 
 ---
 
@@ -180,18 +180,19 @@ Source: [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md) §9.2. PR #
 | ID | Question | Options | Choice | Status | Shipped | Notes |
 |----|----------|---------|--------|--------|---------|-------|
 | **D-JT1** | `format: time` (spike O-J2) | (A) ship RFC 3339 full-time (B) document deferral | **A** — `HH:MM:SS[.fff][Z\|±offset]` via `time.Parse("15:04:05.999999999Z07:00")` then fallback without offset | closed | next patch ≥ v0.8.x | Offset optional; date components rejected |
+| **D-A7** | `Process=DAG` alias mechanism (A5) | (A) `const DAG = Sequential` + `WithAsyncAll` (B) new Process value `"dag"` (C) Crew field) | **A** — same wire string `"sequential"`; `"dag"` in JSON-subset maps to Sequential; no implicit Async | closed | process.go, crew.go, load.go | Naming sugar only; scheduler unchanged |
 
-### 7A.1 M5 memory tools — settled design (awaiting implementation demand)
+### 7A.1 M5 memory tools — shipped
 
-Settled by product ack (A3) — code only when requested:
+Settled by product ack (A3); implemented on product request:
 
-| ID | Question | Options | Choice | Status |
-|----|----------|---------|--------|--------|
-| **D-MT1** | One tool vs two | (A) two: recall_memory + remember (B) one memory tool with action | **A** | closed (unscheduled) |
-| **D-MT2** | Attachment | (A) explicit opt-in flag (B) auto when Memory=true | **A** | closed (unscheduled) |
-| **D-MT3** | Recall query | (A) text only (B) embedding only (C) text + embedding | **C** | closed (unscheduled) |
-| **D-MT4** | remember visibility vs D-M7 | (A) immediate Put, outside wave buffer (B) buffered like AutoSave | **A** | closed (unscheduled) |
-| **D-MT5** | Recall budget | (A) MemoryPolicy limits (B) tool arg (C) inherit `MaxToolOutputBytes` | **C** | closed (unscheduled) |
+| ID | Question | Options | Choice | Status | Shipped |
+|----|----------|---------|--------|--------|---------|
+| **D-MT1** | One tool vs two | (A) two: recall_memory + remember (B) one memory tool with action | **A** | closed | memory_tools.go |
+| **D-MT2** | Attachment | (A) explicit opt-in flag (B) auto when Memory=true | **A** — `Crew.EnableMemoryTools` default false; `NewRecallMemoryTool` / `NewRememberTool` always work | closed | crew.go |
+| **D-MT3** | Recall query | (A) text only (B) embedding only (C) text + embedding | **C** — text Query; embed query when `Crew.Embed` set | closed | memory_tools.go |
+| **D-MT4** | remember visibility vs D-M7 | (A) immediate Put, outside wave buffer (B) buffered like AutoSave | **A** | closed | memory_tools.go |
+| **D-MT5** | Recall budget | (A) MemoryPolicy limits (B) tool arg (C) inherit `MaxToolOutputBytes` | **C** — `MaxChars=MaxToolOutputBytes`; Limit from policy | closed | memory_tools.go |
 
 ### 7A.2 D-S10 follow-up — settled design (awaiting demand, product ack A4)
 
@@ -288,8 +289,8 @@ Roadmap-level choices not owned by a single epic table. Update when product dire
 | **P-MODULE** | Go module path | historical forks vs `github.com/rhgs/crewai-go` | **`github.com/rhgs/crewai-go`** | closed | Published |
 | **P-XAI-OAUTH** | Hard-coded xAI OAuth client defaults | (A) invent defaults (B) configurable until official docs | **B** | open | RFC 8628; fix when xAI publishes |
 | **P-STREAM-SHAPE** | Streaming API (historical open item) | (A) CallStream on LLM (B) StreamingLLM | **B** | closed | Superseded by D-S1; v0.7.0 |
-| **P-M5** | Agent memory tools `recall_memory` / `remember` | (A) ship (B) defer | **B** | deferred | Only if product asks |
-| **P-A5** | `Process=DAG` alias | (A) ship (B) defer | **B** | deferred | Naming sugar only |
+| **P-M5** | Agent memory tools `recall_memory` / `remember` | (A) ship (B) defer | **A** | closed | Shipped (D-MT1–D-MT5) |
+| **P-A5** | `Process=DAG` alias | (A) ship (B) defer | **A** | closed | Shipped as D-A7 (`DAG` = Sequential + `WithAsyncAll`) |
 
 ---
 
@@ -302,8 +303,8 @@ Nothing in D1–D7, D-M\*, D-A\*, G\*, D-S\*, D-C\*, D-J\*, **D-F1–D-F12**, **
 | ID | Topic | Status | Next step |
 |----|-------|--------|-----------|
 | **P-XAI-OAUTH** | Official xAI OAuth client_id / endpoints | open | Update defaults when xAI documents them (D-XA*) |
-| **P-M5** | Memory tools | deferred — design settled (D-MT1–D-MT5) | Implement only on product request |
-| **P-A5** | `Process=DAG` alias | deferred | Do not close; revisit only on user confusion signal (A2) |
+| ~~**P-M5**~~ | Memory tools | **closed** | Shipped: `EnableMemoryTools` + `recall_memory` / `remember` |
+| ~~**P-A5**~~ | `Process=DAG` alias | **closed** | Shipped: `const DAG = Sequential` + `WithAsyncAll` (D-A7) |
 | **D-S10** follow-up | Native tool-call partial streaming | deferred — design settled (D-ST1–D-ST4) | Implement only on demand |
 | **D-J9** follow-up | unevaluatedProperties/Items | deferred — design settled (D-JE1–D-JE3) | Implement only on demand |
 | ~~**D-F11**~~ | Flow cancel / fail-fast default | **closed 2026-09-16** | ctx aborts next barrier + fail-fast default true |
@@ -331,6 +332,8 @@ When closing an open item: move it into the right section table, set **Status=cl
 | 2026-09-16 | P3 Train Y shipped: LoadCrew/LoadCrewFile + Build maps; D-Y1–D-Y10 **Shipped** filled. |
 | 2026-09-16 | P3 Train X shipped: TraceRecorder JSONL; D-X1–D-X8 **Shipped** filled. |
 | 2026-09-17 | **v0.9.0** tagged — P3 trains T+F+Y+X bundled (PRs #48–#53). |
+| 2026-09-20 | **P-M5** shipped: `recall_memory` / `remember` + `EnableMemoryTools`; D-MT1–D-MT5 **Shipped** filled. |
+| 2026-09-20 | **P-A5** shipped as **D-A7**: `DAG` aliases Sequential; `WithAsyncAll`; JSON `"dag"` maps to Sequential. |
 
 ---
 

@@ -1,7 +1,7 @@
 # Plano — Backlog adiado: itens abertos/spike (P-XAI-OAUTH, M5, A5, D-S10, D-J9, O-J2)
 
-> **Status:** **Design fechado** — ack de produto 2026-08-21 (A1–A5). O-J2 fechado → **D-JT1** (ship em schema). M5/D-S10/D-J9 design fechado mas **não agendado** (só sob pedido do produto). P-XAI-OAUTH segue bloqueado externamente; A5 permanece adiado. Este plano define as **condições de desbloqueio**, a **superfície de design** quando iniciarem, e os **IDs de decisão** que serão cunhados.  
-> **Decisões:** IDs pré-alocados em [`DECISIONS.pt-BR.md`](DECISIONS.pt-BR.md) §7A. O-J2 fechado como **D-JT1**. M5/D-S10/D-J9 design fechado (D-MT\*/D-ST\*/D-JE\*) mas sem agenda.  
+> **Status:** **Design fechado** — ack de produto 2026-08-21 (A1–A5). O-J2 fechado → **D-JT1** (ship em schema). **M5 entregue** (D-MT1–D-MT5). **A5 entregue** como D-A7. D-S10/D-J9 design fechado mas **não agendado**. P-XAI-OAUTH segue bloqueado externamente. Este plano define as **condições de desbloqueio**, a **superfície de design** quando iniciarem, e os **IDs de decisão** que serão cunhados.  
+> **Decisões:** IDs pré-alocados em [`DECISIONS.pt-BR.md`](DECISIONS.pt-BR.md) §7A. O-J2 fechado como **D-JT1**. M5 e A5 entregues. D-S10/D-J9 design fechado (D-ST\*/D-JE\*) mas sem agenda.  
 > **Relacionado:** [`DECISIONS.md`](DECISIONS.md) §9 (tabela aberta), `PLAN.streaming.md` (D-S10), `PLAN.p2-callbacks-schema.md` (D-J9, O-J2), `PLAN.memory-async.md` (M5, A5), `llm/xai/oauth.go`, `schema.go`.  
 > **Restrições:** Mesmos gates — zero deps novas no core, ≥ 90% cobertura, race-clean, docs EN+PT, CHANGELOG.
 
@@ -27,8 +27,8 @@ Não é um plano de implementação. Código só começa quando a condição de 
 | ID | Item | Categoria | Condição de desbloqueio | Complexidade |
 |----|------|-----------|--------------------------|--------------|
 | **P-XAI-OAUTH** | Defaults OAuth xAI (client_id + endpoints) | Bloqueado externo | xAI publica docs oficiais OAuth | Baixa (só config) |
-| **M5** | Tools de memória `recall_memory` / `remember` | Adiado — demanda de produto | Produto pede tools agent-driven de memória | Média |
-| **A5** | Alias `Process=DAG` | Adiado — sugar de naming | Usuários confundem "Sequential+Async" | Trivial |
+| ~~**M5**~~ | Tools de memória `recall_memory` / `remember` | **Entregue** | D-MT1–D-MT5 | Média |
+| ~~**A5**~~ | Alias `Process=DAG` | **Entregue** (D-A7) | `const DAG = Sequential` + `WithAsyncAll` | Trivial |
 | **D-S10** | Stream parcial de JSON de tool-call | Adiado — complexidade técnica | Demanda + spike de provider | Alta |
 | **D-J9** | `unevaluatedProperties` / `unevaluatedItems` | Adiado — custo de correção | Schemas reais precisam; spike de modelo de anotação | Alta |
 | ~~**O-J2**~~ → **D-JT1** | `format: time` | **Fechado — ship** | entregue (próximo patch) | Trivial |
@@ -47,6 +47,9 @@ Não é um plano de implementação. Código só começa quando a condição de 
 
 ### 3.2 M5 — Tools de memória
 
+**Entregue 2026-09-20** (`memory_tools.go`, `Crew.EnableMemoryTools`). Ver
+[`DECISIONS.pt-BR.md`](DECISIONS.pt-BR.md) §7A.1.
+
 **Adiado até:** produto querer recall/writes acionáveis por LLM (não só auto-inject).
 
 **Por que adiado:** auto-inject + auto-save cobrem o caso comum; tool-driven writes bypassam D-M7; recall precisa de política de budget própria.
@@ -55,7 +58,11 @@ Não é um plano de implementação. Código só começa quando a condição de 
 
 ### 3.3 A5 — `Process=DAG`
 
-**Adiado até:** sinal de confusão com o nome "Sequential + Async".
+**Entregue 2026-09-20** como **D-A7**: `const DAG = Sequential` (mesmo valor
+`"sequential"`) mais `Crew.WithAsyncAll()`. JSON-subset `"process": "dag"`
+mapeia para Sequential; as tasks não ganham Async implícito.
+
+**Era adiado até:** sinal de confusão com o nome "Sequential + Async".
 
 **O que muda:** constante/alias para `Process` (additive). Mint **D-A7**. **Non-goal:** mudar semântica do scheduler.
 
@@ -85,8 +92,8 @@ strings com data são rejeitadas. Implementado em `schema.go`.
 | Item | Novos IDs | Quando |
 |------|-----------|--------|
 | P-XAI-OAUTH | **D-XA1**, talvez **D-XA2** | Docs xAI |
-| M5 | **D-MT1–D-MT5** | Pedido do produto |
-| A5 | **D-A7** | Sinal de confusão |
+| ~~M5~~ | **D-MT1–D-MT5** | **Entregue 2026-09-20** |
+| ~~A5~~ | **D-A7** | **Entregue 2026-09-20** |
 | D-S10 | **D-ST1–D-ST4** | Spike + demanda |
 | D-J9 | **D-JE1–D-JE3** | Spike de anotação |
 | ~~O-J2~~ | **D-JT1** | **Fechado 2026-08-21 (ship)** |
@@ -99,8 +106,8 @@ Todos os IDs entram na família certa em [`DECISIONS.md`](DECISIONS.md) quando f
 
 ```
 P-XAI-OAUTH ──► espera xAI ──► D-XA1 fecha
-M5 ──► espera produto pedir ──► D-MT* fecha → implementa
-A5 ──► espera sinal de confusão ──► D-A7 → alias só
+~~M5~~ ──► **entregue** ──► D-MT1–D-MT5 em memory_tools.go
+~~A5~~ ──► **entregue** ──► D-A7 (`DAG` = Sequential + `WithAsyncAll`)
 D-S10 ──► espera produto + spike provider ──► D-ST* → novo path stream
 D-J9 ──► espera demanda de schema ──► D-JE* → modelo de anotação
 ~~O-J2~~ ──► **feito** ──► D-JT1 em checkFormat (este patch)
@@ -116,8 +123,8 @@ Nenhum bloqueia outro nem bloqueia P3.
 |---|------|---------|
 | 1 | ~~**O-J2**~~ | **Feito** neste patch (D-JT1) |
 | 2 | **P-XAI-OAUTH** | Só constantes, sem risco de interface |
-| 3 | **A5** | Naming sugar, ~10 linhas, aditivo |
-| 4 | **M5** | Média complexidade; duas tools pequenas |
+| 3 | ~~**A5**~~ | **Entregue 2026-09-20** |
+| 4 | ~~**M5**~~ | **Entregue 2026-09-20** |
 | 5 | **D-S10** | Alta; toca wire protocols de provider |
 | 6 | **D-J9** | Maior; precisa de modelo de anotação |
 
@@ -125,7 +132,7 @@ Nenhum bloqueia outro nem bloqueia P3.
 
 ## 7. Resumo
 
-Seis itens: um bloqueado externamente (xAI), O-J2 **fechado e entregue** (D-JT1), três adiados com design **fechado** (M5, D-S10, D-J9 — DECISIONS §7A), um adiado sem fechar (A5). Todos com espaço de design claro e IDs pré-alocados em [`DECISIONS.md`](DECISIONS.md) §9. Quando a condição de desbloqueio for atendida, o sub-plano sai aqui ou em `PLAN.<item>.md`, e código só depois das decisões fecharem.
+Seis itens no original: um bloqueado (xAI), O-J2, M5 e A5 **entregues**, dois ainda adiados (D-S10, D-J9). Itens restantes com espaço de design claro e IDs pré-alocados em [`DECISIONS.md`](DECISIONS.md) §9. Quando a condição de desbloqueio for atendida, o sub-plano sai aqui ou em `PLAN.<item>.md`, e código só depois das decisões fecharem.
 
 ---
 

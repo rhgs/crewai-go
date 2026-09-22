@@ -36,7 +36,7 @@ Input limitado a `MaxCrewConfigBytes` (1 MiB, D-Y9). Erros de schema usam
 |---|---|
 | agent | `name`, `role` (obrigatório), `goal`, `backstory`, `llm`, `tools[]`, `max_iterations`, `allow_delegation`, `tool_mode` |
 | task | `name`, `description` (obrigatório), `expected_output`, `agent`, `tools[]`, `context[]`, `async`, `output_file`, `guardrail` |
-| crew | `name`, `process` (`sequential`/`hierarchical`; **não** `staged` na v1), `verbose`, `memory`, `manager_llm`, `manager_agent`, `output_dir`, `enable_delegation_tool`, `async_max_workers`, `async_fail_fast`, `guardrails[]` |
+| crew | `name`, `process` (`sequential`/`hierarchical`/`dag` alias de sequential; **não** `staged` na v1), `verbose`, `memory`, `manager_llm`, `manager_agent`, `output_dir`, `enable_delegation_tool`, `enable_memory_tools`, `async_max_workers`, `async_fail_fast`, `guardrails[]` |
 
 Fora da v1: `Loop`, `StructuredOutput`, `Stages`, wiring de `Embed`/`MemoryStore`,
 `WithProgress`/`WithStream`/`WithEvents` (setar no `*Crew` já construído).

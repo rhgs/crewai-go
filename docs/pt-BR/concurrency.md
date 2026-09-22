@@ -82,6 +82,12 @@ paralelos. Continua **não** substituindo `WithContext` quando você precisa de
 dependência dirigida e precisa: use Context na aresta de merge; use Memory
 para recall orçado do passado **commitado**.
 
+`remember` (tool de memória opt-in) faz **Put imediato** e fica visível a um
+`recall_memory` posterior no mesmo Kickoff, inclusive um irmão paralelo.
+Isso é intencional (D-MT4) e **não** é o caminho do AutoSave — não use como
+barramento de merge entre irmãos; use `WithContext`. `Crew.Embed` usado pelas
+tools compartilha o mesmo lock serial do AutoEmbed (G8).
+
 `Memory.Save` avulso fora do Kickoff permanece ordem de inserção (problema de
 quem chama). FileStore é single-writer por root na v1.
 

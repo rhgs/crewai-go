@@ -64,7 +64,7 @@ Fonte: [`PLAN.memory-async.md`](PLAN.memory-async.md). PR #31.
 | **D-A3** | FailFast=false após falha | (A) só skip dependents (B) aborta crew | **A** | closed | v0.6.0 |
 | **D-A4** | Default AsyncMaxWorkers | (A) 0 ilimitado (B) GOMAXPROCS (C) 8 | **C** default 8; **0 = ilimitado** | closed | v0.6.0 |
 | **D-A5** | Task.Async sob Staged | (A) ignora (B) erro | **A** | closed | v0.6.0 |
-| **D-A6** | Novo Process vs flags | (A) só Sequential/Hierarchical+Async (B) Process=Async | **A** | closed | v0.6.0 |
+| **D-A6** | Novo Process vs flags | (A) só Sequential/Hierarchical+Async (B) Process=Async | **A** | closed | v0.6.0 | Alias `Process=DAG` depois como **D-A7** |
 
 ---
 
@@ -153,18 +153,19 @@ Fonte: [`PLAN.p2-callbacks-schema.md`](PLAN.p2-callbacks-schema.md). PR #39.
 | ID | Pergunta | Opções | Escolha | Status | Entregue | Notas |
 |----|----------|--------|---------|--------|----------|-------|
 | **D-JT1** | `format: time` (spike O-J2) | (A) ship RFC 3339 full-time (B) documentar adiamento | **A** — `HH:MM:SS[.fff][Z\|±offset]` via `time.Parse("15:04:05.999999999Z07:00")` e fallback sem offset | closed | próximo patch ≥ v0.8.x | Offset opcional; componentes de data rejeitados |
+| **D-A7** | Mecanismo do alias `Process=DAG` (A5) | (A) `const DAG = Sequential` + `WithAsyncAll` (B) novo valor `"dag"` (C) campo na Crew | **A** — mesmo valor `"sequential"`; `"dag"` no JSON-subset mapeia para Sequential; sem Async implícito | closed | process.go, crew.go, load.go | Só naming; scheduler intacto |
 
-### 7A.1 M5 tools de memória — design fechado (aguardando demanda)
+### 7A.1 M5 tools de memória — entregue
 
-Fechado pelo ack de produto (A3) — código só quando pedido:
+Fechado pelo ack de produto (A3); implementado sob pedido:
 
-| ID | Pergunta | Opções | Escolha | Status |
-|----|----------|--------|---------|--------|
-| **D-MT1** | Uma tool vs duas | (A) duas: recall_memory + remember (B) uma tool com action | **A** | closed (unscheduled) |
-| **D-MT2** | Anexação | (A) flag explícita opt-in (B) auto quando Memory=true | **A** | closed (unscheduled) |
-| **D-MT3** | Query de recall | (A) só texto (B) só embedding (C) texto + embedding | **C** | closed (unscheduled) |
-| **D-MT4** | visibilidade de remember vs D-M7 | (A) Put imediato, fora do buffer da wave (B) bufferizado como AutoSave | **A** | closed (unscheduled) |
-| **D-MT5** | Budget de recall | (A) limites de MemoryPolicy (B) arg da tool (C) herda `MaxToolOutputBytes` | **C** | closed (unscheduled) |
+| ID | Pergunta | Opções | Escolha | Status | Entregue |
+|----|----------|--------|---------|--------|----------|
+| **D-MT1** | Uma tool vs duas | (A) duas: recall_memory + remember (B) uma tool com action | **A** | closed | memory_tools.go |
+| **D-MT2** | Anexação | (A) flag explícita opt-in (B) auto quando Memory=true | **A** — `Crew.EnableMemoryTools` default false; `NewRecallMemoryTool` / `NewRememberTool` sempre funcionam | closed | crew.go |
+| **D-MT3** | Query de recall | (A) só texto (B) só embedding (C) texto + embedding | **C** — Query texto; embed da query quando `Crew.Embed` setado | closed | memory_tools.go |
+| **D-MT4** | visibilidade de remember vs D-M7 | (A) Put imediato, fora do buffer da wave (B) bufferizado como AutoSave | **A** | closed | memory_tools.go |
+| **D-MT5** | Budget de recall | (A) limites de MemoryPolicy (B) arg da tool (C) herda `MaxToolOutputBytes` | **C** — `MaxChars=MaxToolOutputBytes`; Limit da policy | closed | memory_tools.go |
 
 ### 7A.2 Follow-up D-S10 — design fechado (aguardando demanda, ack A4)
 
@@ -259,8 +260,8 @@ Fechados nesta rodada (P3 Fase 0 restante, 2026-09-16):
 | **P-MODULE** | Module path | forks vs rhgs/crewai-go | **github.com/rhgs/crewai-go** | closed |
 | **P-XAI-OAUTH** | Defaults OAuth xAI | (A) inventar (B) configurável até docs oficiais | **B** | open |
 | **P-STREAM-SHAPE** | Forma da API de stream | (A) CallStream em LLM (B) StreamingLLM | **B** | closed (D-S1) |
-| **P-M5** | Tools recall_memory/remember | (A) ship (B) adiar | **B** | deferred |
-| **P-A5** | Alias Process=DAG | (A) ship (B) adiar | **B** | deferred |
+| **P-M5** | Tools recall_memory/remember | (A) ship (B) adiar | **A** | closed | Entregue (D-MT1–D-MT5) |
+| **P-A5** | Alias Process=DAG | (A) ship (B) adiar | **A** | closed | Entregue como D-A7 (`DAG` = Sequential + `WithAsyncAll`) |
 
 ---
 
@@ -273,8 +274,8 @@ Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F12**
 | ID | Tópico | Status | Próximo passo |
 |----|--------|--------|---------------|
 | **P-XAI-OAUTH** | client_id/endpoints oficiais xAI | open | Atualizar defaults quando a xAI documentar (D-XA*) |
-| **P-M5** | Tools de memória | deferred — design fechado (D-MT1–D-MT5) | Implementar só sob pedido do produto |
-| **P-A5** | Alias `Process=DAG` | deferred | Não fechar; revisitar só com sinal de confusão (A2) |
+| ~~**P-M5**~~ | Tools de memória | **fechado** | Entregue: `EnableMemoryTools` + `recall_memory` / `remember` |
+| ~~**P-A5**~~ | Alias `Process=DAG` | **fechado** | Entregue: `const DAG = Sequential` + `WithAsyncAll` (D-A7) |
 | **D-S10** follow-up | Stream parcial de tool-call nativo | deferred — design fechado (D-ST1–D-ST4) | Implementar só sob demanda |
 | **D-J9** follow-up | unevaluatedProperties/Items | deferred — design fechado (D-JE1–D-JE3) | Implementar só sob demanda |
 | ~~**D-F11**~~ | Cancel / fail-fast do Flow | **fechado 2026-09-16** | ctx aborta na próxima barreira + fail-fast default true |
@@ -300,6 +301,8 @@ Nada em D1–D7 / D-M\* / D-A\* / G\* / D-S\* / D-C\* / D-J\* / **D-F1–D-F12**
 | 2026-09-16 | P3 Trem Y entregue: LoadCrew/LoadCrewFile + Build maps; D-Y1–D-Y10 **Entregue** preenchido. |
 | 2026-09-16 | P3 Trem X entregue: TraceRecorder JSONL; D-X1–D-X8 **Entregue** preenchido. |
 | 2026-09-17 | **v0.9.0** tagueada — trens P3 T+F+Y+X no mesmo bundle (PRs #48–#53). |
+| 2026-09-20 | **P-M5** entregue: `recall_memory` / `remember` + `EnableMemoryTools`; D-MT1–D-MT5 **Entregue** preenchido. |
+| 2026-09-20 | **P-A5** entregue como **D-A7**: `DAG` alias de Sequential; `WithAsyncAll`; JSON `"dag"` mapeia para Sequential. |
 
 ## 11. Relacionados
 

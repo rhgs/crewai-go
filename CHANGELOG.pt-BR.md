@@ -5,6 +5,30 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### Adicionado
+
+- **M5 tools de memória (D-MT1–D-MT5)**: `recall_memory` / `remember`
+  opt-in. `Crew.EnableMemoryTools` (default false) auto-anexa no Kickoff;
+  `NewRecallMemoryTool` / `NewRememberTool` anexam explicitamente.
+  `remember` faz Put imediato (D-MT4, fora do buffer D-M7 do AutoSave).
+  `recall_memory` usa texto e cosseno quando `Crew.Embed` está setado
+  (D-MT3); saída limitada a `MaxToolOutputBytes` (D-MT5). `Memory=true`
+  sozinho não anexa as tools (D-MT2). Campo declarativo
+  `enable_memory_tools`. Exemplo: `examples/memory_tools`. Guia:
+  `docs/pt-BR/memory.md`.
+- **A5 alias `Process=DAG` (D-A7)**: `crewai.DAG` é Sequential (mesmo valor
+  `"sequential"`). `Crew.WithAsyncAll()` marca todas as tasks Async. O
+  declarativo `"process": "dag"` mapeia para Sequential; as tasks ainda
+  precisam de `"async": true` (ou um `WithAsyncAll` depois) para waves. Sem
+  mudança de agendamento.
+
+### Segurança
+
+- Tools de memória (`recall_memory` / `remember`) redigem erros de
+  store/embed na observation (`redactError`), limitam o input a
+  `MaxToolArgsBytes` e serializam `Crew.Embed` com o AutoEmbed
+  (`embedMu`, G8).
+
 ### Documentação
 
 - **Contrato de compatibilidade v1** — a seção Compatibilidade do README e o
@@ -23,6 +47,9 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
   Schema, HTTPFetch (sempre GET), declarativo JSON-subset, FileStore
   single-writer, events/traces só metadados, MCP confiável e ausência de
   RAG/OTel no núcleo como contratos documentados, não como feature faltando.
+  M5 e A5 entram neste freeze; stream parcial de tool-call, `unevaluated*`
+  e defaults OAuth da xAI continuam adiados.
+
 
 ## [v0.9.0] — 2026-09-17
 
