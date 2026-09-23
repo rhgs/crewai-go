@@ -110,7 +110,7 @@ crewai (raiz)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
 - [x] **Saida estruturada** — `Task.Structured` com validacao JSON Schema,
   loop de reparo, `WithToolCall` (emit_result), `WithAllowTools`, keywords
   expandidas (v0.5.0).
-- [x] Documentação: README + guias bilíngues + MCP + SECURITY + flows/rag/declarative/training; 24 exemplos.
+- [x] Documentação: README + guias bilíngues + MCP + SECURITY + flows/rag/declarative/training; 27 exemplos.
 - [x] `go build`, `go vet` e `go test ./...` limpos.
 
 ### Snapshot de maturidade (2026-09-22 — v1.0.0)

@@ -9,7 +9,7 @@
 
 ## 1. Purpose
 
-The main roadmap (PLAN.md §6) shipped **P0–P2** and left a small set of items that are either **blocked on an external dependency** (xAI docs) or **deferred until product demand justifies them** (M5, A5, D-S10, D-J9, O-J2). This plan is the **single place** that defines:
+The main roadmap (PLAN.md §6) shipped **P0–P2** and left a small set of items that are either **blocked on an external dependency** (xAI docs) or **deferred until product demand justifies them**. M5, A5, and O-J2 have since shipped; D-S10 and D-J9 remain deferred. This plan is the **single place** that defines:
 
 - what unblocks each item,
 - what the design space looks like,
@@ -213,7 +213,7 @@ Recommended order (smallest first):
 | 5 | **D-S10** — tool-call partial stream | High complexity; touches provider wire protocols |
 | 6 | **D-J9** — unevaluated* | Highest complexity; needs annotation model |
 
-Item 1 shipped in this patch. Items 2–3 are candidates for a minor when unblocked. Items 4–6 need their own epic-level design before code.
+Items 1, 3, and 4 shipped (D-JT1, D-A7, D-MT1–D-MT5). Item 2 stays blocked on xAI docs. Items 5–6 need their own epic-level design before code.
 
 ---
 

@@ -11,7 +11,7 @@ Fonte autoritativa: [`PLAN.deferred-backlog.md`](PLAN.deferred-backlog.md) (ingl
 
 ## 1. Propósito
 
-O roadmap principal (PLAN.md §6) entregou **P0–P2** e deixou itens bloqueados por dependência externa (xAI docs) ou adiados por falta de demanda (M5, A5, D-S10, D-J9, O-J2). Este plano é o lugar único que define:
+O roadmap principal (PLAN.md §6) entregou **P0–P2** e deixou itens bloqueados por dependência externa (xAI docs) ou adiados por falta de demanda. M5, A5 e O-J2 já embarcaram; D-S10 e D-J9 continuam adiados. Este plano é o lugar único que define:
 
 - o que desbloqueia cada item,
 - o espaço de design quando iniciar,
