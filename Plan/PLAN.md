@@ -111,7 +111,7 @@ crewai (root)          Agent, Task, Crew, Process, Tool, Memory/MemoryStore/Memo
   repair loop, `WithToolCall` (emit_result), `WithAllowTools` (gather→capture),
   expanded keywords (v0.5.0). Sentinels `ErrInvalidOutput`,
   `ErrRepairBudgetExceeded`, `ErrToolCallStructuredUnsupported`.
-- [x] Documentation: bilingual README + guides + MCP + SECURITY + flows/rag/declarative/training; 24 examples.
+- [x] Documentation: bilingual README + guides + MCP + SECURITY + flows/rag/declarative/training; 27 examples.
 - [x] Clean `go build`, `go vet`, and `go test ./...`.
 
 ### Maturity snapshot (2026-09-22 — v1.0.0)
