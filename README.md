@@ -762,17 +762,19 @@ go run ./examples/xai_oauth
 | Plan / Roadmap | [EN](Plan/PLAN.md) | [PT](Plan/PLAN.pt-BR.md) |
 | Security policy | [EN](SECURITY.md) | — |
 
-### What's new in v0.9.0
+### What's new in v1.0.0
 
-All features are **backward compatible** — additive APIs only. P3 trains T+F+Y+X.
+API freeze of the v0.9.0 surface. **v1.x is additive** — breaking changes require a `v2` module path. Not a new epic.
 
 | Feature | Description | Docs (EN) | Docs (PT) |
 |---------|-------------|-----------|-----------|
-| **`Flow[S]`** | Typed event-driven runner (`Start` / `Listen` / `Router`); barrier fold; `ErrFlowRunning`. | [docs/flows.md](docs/flows.md) | [docs/pt-BR/flows.md](docs/pt-BR/flows.md) |
-| **HTTPFetch / FileRead / FileWrite** | SSRF-safe GET (deny-by-default allowlist); jailed files (write opt-in). RAG is a docs pattern. | [docs/tools.md](docs/tools.md) | [docs/pt-BR/tools.md](docs/pt-BR/tools.md) |
-| **Declarative crews** | JSON-subset `LoadCrew` / `Build` (no YAML parser; fail-closed refs). | [docs/declarative.md](docs/declarative.md) | [docs/pt-BR/declarative.md](docs/pt-BR/declarative.md) |
-| **`TraceRecorder`** | JSONL Kickoff export; metadata-only default; bodies opt-in (redacted). | [docs/training.md](docs/training.md) | [docs/pt-BR/training.md](docs/pt-BR/training.md) |
-| **Examples** | `flows_research`, `tools_http`, `tools_files`, `rag_file`, `declarative`, `trace_export`. | [examples/](examples/) | [examples/](examples/) |
+| **Stability contract** | Exported identifiers, documented defaults, and sentinel error identity (`errors.Is`) do not break in 1.x. | [Compatibility](#compatibility) | [Compatibilidade](README.pt-BR.md#compatibilidade) |
+| **M5 memory tools** | Opt-in `recall_memory` / `remember` (`EnableMemoryTools`, default false). | [docs/memory.md](docs/memory.md) | [docs/pt-BR/memory.md](docs/pt-BR/memory.md) |
+| **A5 `Process=DAG`** | Alias of Sequential (same wire value). `WithAsyncAll()` marks every task Async. | [docs/crews.md](docs/crews.md) | [docs/pt-BR/crews.md](docs/pt-BR/crews.md) |
+| **v1 scope** | Streaming, schema subset, HTTPFetch GET-only, declarative JSON-subset, FileStore, MCP trust — documented contracts, not missing features. | [v1 scope](#v1-scope-by-design) | [Escopo da v1](README.pt-BR.md#escopo-da-v1-de-propósito) |
+| **Example** | `examples/memory_tools`. | [examples/](examples/) | [examples/](examples/) |
+
+**Also in v0.9.0**: `Flow[S]`, HTTPFetch / FileRead / FileWrite, declarative JSON-subset crews, `TraceRecorder`.
 
 **Also in v0.8.0**: `WithEvents` / `CrewEvent`, JSON Schema remainder, concurrency guide, decision log.
 
@@ -786,7 +788,7 @@ All features are **backward compatible** — additive APIs only. P3 trains T+F+Y
 
 **Also in v0.3.0**: native tool calling, web search, structured logging via `log/slog`, secret redaction.
 
-See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v0.9.0 release](https://github.com/rhgs/crewai-go/releases/tag/v0.9.0) for details.
+See the [CHANGELOG](CHANGELOG.md) for the full list of changes and the [v1.0.0 release](https://github.com/rhgs/crewai-go/releases/tag/v1.0.0) for details.
 
 
 ## Tests

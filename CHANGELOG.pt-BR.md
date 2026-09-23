@@ -5,6 +5,8 @@ segue o [Versionamento Semantico](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+## [v1.0.0] — 2026-09-22
+
 ### Adicionado
 
 - **M5 tools de memória (D-MT1–D-MT5)**: `recall_memory` / `remember`
@@ -579,7 +581,8 @@ Primeira release pública: um port idiomático do núcleo do framework CrewAI pa
   chamadas entre agentes em tempo de execução), sem streaming, memória apenas em
   processo, sem function calling nativo. Veja `Plan/PLAN.md` para o roadmap completo.
 
-[Unreleased]: https://github.com/rhgs/crewai-go/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/rhgs/crewai-go/compare/v1.0.0...HEAD
+[v1.0.0]: https://github.com/rhgs/crewai-go/compare/v0.9.0...v1.0.0
 [v0.9.0]: https://github.com/rhgs/crewai-go/compare/v0.8.0...v0.9.0
 [v0.8.0]: https://github.com/rhgs/crewai-go/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/rhgs/crewai-go/compare/v0.6.0...v0.7.0
